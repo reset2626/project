@@ -1,0 +1,1127 @@
+ 
+Contents lists available at ScienceDirect
+Engineering Applications of Artificial Intelligence
+journal homepage: www.elsevier.com/locate/engappai  
+Research paper
+A dual-branch multi-scale encoding and fusion model for multivariate time 
+series forecasting
+Jiachao Li a, Mengxiao Yin a,b,∗, Junyuan Huang a, Tao Luo a
+a School of Computer, Electronics and Information, Guangxi University, No. 100 Daxue Road, Xixiangtang District, Nanning, 530004, Guangxi, China
+b Guangxi Key Laboratory of Multimedia Communications and Network Technology, Nanning, 530004, China
+A R T I C L E  I N F O
+Dataset link: https://github.com/kwuking/Tim
+eMixer
+Keywords:
+Time series forecasting
+Transformer neural network
+Multilayer perceptron
+Multi-scale feature
+Multi-scale fusion
+Deep learning
+ A B S T R A C T
+Multivariate time series forecasting is crucial across various critical domains, including weather prediction, 
+finance, traffic management, and industrial manufacturing. While deep learning models based on the Trans-
+former Neural Network (Transformer) and Multilayer Perceptron (MLP) have recently shown remarkable 
+performance, they often suffer from structural uniformity and fixed-scale designs. These limitations hinder 
+their ability to fully capture the complex, dynamic, and multi-scale nature of real-world time series data. To 
+overcome these limitations, this paper introduces a novel deep learning architecture: the Dual-Branch Multi-
+Scale Transformer-MLP (DBMS). The DBMS effectively integrates the Transformer’s capability of modeling 
+long-range dependencies and global dynamics with the MLP’s advantage in capturing local patterns and 
+short-term fluctuations. Specifically, the model incorporates a coarse-to-fine multi-scale design to perform 
+hierarchical feature extraction across multiple temporal resolutions, facilitating more structured temporal 
+modeling that captures both global trends and local variations. Furthermore, the proposed dynamic multi-
+scale fusion mechanism ensures collaborative perception and robust representation of temporal patterns across 
+different scales. Extensive experiments on eight real-world datasets demonstrate that DBMS significantly 
+outperforms existing models based solely on Transformer or MLP, achieving state-of-the-art performance with 
+superior robustness and stability.
+1. Introduction
+Long-term time series forecasting (LTSF) plays a critical role in vari-
+ous domains, including weather prediction (Lam et al., 2023), financial 
+analysis (Zeng et al., 2023b), traffic scheduling (Xu et al., 2020), and 
+industrial monitoring (Zamanzadeh Darban et al., 2024). However, 
+real-world time series often exhibit strong non-stationarity (Liu et al., 
+2022b), periodicity, and multi-scale dynamics, which make it challeng-
+ing to model complex dependencies. In recent years, Transformer-based 
+architectures have achieved remarkable progress in LTSF due to their 
+ability to capture long-range dependencies (Liu et al., 2023; Zhang 
+and Yan, 2023; Wang et al., 2025), while MLP-based methods have 
+gained increasing attention for their efficiency and structural simplic-
+ity (Zeng et al., 2023a). Nevertheless, most existing approaches rely 
+on a single architecture or fixed-scale design, limiting their ability to 
+simultaneously capture both global and local temporal patterns.
+Early studies such as Informer (Zhou et al., 2021), Autoformer (Wu 
+et al., 2021), and FEDformer (Zhou et al., 2022) employed complete 
+Transformer encoder–decoder structures, mainly enhancing prediction 
+∗ Corresponding author at: School of Computer, Electronics and Information, Guangxi University, No. 100 Daxue Road, Xixiangtang District, Nanning, 530004, 
+Guangxi, China.
+E-mail address: ymx@gxu.edu.cn (M. Yin).
+accuracy by improving attention mechanisms. However, these mod-
+els often suffer from high complexity and insufficient modeling of 
+short-term dynamics. Subsequently, models like PatchTST (Nie et al., 
+2022) and TimeXer (Wang et al., 2024b) streamlined Transformer 
+structures, achieving reduced computational overhead while maintain-
+ing competitive forecasting accuracy. Meanwhile, inspired by the suc-
+cess of MLP-Mixer (Tolstikhin et al., 2021) in vision tasks, models 
+such as TSMixer (Chen et al., 2023) and TimeMixer (Wang et al., 
+2024a) introduced mixing operations along temporal and channel di-
+mensions, demonstrating efficiency and stability advantages. Nonethe-
+less, a pure MLP-based architecture still struggles to adequately capture 
+the complex temporal dependencies inherent in real-world data.
+In practical time series, diverse temporal patterns coexist, includ-
+ing short-term fluctuations, long-term trends (Wu et al., 2021), and 
+multiple periodicities. These patterns are distributed across different 
+temporal scales, each preserving unique semantic information. How-
+ever, many existing models are restricted to single-scale modeling (Nie 
+et al., 2022; Kim et al., 2024), which limits their ability to represent 
+https://doi.org/10.1016/j.engappai.2025.113610
+Received 28 July 2025; Received in revised form 26 November 2025; Accepted 17 December 2025
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+Available online 26 December 2025 
+0952-1976/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+J. Li et al.
+Fig. 1. Downsampling and future prediction results for multi-scale time series. The original sequence on the left and two layers of downsampling at different 
+scales, with colored annotations used to highlight key time segments. The right side shows the future 96-step prediction curve based on historical data.
+diverse temporal structures. Although recent research has attempted to 
+introduce multi-scale mechanisms to improve performance (Naghashi 
+et al., 2025; Liu et al., 2022a), such approaches often rely on static 
+fusion strategies without adaptive weighting, making them less effec-
+tive in handling complex and dynamic real-world scenarios. Therefore, 
+designing mechanisms that can dynamically balance the contributions 
+of different scales remains a key challenge for multi-scale forecasting 
+methods.
+In summary, existing Transformer-only, MLP-only, and static multi-
+scale approaches all suffer from inherent limitations. To address these 
+issues, this paper proposes a Dual-Branch Multi-Scale Transformer-MLP 
+(DBMS) for long-term time series forecasting. The model combines a 
+Transformer-based encoder module (HierFormer) and an MLP-based 
+module (HierMLP), enabling both global modeling capacity and com-
+putational efficiency. Furthermore, a learnable fusion module (HierFu-
+sion) adaptively integrates cross-branch features, while multi-scale pro-
+cessing is introduced at critical stages to capture both short-term vari-
+ations and long-term trends. As illustrated in Fig.  1, the model extracts 
+and fuses hierarchical temporal features from different time resolutions, 
+thereby improving both forecasting accuracy and robustness.
+The main contributions of this work are as follows:
+• We propose a dual-branch architecture that combines a multi-
+scale Transformer encoder and a multi-scale MLP, enabling the 
+model to simultaneously capture long-term trends and short-term 
+fluctuations.
+• We design a fusion module, named HierFusion, based on learnable 
+weights to efficiently integrate multi-scale and decomposed com-
+ponents, addressing the limitations of traditional fusion methods 
+in modeling complex time series.
+• Experimental results on eight real-world datasets demonstrate 
+that DBMS outperforms existing mainstream methods in terms of 
+both prediction accuracy and robustness. Ablation studies further 
+validate the effectiveness of the proposed model design.
+2. Related works
+Time Series Forecasting. Traditional statistical models such as 
+ETS (Hyndman and Khandakar, 2008; Li et al., 2022), ARMA (Box 
+and Jenkins, 1976), and ARIMA (Hyndman and Athanasopoulos, 2018) 
+have long served as baselines for time series forecasting. However, 
+these methods are based on linear assumptions and perform poorly 
+when handling complex real-world data. With the advancement of deep 
+learning, methods based on RNN and GNN (Li et al., 2023; Wu et al., 
+2020; Miao et al., 2024; Chung et al., 2014; Kieu et al., 2022) were 
+proposed to model sequential dependencies, but their limited receptive 
+fields restrict their effectiveness for long-term forecasting.
+More recently, Transformer-based approaches have achieved re-
+markable success due to their ability to capture long-range depen-
+dencies. Informer (Zhou et al., 2021), Autoformer (Wu et al., 2021), 
+and FEDformer (Zhou et al., 2022) improved forecasting performance 
+by enhancing attention mechanisms or incorporating decomposition 
+techniques. Crossformer (Zhang and Yan, 2023) and iTransformer (Liu 
+et al., 2023) further modeled cross-variable interactions, while
+PatchTST (Nie et al., 2022) introduced patching strategies inspired 
+by Vision Transformers (Dosovitskiy et al., 2020). Despite their high 
+accuracy, these models often suffer from substantial computational 
+complexity and limited efficiency.
+In parallel, a line of research has demonstrated that simpler MLP-
+based methods can also achieve competitive or even superior results. 
+DLinear (Zeng et al., 2023a) revealed the surprising effectiveness of 
+linear structures. Inspired by the MLP-Mixer (Tolstikhin et al., 2021), 
+TSMixer (Chen et al., 2023) and TimeMixer (Wang et al., 2024a) 
+employed temporal and channel mixing operations or decomposition-
+enhanced MLPs, showing advantages in both stability and efficiency. 
+Nevertheless, purely MLP-based models still face challenges in captur-
+ing complex global dependencies. Other recent studies have explored 
+novel paradigms, such as knowledge aggregation in Transformer-based 
+time series models (Xiao et al., 2025) and trajectory encoding augmen-
+tation for robust reinforcement learning (Ormancı et al., 2024).
+Multi-scale Feature Modeling of Time Series. Multi-scale feature 
+extraction has been extensively studied in vision and multimodal learn-
+ing (Wang et al., 2021, 2023), and several recent works have extended 
+this idea to time series forecasting. Pyraformer (Liu et al., 2022a) 
+introduced pyramid attention for multi-scale temporal features, while 
+Scaleformer (Shabani et al., 2022) allocated models across different 
+resolutions. Pathformer (Chen et al., 2024) designed adaptive paths to 
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+2 
+J. Li et al.
+Table 1
+Glossary of abbreviations used in this paper.
+ Abbreviation Full English name Detailed description  
+ LSTF Long-term Time Series Forecasting Predicting future values over extended horizons, the primary task addressed in this study.  
+ DBMS Dual-Branch Multi-Scale Transformer-MLP The proposed model that integrates Transformer and MLP branches within a multi-scale dual-branch framework. 
+ FSTD Fourier Seasonal-Trend Decomposition A frequency-domain method that decomposes sequences into seasonal and trend components.  
+ HierFormer Hierarchical Transformer The Transformer branch designed to capture global and long-term dependencies.  
+ HierMLP Hierarchical MLP The MLP branch specialized for modeling local patterns and short-term dynamics.  
+ HierFusion Hierarchical Fusion A learnable module that adaptively integrates the multi-scale outputs of both branches.  
+capture hierarchical dynamics. Although these approaches are effective 
+to some extent, they typically rely on static or pre-defined fusion 
+strategies, which limits their adaptability to diverse temporal patterns.
+In contrast, our work introduces a dual-branch multi-scale frame-
+work that integrates Transformer encoders and MLPs, thereby lever-
+aging their complementary strengths. Unlike existing methods that 
+rely solely on a single architecture or static multi-scale strategies, 
+our approach incorporates a learnable dynamic fusion mechanism to 
+adaptively balance multi-scale representations. This design enables the 
+model to more effectively capture both global dependencies and local 
+fluctuations, providing enhanced accuracy and robustness for long-term 
+time series forecasting.
+3. Proposed method
+In multivariate time series forecasting, the goal is to predict the 
+future sequence based on historical observations. Given a historical 
+series of length 𝐿, denoted as 𝑋(𝐿) = ( 𝑥1, 𝑥2, … , 𝑥𝐿) with 𝑥𝑖 ∈ R1×𝑀 , 
+the task is to forecast the next 𝑇 steps 𝑋(𝑇 ) = ( 𝑥𝐿+1, 𝑥𝐿+2, … , 𝑥𝐿+𝑇 ) ∈
+R𝑇 ×𝑀 . Here 𝑀 denotes the number of variables, and thus the input 
+and output can be represented as 𝑋(𝐿) ∈ R𝐿×𝑀 and 𝑋(𝑇 ) ∈ R𝑇 ×𝑀 , 
+respectively.
+We summarize the main abbreviations used in this paper in Table 
+1, which also outline the core components of our framework.
+3.1. Model architecture
+The overall architecture of DBMS is illustrated in Fig.  2. The model 
+is designed around three complementary principles: dual-branch pro-
+cessing, hierarchical multi-scale representation, and adaptive fusion.
+First, dual-branch design. To address the coexistence of long-
+term trends and short-term fluctuations in real-world time series, 
+DBMS employs two heterogeneous branches. The first branch applies 
+a Fourier-based seasonal-trend decomposition to explicitly separate 
+trend and seasonal components. These are then encoded by the Hi-
+erarchical Transformer module, which stacks Transformer encoders 
+at multiple scales to capture long-range dependencies and periodic 
+structures (Vaswani et al., 2017; Nie et al., 2022; Wu et al., 2021; Zhou 
+et al., 2021). The second branch, in contrast, processes the raw input 
+directly through the Hierarchical MLP module, a hierarchical MLP with 
+residual linear blocks. This design leverages the efficiency and strong 
+generalization ability of MLPs to capture local patterns and nonlinear 
+variations, without requiring explicit decomposition (Tolstikhin et al., 
+2021; Chen et al., 2023; Wang et al., 2024a; Wu et al., 2022). Such 
+complementary inductive biases — global modeling by Transformers 
+and local modeling by MLPs — ensure that DBMS is not restricted by 
+the assumptions of a single paradigm.
+Second, multi-scale representation. Before branch processing, the 
+input sequence undergoes hierarchical downsampling to generate mul-
+tiple temporal resolutions. Subsequently, each resolution sequence un-
+dergoes multiscale processing within different branches, with each 
+scale preserving unique semantic information (such as fine fluctuations 
+or long-term periodicity) while reducing computational load on high-
+capacity modules. For sequences of length 𝑇 , subsampling by a factor of 
+𝑠 reduces attention costs from 𝑂(𝑇 2) to 𝑂((𝑇 ∕𝑠)2), enabling manageable 
+long-term predictions without sacrificing representational richness.
+Finally, adaptive fusion. Outputs from both branches and across 
+scales are integrated through the Hierarchical Fusion module. Un-
+like static or handcrafted fusion strategies, HierFusion employs learn-
+able softmax-normalized weights to generate convex combinations of 
+branch- and scale-specific outputs: 
+̂ 𝑦=
+𝐿∑
+𝑖=0
+𝛾𝑖 ̂ 𝑦𝑖,
+𝐿∑
+𝑖=0
+𝛾𝑖 = 1, 𝛾 𝑖 ≥ 0. (1)
+This formulation guarantees numerical stability, interpretability, and 
+data-driven adaptivity: the fused output is bounded by its components, 
+gradient magnitudes are controlled, and the model can dynamically 
+reallocate importance across branches and scales according to the 
+dataset and prediction horizon.
+In summary, DBMS combines (i) the complementary strengths of 
+Transformers and MLPs, (ii) the representational advantages of hier-
+archical multi-scale processing, and (iii) the stability and flexibility 
+of adaptive convex fusion. These principled design choices provide 
+both theoretical justification and practical robustness, which are further 
+validated through extensive experiments in Section 4.
+3.2. Downsampling
+Average pooling not only has inherent low-pass filtering properties, 
+effectively suppressing local high-frequency noise while preserving 
+long-term trend information, but it also introduces no learnable pa-
+rameters, resulting in stable training. Time series often exhibit distinct 
+structural characteristics at different temporal resolutions: finer scales 
+reveal local patterns and rapid fluctuations, whereas coarser scales are 
+more suitable for capturing long-term trends and global dynamics. To 
+enable the model to perceive and leverage multi-granularity informa-
+tion, we apply average downsampling to the original sequence. Let 
+the original sequence be denoted as 𝑋(0) = (𝑥1, 𝑥2, … , 𝑥𝐿−1, 𝑥𝐿), where 
+𝑥𝑙 ∈ R𝐶 and 𝐶 represents the number of variables. For the 𝑚th layer 
+(𝑚 ∈ 1 , 2, … , 𝑀), where 𝑀 is the total number of subsampling layers, 
+let the downsampling window size be 𝑠. Then, the output sequence of 
+the 𝑚th layer is: 
+𝑋(𝑚) =
+(
+𝑦(𝑚)
+1 , 𝑦(𝑚)
+2 , … , 𝑦(𝑚)
+𝑁𝑙
+)
+, 𝑦 (𝑚)
+𝑗 = 1
+𝑠
+𝑠∑
+𝑘=1
+𝑥(𝑚−1)
+(𝑗−1)𝑠+𝑘 (2)
+Here, 𝑥(𝑚−1)
+𝑖  denotes the 𝑖th time step in the downsampling results of 
+the (𝑚−1)th layer, 𝑁𝑚 =
+⌊ 𝑁𝑚−1−𝑠
+𝑠
+⌋
++1, and 𝑁0 = 𝐿. Recursively applying 
+this process yields the input sequence set 𝑋all = (𝑋(0), … , 𝑋(𝑀)), where 
+𝑋(𝑚) ∈ R
+(⌊ 𝐿−1
+𝑠𝑚
+⌋
++1
+)
+×𝐶
+.
+3.3. Fourier seasonal-trend decomposition
+To more effectively separate the long-term trend and seasonal com-
+ponents in time series, we propose a frequency-domain decomposi-
+tion module based on the Fourier transform. This module applies 
+a low-pass filter in the frequency domain to retain low-frequency 
+components for trend extraction, while treating the remaining high-
+frequency components as seasonal factors. Compared to the moving 
+average decomposition used in models such as Autoformer (Wu et al., 
+2021) and FEDformer (Zhou et al., 2022), our method provides clearer 
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+3 
+J. Li et al.
+Fig. 2. The overall architecture of the DBMS consists of multi-scale HierFormer and HierMLP, which act on different branches and are subsequently combined 
+through HierFusion.
+frequency interpretability and better selectivity, enabling more precise 
+differentiation between trend and seasonal components.
+First, we apply a one-dimensional discrete Fourier transform to 
+obtain the complex spectrum: ̂𝑋 =  [𝑋], where 𝑋 represents the 
+original time-domain data and ̂𝑋 denotes the corresponding frequency-
+domain representation. Subsequently, the low-frequency components 
+are retained to construct the trend component: 
+̂𝑋trend [𝑓 ] =
+{ ̂𝑋[𝑓 ], 𝑓 < 𝜌𝐿  or 𝑓 > 𝑇 − 𝜌𝐿
+0,  otherwise (3)
+where 𝑓 denotes the frequency index, 𝜌 is the low-pass cutoff ratio 
+hyperparameter (referred to as cutoff_ratio in the code), and 𝐿 is the 
+length of the time series.
+Next, the trend component is reconstructed via the inverse Fourier 
+transform and subtracted from the original series to obtain the seasonal 
+component: 
+𝑋trend = Re (  −1 [ ̂𝑋trend 
+])
+𝑋season = 𝑋 − 𝑋trend 
+(4)
+where Re denotes taking only the real part of the complex-valued 
+signal.
+3.4. Hierarchical transformer
+HierFormer comprises a reversible normalization layer, a stacked 
+multi-scale Transformer encoder, and a linear layer for preliminary fea-
+ture fusion. Specifically, we adopt Reversible Normalization (RevIN), 
+which applies learnable affine transformations for normalization. RevIN 
+has been shown to be effective in mitigating distribution shift in time 
+series data (e.g., time-varying mean and variance) (Kim et al., 2021).
+Assume the input data 𝑋 ∈ R𝐿×𝐶 , and define the multi-scale 
+parameter set as 𝑆 = {( 𝑝𝑖, 𝑠𝑖
+)} 𝐾
+𝑖=1, where 𝑝𝑖 is the slice length, 𝑠𝑖
+is the stride size, and 𝐾 is the number of scales. For a given scale 
+parameter set, the input sequence can be partitioned into patch data: 
+𝑋𝑖
+patch = PatchExtract ( 𝑋; 𝑝𝑖, 𝑠𝑖
+) ∈ R𝐶×𝑁𝑖×𝑝𝑖 , 𝑖 ∈ {1 , 2, … , 𝐾} and 
+𝑁𝑖 =
+⌊ 𝐿−𝑝𝑖
+𝑠𝑖
+⌋
++ 2 . Next, feature extraction is performed sequentially 
+using a multi-head attention encoder. First, each 𝑋𝑖
+patch is projected to 
+a 𝑑-dimensional feature space 𝑍𝑖 =
+(
+Linear
+(
+𝑋𝑖
+patch
+)
++ 𝐸𝑖
+)
+∈ R𝐶×𝑁𝑖×𝑑 , 
+where 𝐸𝑖 denotes the learnable positional encoding for the correspond-
+ing scale. The patch features at each scale are then processed by an 
+𝐿-layer Transformer encoder:
+(𝑖,ℎ)
+𝑙 = Attention
+(
+𝑄(𝑖,ℎ)
+𝑙 , 𝐾(𝑖,ℎ)
+𝑙 , 𝑉 (𝑖,ℎ)
+𝑙
+)
+= sof tmax
+⎛
+⎜
+⎜⎝
+𝑄(𝑖,ℎ)
+𝑙 𝐾 (𝑖,ℎ)
+𝑙
+T
+√
+𝑑𝑘
+⎞
+⎟
+⎟⎠
+𝑉 (𝑖,ℎ)
+𝑙 (5)
+where 𝑄(𝑖,ℎ)
+𝑙 = 𝑍𝑖𝑊 𝑄
+𝑙,ℎ, similarly, 𝐾 (𝑖,ℎ)
+𝑙  and 𝑉 (𝑖,ℎ)
+𝑙  are computed using 
+the projection matrices 𝑊 𝐾
+(𝑙,ℎ) and 𝑊 𝑉
+(𝑙,ℎ), respectively. Here, 𝑊 𝑄
+(𝑙,ℎ), 𝑊 𝐾
+(𝑙,ℎ)
+and 𝑊 𝑉
+(𝑙,ℎ) are the projection matrices for each attention head. The 
+output of the 𝑖th scale at the 𝑙th layer is denoted as (𝑖)
+𝑙 . Subsequently, 
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+4 
+J. Li et al.
+the output is reshaped by an Flatten layer and a linear projection layer 
+to match the required format for the following operations: 
+𝑌 𝑖 = Linear ( Flatten( (𝑖)
+𝐿 )) ∈ R𝐶×𝑇𝑚 (6)
+where 𝑌 𝑖 is the output corresponding to the scale combination, and 𝑇𝑚
+represents the predicted length corresponding to the downsampling.
+Finally, the predicted outputs from all scales are concatenated along 
+the temporal dimension: 
+𝑌concat = Linear ( Concat(𝑌 1, 𝑌 2, … , 𝑌 𝐾 )) ∈ R𝐶×𝑇𝑚 (7)
+where 𝐾 denotes the number of scales, and 𝑌concat represents the final 
+output of the module.
+In this framework, two HierFormer modules are employed to pro-
+cess the seasonal and trend components separately. Specifically, one 
+HierFormer module produces the seasonal forecast 𝑌 season
+concat , while the 
+other generates the trend forecast 𝑌 trend
+concat .
+3.5. Hierarchical MLP
+Unlike the HierFormer module, HierMLP does not employ seasonal-
+trend decomposition. Instead, it adopts two serial linear flows for 
+feature extraction and incorporates reversible normalization. Similarly 
+to the HierFormer module, the input sequence is partitioned into 
+multiple slices, denoted as 𝑋𝑖
+patch ∈ R𝐶×𝑁𝑖×𝑝𝑖 .
+First, 𝑋𝑖
+patch undergoes two-dimensional batch normalization and 
+projection: 
+𝑍𝑖 = Projection(BatchNorm2d( 𝑋𝑖
+patch)) ∈ R𝐶×𝑁𝑖×𝑑 (8)
+which prepares the input for subsequent linear flow operations. For 
+clarity, the 𝑃 𝑎𝑡𝑐ℎ𝑀𝐿𝑃 (𝑍) operation is equivalent to: 𝐿𝑖𝑛𝑒𝑎𝑟
+(𝐺𝐿𝑈 𝐸 (𝐿𝑖𝑛𝑒𝑎𝑟 (𝑍))). The linear flow operation is as follows:
+𝑍1
+𝑖 = PatchMLP( 𝑍𝑖) ∈ R𝐶×𝑑×𝑁𝑖
+𝑍2
+𝑖 = Transpose(BatchNorm2d( 𝑍1
+𝑖 )) ∈ R𝐶×𝑁𝑖×𝑑 (9)
+𝑂𝑖 = PatchMLP( 𝑍2
+𝑖 ) + 𝑍2
+𝑖
+Among these, 𝑂𝑖 ∈ R𝐶×𝑁𝑖×𝑑 denotes the output of the linear flow at 
+the current stage. The first PatchMLP performs information extraction 
+based on the number of slices, followed by batch normalization and 
+dimensional transformation. The second PatchMLP extracts information 
+according to the length of the slices. Together, these two PatchMLP 
+modules operate collaboratively to extract slice sequence representa-
+tions in a more comprehensive and efficient manner. Subsequently, 
+the output data are reshaped and projected through a flatten layer 
+and a linear projection layer to obtain features suitable for subsequent 
+processing: 
+𝑌 𝑖 = Linear ( Flatten ( 𝑂𝑖
+)) ∈ R𝐶×𝑇𝑖 , 𝑖 ∈ {1, 2, … , 𝐾} (10)
+where 𝑌 𝑖 is the output at the corresponding scale, 𝑇𝑖 represents the pre-
+dicted length after downsampling, C denotes the number of variables 
+and K is the number of scales.
+Finally, the predicted outputs of all scales are concatenated along 
+the time dimension: 
+𝑌concat = Linear ( Concat ( 𝑌 1, 𝑌 2, … , 𝑌 𝐾 )) ∈ R𝐶×𝑇𝑖 (11)
+where 𝑌𝑐𝑜𝑛𝑐𝑎𝑡 is the final prediction result of the HierMLP module.
+3.6. Hierarchical fusion
+The HierFormer module demonstrates strong global modeling ca-
+pability and effectively captures long-range temporal dependencies but 
+is less sensitive to local variations. In contrast, the HierMLP module 
+focuses on local feature extraction, making it suitable for modeling 
+detailed fluctuations and short-term patterns, though it lacks the ability 
+to capture long-term dependencies. These two modules complement 
+each other in sequence feature extraction, enhancing the model’s repre-
+sentational capacity and forecasting performance. The proposed model 
+achieves a concise and efficient integration of these two components.
+Instead of using the conventional direct addition approach, we 
+adopt a learnable weighted fusion strategy to integrate the trend and 
+seasonal components predicted by the HierFormer module with the 
+output of the HierMLP module. The specific fusion process is illustrated 
+as follows: 
+𝑂𝑖 = 𝛼1 ⋅ 𝑇 𝑖 + 𝛼2 ⋅ 𝑆𝑖 + 𝛼3 ⋅ 𝑃 𝑖, 𝑖 ∈ {0, … , 𝑀} (12)
+where M denotes the number of downsampling layers, 𝑇 𝑖 and 𝑆𝑖 repre-
+sent the trend and seasonal factors output by the HierFormer module, 
+respectively, while 𝑃 𝑖 represents the output of the HierMLP module, 
+𝑂𝑖 denotes the output at the 𝑖th downsampling scale. The weights [ 𝛼1, 𝛼2, 𝛼3
+]  are learnable fusion parameters generated by the following 
+Softmax function: 
+[ 𝛼1, 𝛼2, 𝛼3
+] = 𝑆𝑜𝑓 𝑡𝑚𝑎𝑥 (𝑤) , 𝑤 ∈ R3 (13)
+The final downsampling fusion does not adopt conventional fusion 
+methods such as simple addition or concatenation followed by av-
+eraging. Instead, it also employs a learnable parameter-based fusion 
+strategy. The final prediction is given by the following. 
+𝑌 =
+𝐿∑
+𝑖=0
+𝛽𝑖 ⋅ 𝑂𝑖, [𝛽0, … , 𝛽𝑀 ] = Softmax(𝛾) (14)
+where 𝛾 ∈ R𝑀+1 is a learnable parameter, M denotes the number of 
+downsampling layers, and Y represents the final prediction output of 
+the model.
+3.7. Algorithm overview
+In summary, this section details the core components of the DBMS 
+model. To present the overall workflow, Algorithm 1 outlines the 
+complete process from forward propagation to final prediction, which 
+comprises three main stages: multi-scale slice generation, dual-branch 
+feature extraction with dynamic fusion, and multi-scale prediction 
+aggregation.
+4. Experiments
+4.1. Data
+We evaluated the proposed model on eight widely used benchmark 
+datasets, including four ETT datasets (ETTh1, ETTh2, ETTm1, ETTm2) 
+and the Electricity, Traffic, Weather, and Solar datasets. All datasets 
+are publicly available and commonly used in time series forecasting 
+research. We followed the same training, validation, and test splits as 
+in Wang et al. (2024a). For the ETT datasets, the ratio is 0.6:0.2:0.2, 
+while for the Weather, Electricity, Traffic, and Solar datasets, it is 
+0.7:0.1:0.2. Additionally, we employed sample entropy (Richman and 
+Moorman, 2000) to assess the predictability of each dataset. Sample 
+entropy quantifies the irregularity or complexity of a time series, where 
+higher values indicate greater randomness and lower predictability, 
+and lower values correspond to more regular and predictable pat-
+terns. Based on this metric, the Electricity and Traffic datasets exhibit 
+relatively low predictability, whereas the Weather and Solar datasets 
+are comparatively more regular. Table  2 presents detailed statistical 
+information for all datasets used in our experiments.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+5 
+J. Li et al.
+Algorithm 1: DBMS - Overall Architecture.
+Input: Input sequence 𝑋 ∈ R𝐵×𝑇 ×𝐶 ; Sequence length 𝑇 ; Prediction 
+length 𝑆; Number of variates 𝐶; Downsampling layers 𝐿; 
+Downsampling window 𝑊
+Output: Prediction result ̂𝑌 ∈ R𝐵×𝑆×𝐶
+Multi-scale Input Processing:
+1 𝑋multi = MultiScaleDownSample(𝑋, 𝑊 ) ⊳ Generate multi-scale 
+inputs
+Multi-scale Feature Extraction:
+2 for 𝑖 = 0 to 𝐿 do
+3 𝑋𝑖 = 𝑋multi[𝑖] ⊳ Get input at scale 𝑖
+4 trend𝑖, season𝑖 = SeasonTrendLayer(𝑋𝑖) ⊳ Decomposition and 
+Encoder
+5 mixer𝑖 = MLPLayer(𝑋𝑖) ⊳ MLP feature extraction
+6 weights = Softmax(learnable_weights)
+7 out𝑖 = weights[0] ⋅ trend𝑖 + weights[1] ⋅ season𝑖 + weights[2] ⋅ mixer𝑖
+end 
+Multi-scale Prediction Fusion:
+8 for 𝑖 = 0 to 𝐿 do
+9 ̂𝑌𝑖 = PredictLayer𝑖(out𝑖) ⊳ Align to target length
+end 
+10 if 𝐿 ≥ 1 then
+11 𝛾 = Softmax(gamma_params)
+12 ̂𝑌 = ∑𝐿
+𝑖=0 𝛾[𝑖] ⋅ ̂𝑌𝑖 ⊳ Weighted fusion
+13 else
+14 ̂𝑌 = ̂𝑌0 ⊳ Single scale output
+end 
+15 return ̂𝑌
+4.2. Baseline
+We selected several state-of-the-art models for long-term time series 
+forecasting to compare with our proposed approach, including Auto-
+former (Wu et al., 2021), FEDformer (Zhou et al., 2022), TimesNet (Wu 
+et al., 2022), DLinear (Zeng et al., 2023a), PatchTST (Nie et al., 2022), 
+iTransformer (Liu et al., 2023), TimeMixer (Wang et al., 2024a), and 
+Time-XL (Liu et al., 2024). These models serve as baselines in our ex-
+periments. Some are based on Transformer architectures, while others 
+are built upon MLP frameworks, enabling our experiments to clearly 
+demonstrate the practical effectiveness of the dual-branch architecture 
+proposed in this study. Following standard evaluation protocols in the 
+literature, we employ two widely used metrics, mean squared error 
+(MSE) and mean absolute error (MAE), to quantitatively assess model 
+performance. In addition, motivated by recent studies, we report RMSE 
+and RC, and further introduce a composite Time-Series Predictability 
+Index (TSPI). TSPI integrates key evaluation components from Zarchi 
+et al. (2025) to reflect both prediction accuracy and temporal pattern 
+consistency. The detailed computation procedure and complete results 
+are provided in Appendix D.
+4.3. Setup
+All experiments were implemented in PyTorch (Paszke et al., 2019) 
+and conducted on NVIDIA Tesla V100 (32 GB) and Tesla T4 (16 GB) 
+GPUs, with the random seed fixed at 2021 to ensure reproducibility. 
+The lookback window for all models was consistently set to 512. All 
+models were trained using the AdamW optimizer (Loshchilov et al., 
+2017) with the SmoothL1Loss function. An early stopping strategy was 
+employed to prevent overfitting. Specifically, when the validation loss 
+failed to decrease for consecutive epochs, training was terminated. The 
+patience parameter was set to 12, indicating that training stopped if the 
+validation loss did not improve for 12 successive epochs. Additionally, 
+whenever the validation loss decreased, the current model parameters 
+were saved for final evaluation.
+4.4. Multivariate long-term forecasting results
+The results of multivariate long-term time series forecasting are 
+presented in Table  3. DBMS significantly outperforms existing main-
+stream models in most benchmark evaluations and achieves either the 
+best or second-best prediction results in the majority of scenarios. In 
+the overall comparison across all datasets, DBMS achieves an average 
+reduction of 4.7% (MSE) and 4.3% (MAE) compared to the second-best 
+model, Timer-XL, demonstrating strong robustness and generalization 
+capabilities across diverse forecasting tasks.
+This advantage is particularly evident on datasets with high pre-
+dictability (i.e., low sample entropy). For instance, on the Weather 
+dataset, DBMS reduces prediction errors by 7.1% (MSE) and 5.7% 
+(MAE) compared to the second-best model, PatchTST, and achieves 
+average reductions of 25.5% (MSE) and 21.9% (MAE) compared to the 
+remaining models. On the Solar dataset, DBMS also surpasses Timer-
+XL, reducing errors by 6.4% (MSE) and 8.8% (MAE), and shows an 
+average reduction of 16.4% (MSE) and 24.1% (MAE) relative to other 
+competing models.
+Even on challenging datasets with low predictability (i.e., high 
+sample entropy), DBMS continues to deliver competitive results. On 
+the ETTm1 dataset, it reduces error by 3.6% (MSE) and 3.1% (MAE) 
+compared to PatchTST, and achieves average improvements of 17.2% 
+(MSE) and 12.3% (MAE) compared to the other models. Similarly, on 
+the ETTm2 dataset, DBMS outperforms PatchTST by 3.1% (MSE) and 
+3.2% (MAE), while achieving average reductions of 22.7% (MSE) and 
+13.0% (MAE) over the remaining baselines.
+4.5. Ablation study
+To assess the contribution of each component, we conducted abla-
+tion studies on DBMS across eight benchmark datasets with prediction 
+lengths of {96, 192, 336, 720}. In each setting, all hyperparameters 
+were fixed while a specific module was removed: Ablation A represents 
+the full DBMS, B removes HierFormer, C removes HierMLP, D replaces 
+HierFusion with direct addition, E removes FSTD, and F substitutes the 
+multi-scale design with a single-scale variant. As shown in Table  4, 
+removing any module degrades prediction performance, with a more 
+pronounced decline at longer horizons (336 and 720). This indicates 
+that the synergistic interaction between the Transformer and MLP 
+branches, together with multi-scale decomposition and dynamic fusion, 
+is crucial for robust performance. At shorter horizons (96 and 192), 
+differences are minor, suggesting weaker dependence on individual 
+modules. Overall, the complete DBMS consistently achieves the best 
+results, validating the effectiveness of each component.
+4.6. Visualization
+To provide a more intuitive comparison of predictive performance 
+between our model and baseline methods, we visualize the forecast 
+results across different datasets and prediction lengths in Figs.  3–6.
+In Figs.  3 and 4, the top row corresponds to ETTh1 and ETTm1, 
+respectively, while the bottom row corresponds to ETTh2 and ETTm2. 
+The DBMS model delivers accurate forecasts while effectively preserv-
+ing the inherent volatility of the data. In contrast, although Timer-XL 
+partially retains volatility patterns, its prediction accuracy is inferior 
+(see Figs.  3(b) and 6(b)). PatchTST tends to produce overly pronounced 
+fluctuations (see Figs.  4(c) and 5(c)), whereas DLinear excessively 
+smooths the predictions, failing to capture the volatility of the original 
+sequences (see Figs.  5(d) and 6(d)).
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+6 
+J. Li et al.
+Table 2
+Statistical information on commonly used datasets for benchmarking.
+ Datasets Variates Timesteps Dataset size Forecastability Frequency 
+ ETTh1, ETTh2 7 17 420 (8033, 2785, 2785) 0.247, 0.309 Hourly  
+ ETTm1, ETTm2 7 69 680 (33 953, 11 425, 11 425) 0.104, 0.077 15 min  
+ Weather 21 52 696 (36 280, 5175, 10 444) 0.003 10 min  
+ Electricity 321 26 304 (17 805, 2537, 5165) 0.776 Hourly  
+ Solar 137 52 566 (36 185, 5161, 10 417) 0.051 10 min  
+ Traffic 862 17 544 (11 673, 1661, 3413) 0.592 Hourly  
+Table 3
+Multivariate long-term prediction results. Each dataset predicted four commonly used prediction lengths {96, 192, 336, 720}. The length of the lookback window 
+was uniformly set to 512. The best model is shown in red, and the second-best model is shown in blue with an underline. 1st Count indicates the number of 
+times it ranked first in the comparison.
+Models DBMS
+(ours)
+Timer-XL
+(2025)
+TimeMixer
+(2024)
+iTransformer
+(2024)
+PatchTST
+(2023)
+Dlinear
+(2023)
+TimesNet
+(2023)
+FEDformer
+(2022)
+Autoformer
+(2021)
+Metric MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE
+96 0.351 0.385 0.364 0.396 0.391 0.418 0.399 0.425 0.372 0.400 0.366 0.395 0.428 0.449 0.409 0.453 0.531 0.510
+192 0.389 0.410 0.404 0.423 0.422 0.438 0.426 0.442 0.413 0.429 0.402 0.420 0.490 0.489 0.450 0.475 0.535 0.521
+336 0.409 0.425 0.425 0.438 0.449 0.461 0.456 0.463 0.422 0.440 0.431 0.442 0.480 0.485 0.477 0.492 0.699 0.607
+ETTh1720 0.447 0.472 0.438 0.459 0.498 0.497 0.626 0.570 0.447 0.468 0.471 0.493 0.556 0.527 0.544 0.536 0.741 0.641
+Avg 0.399 0.423 0.408 0.429 0.440 0.454 0.477 0.475 0.414 0.434 0.418 0.438 0.489 0.488 0.470 0.489 0.627 0.570
+96 0.271 0.330 0.299 0.355 0.288 0.354 0.298 0.358 0.274 0.337 0.302 0.367 0.397 0.426 0.381 0.445 0.477 0.516
+192 0.342 0.377 0.364 0.400 0.350 0.391 0.376 0.405 0.341 0.382 0.394 0.426 0.401 0.432 0.393 0.441 0.682 0.613
+336 0.359 0.405 0.394 0.428 0.394 0.426 0.428 0.442 0.329 0.384 0.489 0.489 0.397 0.437 0.408 0.459 0.477 0.521
+ETTh2720 0.512 0.503 0.452 0.474 0.423 0.450 0.444 0.465 0.379 0.422 0.811 0.638 0.456 0.474 0.506 0.509 2.221 1.112
+Avg 0.371 0.404 0.377 0.414 0.364 0.405 0.387 0.418 0.331 0.381 0.499 0.480 0.413 0.442 0.422 0.464 0.964 0.691
+96 0.280 0.333 0.294 0.346 0.308 0.356 0.311 0.365 0.293 0.346 0.303 0.346 0.355 0.385 0.383 0.434 0.519 0.501
+192 0.320 0.357 0.350 0.378 0.361 0.388 0.347 0.385 0.333 0.370 0.335 0.366 0.398 0.414 0.401 0.443 0.556 0.509
+336 0.350 0.379 0.387 0.401 0.388 0.409 0.379 0.405 0.369 0.392 0.366 0.385 0.409 0.426 0.440 0.459 0.628 0.528
+ETTm1720 0.411 0.411 0.454 0.440 0.458 0.440 0.443 0.444 0.416 0.420 0.420 0.417 0.469 0.465 0.508 0.491 0.571 0.532
+Avg 0.340 0.370 0.371 0.391 0.379 0.398 0.370 0.400 0.353 0.382 0.356 0.379 0.408 0.423 0.433 0.457 0.569 0.518
+96 0.159 0.243 0.185 0.268 0.170 0.257 0.178 0.272 0.166 0.256 0.167 0.263 0.190 0.277 0.278 0.350 0.282 0.355
+192 0.215 0.283 0.246 0.309 0.230 0.299 0.241 0.315 0.223 0.296 0.225 0.305 0.261 0.326 0.303 0.364 0.309 0.371
+336 0.268 0.321 0.301 0.344 0.280 0.331 0.290 0.344 0.274 0.329 0.298 0.361 0.314 0.358 0.341 0.384 0.558 0.524
+ETTm2720 0.351 0.379 0.384 0.396 0.373 0.394 0.376 0.397 0.362 0.385 0.414 0.437 0.426 0.423 0.426 0.439 0.589 0.548
+Avg 0.248 0.307 0.279 0.329 0.263 0.320 0.271 0.332 0.256 0.317 0.276 0.342 0.298 0.346 0.337 0.384 0.435 0.450
+96 0.139 0.183 0.160 0.208 0.151 0.206 0.168 0.222 0.149 0.198 0.170 0.229 0.158 0.214 0.217 0.296 0.351 0.416
+192 0.179 0.226 0.214 0.255 0.195 0.243 0.213 0.256 0.194 0.241 0.214 0.271 0.224 0.271 0.276 0.336 0.397 0.445
+336 0.228 0.268 0.268 0.297 0.249 0.287 0.268 0.296 0.245 0.282 0.259 0.311 0.274 0.306 0.339 0.380 0.550 0.544
+Weather720 0.294 0.318 0.335 0.343 0.317 0.334 0.333 0.342 0.314 0.334 0.322 0.363 0.348 0.354 0.403 0.428 0.516 0.486
+Avg 0.210 0.249 0.244 0.276 0.228 0.268 0.246 0.279 0.226 0.264 0.241 0.294 0.251 0.286 0.309 0.360 0.454 0.473
+96 0.123 0.215 0.128 0.220 0.193 0.299 0.133 0.229 0.129 0.222 0.140 0.240 0.168 0.272 0.193 0.308 0.256 0.357
+192 0.142 0.234 0.147 0.237 0.627 0.562 0.158 0.258 0.149 0.240 0.154 0.254 0.184 0.289 0.201 0.315 0.291 0.376
+336 0.157 0.252 0.158 0.253 0.170 0.266 0.168 0.262 0.163 0.259 0.169 0.270 0.198 0.300 0.214 0.329 0.290 0.379
+Electricity
+720 0.183 0.278 0.194 0.285 0.231 0.323 0.205 0.294 0.197 0.290 0.203 0.303 0.220 0.320 0.246 0.355 0.320 0.403
+Avg 0.151 0.245 0.157 0.249 0.305 0.363 0.166 0.261 0.160 0.253 0.167 0.267 0.193 0.295 0.214 0.327 0.289 0.379
+96 0.360 0.243 0.340 0.238 0.462 0.285 0.356 0.259 0.360 0.249 0.411 0.294 0.593 0.321 0.587 0.366 0.675 0.412
+192 0.379 0.252 0.360 0.247 0.473 0.296 0.376 0.267 0.379 0.256 0.421 0.298 0.617 0.336 0.604 0.373 0.679 0.423
+336 0.390 0.259 0.377 0.256 0.498 0.296 0.391 0.275 0.392 0.264 0.431 0.304 0.629 0.336 0.621 0.383 0.688 0.440
+Traffic720 0.427 0.282 0.418 0.279 0.506 0.313 0.428 0.296 0.432 0.286 0.467 0.324 0.640 0.350 0.626 0.382 0.693 0.457
+Avg 0.389 0.259 0.374 0.255 0.485 0.298 0.388 0.274 0.391 0.264 0.433 0.305 0.620 0.336 0.610 0.376 0.684 0.433
+96 0.170 0.216 0.165 0.221 0.189 0.259 0.183 0.265 0.168 0.237 0.193 0.258 0.180 0.272 0.201 0.304 0.206 0.296
+192 0.183 0.224 0.189 0.239 0.222 0.283 0.205 0.283 0.189 0.257 0.214 0.274 0.199 0.286 0.237 0.337 0.254 0.328
+336 0.190 0.230 0.207 0.255 0.231 0.292 0.224 0.299 0.212 0.277 0.233 0.291 0.220 0.301 0.254 0.362 0.272 0.330
+Solar720 0.207 0.238 0.241 0.279 0.223 0.285 0.239 0.316 0.240 0.305 0.246 0.307 0.251 0.321 0.280 0.397 0.326 0.347
+Avg 0.188 0.227 0.201 0.249 0.216 0.280 0.213 0.291 0.202 0.269 0.222 0.283 0.213 0.295 0.243 0.350 0.265 0.325
+1st count 29 31 7 6 0 0 0 0 4 3 0 0 0 0 0 0 0 0
+4.7. Seasonal trend decomposition analysis
+To provide a more intuitive understanding of the performance 
+differences between the proposed FSTD-based seasonal-trend decom-
+position method and the conventional moving average approach, we 
+conducted a comparative ablation study, as shown in Fig.  7. While 
+the traditional moving average decomposition effectively smooths time 
+series, its ability to identify periodic components remains implicit and 
+highly sensitive to the choice of kernel size, limiting its capacity to 
+accurately extract distinct seasonal patterns. In contrast, the proposed 
+FSTD method, which employs a Fourier-based low-pass filter, enables 
+more precise and efficient separation of trend components at prede-
+fined frequencies and substantially enhances the model’s ability to 
+capture periodic structures. Notably, the performance gap between the 
+two methods becomes more pronounced at longer prediction horizons 
+(e.g., 336 and 720), where FSTD achieves clearer and more stable 
+extraction of seasonal trends, whereas the moving average approach 
+produces smoother but less distinct representations.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+7 
+J. Li et al.
+Table 4
+Under all eight datasets and various prediction lengths (96, 192, 336, 720), each module was gradually removed to 
+assess its impact on the performance of the DBMS model. Evaluation metrics included MSE and MAE, with the best 
+results highlighted in red.
+Case A B C D E F
+Metric MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE MSE MAE
+96 0.351 0.385 0.354 0.387 0.353 0.386 0.359 0.392 0.358 0.390 0.354 0.386
+192 0.389 0.410 0.393 0.411 0.396 0.415 0.399 0.416 0.397 0.418 0.393 0.412
+336 0.409 0.425 0.413 0.429 0.409 0.428 0.424 0.435 0.414 0.427 0.416 0.430
+ETTh1
+720 0.447 0.472 0.462 0.481 0.453 0.476 0.462 0.482 0.504 0.509 0.468 0.486
+96 0.271 0.330 0.275 0.331 0.274 0.332 0.274 0.336 0.275 0.334 0.275 0.332
+192 0.342 0.377 0.350 0.380 0.349 0.382 0.347 0.385 0.349 0.384 0.347 0.382
+336 0.359 0.405 0.365 0.402 0.363 0.401 0.373 0.413 0.361 0.406 0.366 0.412
+ETTh2
+720 0.512 0.503 0.535 0.507 0.493 0.493 0.497 0.492 0.564 0.522 0.532 0.507
+96 0.280 0.333 0.276 0.331 0.281 0.333 0.281 0.333 0.279 0.332 0.283 0.335
+192 0.320 0.357 0.322 0.359 0.322 0.358 0.323 0.360 0.323 0.360 0.324 0.359
+336 0.350 0.379 0.355 0.380 0.354 0.381 0.357 0.382 0.353 0.380 0.355 0.379
+ETTm1
+720 0.411 0.411 0.414 0.413 0.413 0.415 0.411 0.416 0.414 0.414 0.418 0.419
+96 0.159 0.243 0.160 0.243 0.160 0.242 0.159 0.243 0.159 0.243 0.161 0.246
+192 0.215 0.283 0.218 0.280 0.216 0.285 0.213 0.281 0.218 0.283 0.218 0.283
+336 0.268 0.321 0.271 0.322 0.272 0.326 0.268 0.321 0.271 0.321 0.278 0.324
+ETTm2
+720 0.351 0.379 0.354 0.383 0.354 0.374 0.352 0.380 0.354 0.382 0.367 0.390
+96 0.139 0.183 0.142 0.186 0.143 0.187 0.141 0.187 0.144 0.188 0.142 0.184
+192 0.179 0.226 0.181 0.225 0.185 0.229 0.183 0.231 0.181 0.227 0.184 0.226
+336 0.228 0.268 0.234 0.270 0.234 0.273 0.231 0.271 0.230 0.267 0.234 0.271
+Weather720 0.294 0.318 0.298 0.323 0.305 0.326 0.309 0.324 0.298 0.324 0.299 0.320
+96 0.123 0.215 0.125 0.218 0.131 0.224 0.126 0.217 0.123 0.215 0.124 0.216
+192 0.142 0.234 0.146 0.239 0.148 0.240 0.142 0.233 0.143 0.234 0.145 0.236
+336 0.157 0.252 0.158 0.253 0.162 0.256 0.160 0.255 0.157 0.251 0.161 0.251
+Electricity720 0.183 0.278 0.190 0.284 0.196 0.286 0.185 0.279 0.185 0.279 0.186 0.280
+96 0.360 0.243 0.363 0.244 0.366 0.250 0.360 0.242 0.361 0.242 0.361 0.246
+192 0.379 0.252 0.384 0.254 0.382 0.257 0.382 0.252 0.378 0.252 0.381 0.254
+336 0.390 0.259 0.396 0.259 0.392 0.264 0.398 0.260 0.397 0.261 0.398 0.264
+Traffic
+720 0.427 0.282 0.435 0.285 0.435 0.285 0.436 0.284 0.437 0.284 0.434 0.285
+96 0.170 0.216 0.185 0.244 0.178 0.214 0.169 0.211 0.164 0.210 0.175 0.215
+192 0.183 0.224 0.189 0.228 0.183 0.228 0.188 0.225 0.190 0.227 0.186 0.226
+336 0.190 0.230 0.191 0.234 0.194 0.233 0.194 0.232 0.193 0.232 0.196 0.234
+Solar
+720 0.207 0.238 0.211 0.243 0.209 0.239 0.214 0.241 0.210 0.240 0.216 0.243
+Fig. 3. Visualization of predict-96 results on the ETTh1 and ETTh2 datasets.
+4.8. Double-branch seasonal trend ablation experiment
+To validate the rationale for applying seasonal-trend decomposition 
+before the HierFormer module but not before the HierMLP module, we 
+conducted an ablation study, as shown in Fig.  8. Column A represents 
+the case where seasonal-trend decomposition is applied only before 
+the HierFormer module, whereas Column B applies it only before 
+the HierMLP module. Column C applies seasonal-trend decomposition 
+before both the HierFormer and HierMLP modules, while Column D 
+omits the decomposition entirely.
+The results support the structural design of our model. This may be 
+attributed to the fact that, although the HierFormer module can capture 
+complex dependencies, it is sensitive to interference when trend and 
+seasonal components are mixed in the original sequence, which can 
+reduce modeling efficiency. Applying seasonal-trend decomposition be-
+forehand disentangles these components, enabling HierFormer to focus 
+more effectively on long-term trends or cyclical seasonal information, 
+thereby improving stability and prediction accuracy. In contrast, the 
+HierMLP branch primarily captures local patterns within the input win-
+dow, concentrating on short-term structures. Given its limited capacity 
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+8 
+J. Li et al.
+Fig. 4. Visualization of predict-192 results on the ETTm1 and ETTm2 datasets.
+Fig. 5. Visualization of predict-336 results on the Weather dataset.
+Fig. 6. Visualization of predict-720 results on the Weather dataset.
+Fig. 7. Results of ablation experiments on seasonal trend decomposition method FSTD and moving average decomposition on ETTh2 and Weather datasets.
+for modeling long-range dependencies, pre-decomposing its input may 
+diminish its direct perception of the original fluctuation structure.
+4.9. Cutoff ratio analysis of low-pass filters
+We conducted an ablation study on the core hyperparameter cut-
+off_ratio in the seasonal-trend decomposition module of the full 
+DBMS model, as shown in Fig.  9. This parameter primarily governs 
+the cutoff threshold of the low-pass filter in the frequency domain, 
+determining the proportion of low-frequency components retained for 
+trend reconstruction, while the remaining high-frequency components 
+are treated as the seasonal component. Notably, on the ETTh1 dataset, 
+different cutoff_ratio settings lead to substantial variations in 
+prediction performance, whereas on the Weather dataset, the impact 
+is comparatively minor.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+9 
+J. Li et al.
+Fig. 8. Results of ablation experiments on the ETTh2 and Weather datasets regarding whether seasonal trend decomposition should be used for the double 
+branches.
+Fig. 9. Results of ablation experiments on the cutoff_ratio parameter in seasonal-trend decomposition on the ETTh1 and Weather datasets.
+We hypothesize that this difference arises because the ETTh1 dataset 
+contains a larger proportion of mid- to high-frequency variations and 
+more complex trend structures, which play a significant role in long-
+term forecasting. Consequently, fine-tuning the cutoff threshold of 
+the low-pass filter markedly affects the model’s ability to distinguish 
+and separate trend and seasonal information. In contrast, the Weather 
+dataset exhibits more stable behavior with weaker seasonal structures, 
+allowing the model to remain robust even when the trend-season sep-
+aration is not optimal. To further support this hypothesis, we provide 
+two sets of visualizations in Fig.  10: the top two plots display the FFT 
+spectra of the original time series, illustrating the energy distribution 
+across different frequency bands, while the bottom two plots show the 
+corresponding seasonal-trend decomposition in the time domain. These 
+observations provide additional validation for the reasoning discussed 
+above.
+4.10. Analysis of the average number of downsampling layers
+To evaluate the impact of multi-level downsampling, we varied the 
+number of downsampling layers from 0 to 4 while keeping all other pa-
+rameters constant. As shown in Fig.  11, we report the MSE performance 
+on the ETTh1 and Weather datasets. The results indicate that apply-
+ing downsampling to the original data yields significant performance 
+gains, particularly for longer prediction horizons (e.g., 336 and 720). 
+This improvement arises because long-term forecasting generally re-
+quires capturing coarse-grained temporal trends over an extended time 
+span, whereas fine-grained fluctuations may introduce additional noise. 
+Downsampling filters out high-frequency components and redundant 
+details, allowing the model to extract more stable long-term dynamic 
+structures. Notably, as the number of downsampling layers increases, 
+the performance improvement begins to plateau, suggesting that a 
+moderate number of downsampling stages enhances feature abstraction 
+while avoiding information loss.
+4.11. Ablation analysis of the fusion mechanism
+To comprehensively evaluate the effectiveness of different fusion 
+strategies in this study, we conducted an ablation analysis of vari-
+ous fusion methods, as shown in Fig.  12(a). Specifically, setting A 
+corresponds to the proposed HierFusion method; setting B adopts a 
+gated fusion mechanism using multiple linear layers; setting C employs 
+residual fusion; setting D uses attention-based fusion; and setting E 
+utilizes convolutional fusion. The experimental results indicate that, 
+although methods B and C achieve performance relatively close to Hi-
+erFusion, a noticeable performance gap persists. Furthermore, HierFu-
+sion provides additional advantages, including architectural simplicity, 
+computational efficiency, and parameter stability, enabling effective 
+integration of information without introducing excessive complexity.
+4.12. Efficiency analysis and confidence intervals
+When evaluating time series prediction models, in addition to pre-
+diction accuracy, inference efficiency and resource consumption are 
+also critical metrics that must be carefully considered in practical 
+applications. To comprehensively assess the strengths and limitations 
+of DBMS relative to existing methods, we analyzed the models along 
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+10 
+J. Li et al.
+Fig. 10. Two illustrative diagrams are presented: the left side corresponds to the ETTh1 dataset, and the right side corresponds to the Weather dataset. The top 
+row shows the frequency spectra, while the bottom row displays the trend–seasonality decomposition results of the sequences.
+Fig. 11. Ablation results on the average number of downsampling layers across the ETTh1 and Weather datasets.
+ 
+(a) Fusion mechanism.
+  
+(b) Efficiency analysis.
+ 
+Fig. 12. Comparison of different fusion methods (left), along with a bubble chart depicting computational complexity (FLOPs), average inference latency, and 
+average peak memory consumption across models.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+11 
+J. Li et al.
+Table 5
+Performance evaluation of DBMS across multiple datasets with 99% confidence 
+intervals and average coefficient of variation (CV).
+ DBMS
+ Metric MSE MAE Confidence
+interval
+Avg. CV (%) 
+ ETTh1 0.399 ± 0.004 0.423 ± 0.004 99% 0.98%  
+ ETTh2 0.371 ± 0.012 0.404 ± 0.010 99% 2.86%  
+ ETTm1 0.340 ± 0.002 0.370 ± 0.004 99% 0.84%  
+ ETTm2 0.248 ± 0.008 0.307 ± 0.004 99% 2.27%  
+ Weather 0.210 ± 0.002 0.249 ± 0.002 99% 0.88%  
+ Electricity 0.151 ± 0.008 0.245 ± 0.006 99% 3.88%  
+ Traffic 0.389 ± 0.010 0.259 ± 0.008 99% 2.83%  
+ Solar 0.188 ± 0.002 0.227 ± 0.002 99% 0.97%  
+three dimensions: computational complexity (Floating Point Opera-
+tions, FLOPs), average inference latency, and average peak memory 
+consumption. The results are presented in Fig.  12(b). It can be observed 
+that DBMS maintains superior prediction accuracy (MSE), although it 
+does not outperform in terms of inference latency or memory overhead. 
+Nevertheless, the FLOPs of DBMS remain relatively low, indicating that 
+its computational complexity is inherently modest, with the primary 
+overhead arising from the structural implementation. Overall, this de-
+sign achieves a balance between efficiency and accuracy, with potential 
+for further improvements through model compression and inference 
+optimization in future work.
+To evaluate the computational efficiency of the DBMS model, this 
+section analyzes the time complexity and its scaling behavior with re-
+spect to sequence length. Let 𝐿 denote the input sequence length, 𝐶 the 
+number of channels, 𝑑 the model hidden dimension, and 𝑆 the patch 
+stride. The main computational cost of DBMS comes from the attention 
+mechanism in the HierFormer module and the multi-scale mechanism 
+in the HierMLP module. For the patchified sequence with patch count 
+𝑁𝑝 = 𝐿∕𝑆, the self-attention computation has complexity (𝐿2 ×𝑑∕𝑆2). 
+Considering that DBMS contains parallel branches for trend, seasonal, 
+and multiple MLP components, the total time complexity of the model 
+is: 
+𝑇 (𝐿) = (𝐶 × 𝑑 × 𝐿2∕𝑆2) (15)
+This indicates that DBMS exhibits quadratic scaling (𝐿2) with respect 
+to sequence length. Compared to the (𝐿2) complexity of standard 
+Transformers, the patching mechanism reduces DBMS’s computational 
+overhead by a factor of 𝑆2. The space complexity is (𝐶 × 𝐿 × 𝑑), 
+exhibiting linear growth.
+To ensure statistical reliability of the results, this paper reports 
+the mean error metrics along with the 99% confidence intervals. The 
+confidence intervals were computed using the Student’s t-distribution 
+based on at least five independent runs for each dataset and prediction 
+length. In addition, the table (Table  5) also reports the average coef-
+ficient of variation (CV) for each dataset, which measures the relative 
+variability of the errors. As shown, the CV values remain low across all 
+datasets, indicating that the DBMS demonstrates minimal performance 
+fluctuation. These results further validate the statistical reliability and 
+robustness of the model’s predictions.
+5. Conclusion
+This paper proposes a dual-branch multi-scale framework (DBMS), a 
+novel architecture that combines the strengths of Transformer encoders 
+and multi-layer perceptrons (MLPs) to enhance time series forecast-
+ing. Experiments demonstrate that the dual-branch structure facilitates 
+synergistic interactions between the two architectures. Each branch 
+employs a multi-scale design to capture sequence features more com-
+prehensively. To integrate the resulting cross-scale features, we in-
+troduce a learnable fusion module that adaptively weights features 
+at different scales, achieving more effective integration than conven-
+tional approaches. Extensive evaluations show that DBMS delivers 
+superior prediction accuracy and robustness across multiple benchmark 
+datasets.
+Although DBMS demonstrates advantages in multiscale time se-
+ries forecasting, certain limitations remain. Multiscale processing in-
+evitably increases computational overhead, leaving room for further 
+optimization in terms of inference efficiency and memory consumption. 
+Furthermore, this study primarily relies on publicly available bench-
+mark datasets for evaluation, and its generalization capability in more 
+complex or dynamically changing real-world scenarios requires further 
+validation.
+Looking ahead, time series forecasting faces several emerging trends 
+and challenges. On one hand, developing more efficient feature fu-
+sion mechanisms, lightweight architectures, and leveraging frequency-
+domain information may become key directions for improving pre-
+diction performance. On the other hand, effectively handling non-
+stationary time series, enhancing cross-domain generalization, and 
+achieving a balance between efficiency and accuracy remain central 
+challenges to be addressed. These issues not only provide valuable 
+guidance for the future development of DBMS but also open new 
+possibilities for advancing time series forecasting research.
+CRediT authorship contribution statement
+Jiachao Li: Writing – review & editing, Writing – original draft, 
+Visualization, Validation, Supervision, Software, Project administra-
+tion, Methodology, Formal analysis, Conceptualization. Mengxiao Yin: 
+Writing – review & editing, Resources, Funding acquisition. Junyuan 
+Huang: Writing – review & editing. Tao Luo: Writing – review & 
+editing.
+Declaration of competing interest
+The authors declare that they have no known competing finan-
+cial interests or personal relationships that could have appeared to 
+influence the work reported in this paper.
+Acknowledgment
+We acknowledge funding from the Guangxi Natural Science Foun-
+dation under Grant 2025GXNSFAA069359, and the support of the 
+high-performance computing platform of Guangxi University.
+Appendix A. Supplementary data
+Supplementary material related to this article can be found online 
+at https://doi.org/10.1016/j.engappai.2025.113610.
+Data availability
+All eight datasets used in this study are publicly available and 
+were originally introduced in the TimeMixer paper (https://github.
+com/kwuking/TimeMixer).
+References
+Box, G.E.P., Jenkins, G.M., 1976. Time Series Analysis: Forecasting and Control. 
+Holden-Day.
+Chen, S.-A., Li, C.-L., Yoder, N., Arik, S.O., Pfister, T., 2023. Tsmixer: An all-mlp 
+architecture for time series forecasting. arXiv preprint arXiv:2303.06053.
+Chen, P., Zhang, Y., Cheng, Y., Shu, Y., Wang, Y., Wen, Q., Yang, B., Guo, C., 
+2024. Pathformer: Multi-scale transformers with adaptive pathways for time series 
+forecasting. arXiv preprint arXiv:2402.05956.
+Chung, J., Gulcehre, C., Cho, K., Bengio, Y., 2014. Empirical evaluation of gated 
+recurrent neural networks on sequence modeling. arXiv preprint arXiv:1412.3555.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+12 
+J. Li et al.
+Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner, T., 
+Dehghani, M., Minderer, M., Heigold, G., Gelly, S., et al., 2020. An image is 
+worth 16x16 words: Transformers for image recognition at scale. arXiv preprint 
+arXiv:2010.11929.
+Hyndman, R.J., Athanasopoulos, G., 2018. Forecasting: Principles and Practice. OTexts.
+Hyndman, R.J., Khandakar, Y., 2008. Automatic time series forecasting: The forecast 
+package for R. J. Stat. Softw. 27, 1–22.
+Kieu, T., Yang, B., Guo, C., Cirstea, R.-G., Zhao, Y., Song, Y., Jensen, C.S., 2022. 
+Anomaly detection in time series with robust variational quasi-recurrent autoen-
+coders. In: 2022 IEEE 38th International Conference on Data Engineering. ICDE, 
+IEEE, pp. 1342–1354.
+Kim, T., Kim, J., Tae, Y., Park, C., Choi, J.-H., Choo, J., 2021. Reversible instance 
+normalization for accurate time-series forecasting against distribution shift. In: 
+International Conference on Learning Representations.
+Kim, D., Park, J., Lee, J., Kim, H., 2024. Are self-attentions effective for time series 
+forecasting? Adv. Neural Inf. Process. Syst. 37, 114180–114209.
+Lam, R., Sanchez-Gonzalez, A., Willson, M., Wirnsberger, P., Fortunato, M., Alet, F., 
+Ravuri, S., Ewalds, T., Eaton-Rosen, Z., Hu, W., et al., 2023. Learning skillful 
+medium-range global weather forecasting. Science 382 (6677), 1416–1421.
+Li, H., Shao, J., Liao, K., Tang, M., 2022. Do simpler statistical methods perform 
+better in multivariate long sequence time-series forecasting? In: Proceedings of the 
+31st ACM International Conference on Information & Knowledge Management. pp. 
+4168–4172.
+Li, Z.L., Zhang, G.W., Yu, J., Xu, L.Y., 2023. Dynamic graph structure learning for 
+multivariate time series forecasting. Pattern Recognit. 138, 109423.
+Liu, Y., Hu, T., Zhang, H., Wu, H., Wang, S., Ma, L., Long, M., 2023. Itransformer: 
+Inverted transformers are effective for time series forecasting. arXiv preprint arXiv:
+2310.06625.
+Liu, Y., Qin, G., Huang, X., Wang, J., Long, M., 2024. Timer-xl: Long-context 
+transformers for unified time series forecasting. arXiv preprint arXiv:2410.04803.
+Liu, Y., Wu, H., Wang, J., Long, M., 2022b. Non-stationary transformers: Exploring 
+the stationarity in time series forecasting. Adv. Neural Inf. Process. Syst. 35, 
+9881–9893.
+Liu, S., Yu, H., Liao, C., Li, J., Lin, W., Liu, A.X., Dustdar, S., 2022a. Pyraformer: Low-
+complexity pyramidal attention for long-range time series modeling and forecasting. 
+In: # Placeholder_Parent_Metadata_Value#.
+Loshchilov, I., Hutter, F., et al., 2017. Fixing weight decay regularization in adam. 
+arXiv preprint arXiv:1711.05101, 5, 5.
+Miao, H., Zhao, Y., Guo, C., Yang, B., Zheng, K., Huang, F., Xie, J., Jensen, C.S., 
+2024. A unified replay-based continuous learning framework for spatio-temporal 
+prediction on streaming data. In: 2024 IEEE 40th International Conference on Data 
+Engineering. ICDE, IEEE, pp. 1050–1062.
+Naghashi, V., Boukadoum, M., Diallo, A.B., 2025. A multiscale model for multivariate 
+time series forecasting. Sci. Rep. 15 (1), 1565.
+Nie, Y., Nguyen, N.H., Sinthong, P., Kalagnanam, J., 2022. A time series is worth 64 
+words: Long-term forecasting with transformers. arXiv preprint arXiv:2211.14730.
+Ormancı, B.B., Swazinna, P., Udluft, S., Runkler, T.A., 2024. TEA: Trajectory encoding 
+augmentation for robust and transferable policies in offline reinforcement learning. 
+arXiv preprint arXiv:2411.19133.
+Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., Killeen, T., 
+Lin, Z., Gimelshein, N., Antiga, L., et al., 2019. Pytorch: An imperative style, 
+high-performance deep learning library. Adv. Neural Inf. Process. Syst. 32.
+Richman, J.S., Moorman, J.R., 2000. Physiological time-series analysis using approx-
+imate entropy and sample entropy. Am. J. Physiol.-Heart Circ. Physiol. 278 (6), 
+H2039–H2049.
+Shabani, A., Abdi, A., Meng, L., Sylvain, T., 2022. Scaleformer: Iterative multi-scale 
+refining transformers for time series forecasting. arXiv preprint arXiv:2206.04038.
+Tolstikhin, I.O., Houlsby, N., Kolesnikov, A., Beyer, L., Zhai, X., Unterthiner, T., 
+Yung, J., Steiner, A., Keysers, D., Uszkoreit, J., et al., 2021. Mlp-mixer: An all-mlp 
+architecture for vision. Adv. Neural Inf. Process. Syst. 34, 24261–24272.
+Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A.N., Kaiser, Ł., 
+Polosukhin, I., 2017. Attention is all you need. Adv. Neural Inf. Process. Syst. 30.
+Wang, W., Chen, W., Qiu, Q., Chen, L., Wu, B., Lin, B., He, X., Liu, W., 2023. 
+Crossformer++: A versatile vision transformer hinging on cross-scale attention. IEEE 
+Trans. Pattern Anal. Mach. Intell. 46 (5), 3123–3136.
+Wang, H., Mo, Y., Xiang, K., Yin, N., Dai, H., Li, B., Fan, S., 2025. Csformer: Combining 
+channel independence and mixing for robust multivariate time series forecasting. 
+In: Proceedings of the AAAI Conference on Artificial Intelligence. Vol. 39, pp. 
+21090–21098.
+Wang, Y., Wu, H., Dong, J., Qin, G., Zhang, H., Liu, Y., Qiu, Y., Wang, J., 
+Long, M., 2024b. Timexer: Empowering transformers for time series forecasting 
+with exogenous variables. Adv. Neural Inf. Process. Syst. 37, 469–498.
+Wang, S., Wu, H., Shi, X., Hu, T., Luo, H., Ma, L., Zhang, J.Y., Zhou, J., 2024a. 
+Timemixer: Decomposable multiscale mixing for time series forecasting. arXiv 
+preprint arXiv:2405.14616.
+Wang, W., Xie, E., Li, X., Fan, D.-P., Song, K., Liang, D., Lu, T., Luo, P., Shao, L., 
+2021. Pyramid vision transformer: A versatile backbone for dense prediction 
+without convolutions. In: Proceedings of the IEEE/CVF International Conference 
+on Computer Vision. pp. 568–578.
+Wu, H., Hu, T., Liu, Y., Zhou, H., Wang, J., Long, M., 2022. Timesnet: Temporal 
+2d-variation modeling for general time series analysis. arXiv preprint arXiv:2210.
+02186.
+Wu, Z., Pan, S., Long, G., Jiang, J., Chang, X., Zhang, C., 2020. Connecting the dots: 
+Multivariate time series forecasting with graph neural networks. In: Proceedings of 
+the 26th ACM SIGKDD International Conference on Knowledge Discovery & Data 
+Mining. pp. 753–763.
+Wu, H., Xu, J., Wang, J., Long, M., 2021. Autoformer: Decomposition transformers with 
+auto-correlation for long-term series forecasting. Adv. Neural Inf. Process. Syst. 34, 
+22419–22430.
+Xiao, Z., Xing, H., Qu, R., Li, H., Tong, H., Luo, S., Song, J., Feng, L., Wan, Q., 
+2025. Knowledge aggregation transformer network for multivariate time series 
+classification. IEEE Trans. Big Data.
+Xu, M., Dai, W., Liu, C., Gao, X., Lin, W., Qi, G.-J., Xiong, H., 2020. Spatial-temporal 
+transformer networks for traffic flow forecasting. arXiv preprint arXiv:2001.02908.
+Zamanzadeh Darban, Z., Webb, G.I., Pan, S., Aggarwal, C., Salehi, M., 2024. Deep 
+learning for time series anomaly detection: A survey. ACM Comput. Surv. 57 (1), 
+1–42.
+Zarchi, M., Aslani, Z.H., Tee, K.F., 2025. An interpretable information fusion ap-
+proach to impute meteorological missing values toward cross-domain intelligent 
+forecasting. Neural Comput. Appl. 37 (28), 23533–23589.
+Zeng, A., Chen, M., Zhang, L., Xu, Q., 2023a. Are transformers effective for time series 
+forecasting? In: Proceedings of the AAAI Conference on Artificial Intelligence. Vol. 
+37, pp. 11121–11128.
+Zeng, Z., Kaur, R., Siddagangappa, S., Rahimi, S., Balch, T., Veloso, M., 2023b. Financial 
+time series forecasting using cnn and transformer. arXiv preprint arXiv:2304.04912.
+Zhang, Y., Yan, J., 2023. Crossformer: Transformer utilizing cross-dimension depen-
+dency for multivariate time series forecasting. In: The Eleventh International 
+Conference on Learning Representations.
+Zhou, T., Ma, Z., Wen, Q., Wang, X., Sun, L., Jin, R., 2022. Fedformer: Frequency 
+enhanced decomposed transformer for long-term series forecasting. In: International 
+Conference on Machine Learning. PMLR, pp. 27268–27286.
+Zhou, H., Zhang, S., Peng, J., Zhang, S., Li, J., Xiong, H., Zhang, W., 2021. Informer: Be-
+yond efficient transformer for long sequence time-series forecasting. In: Proceedings 
+of the AAAI Conference on Artificial Intelligence. Vol. 35, pp. 11106–11115.
+Engineering Applications of Artiϧcial Intelligence 166 (2026) 113610 
+13 

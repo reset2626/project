@@ -1,0 +1,646 @@
+
+
+===== PAGE 1 =====
+
+國立陽明交通大學
+統計研究所
+碩士論文
+Institute of Statistics
+National Y ang Ming Chiao Tung University
+Master Thesis
+結合卡爾曼濾波器與類神經網路的時間序列預測方法
+A Time Series Forecasting Method Combining Kalman Filter and Artificial Neural Networks
+研究生 : 林裕倫 (Lin, Y u-Lun)
+指導教授 : 高竹嵐 (Kao, Chu-Lan)
+中華民國 一一三年六月
+June 2024
+
+===== PAGE 2 =====
+
+結合卡爾曼濾波器與類神經網路的時間序列預測方法
+A Time Series Forecasting Method Combining Kalman Filter and
+Artificial Neural Networks
+研 究 生：林裕倫
+指導教授：高竹嵐
+Student: Lin, Y u-Lun
+Advisor: Dr. Kao, Chu-Lan
+國立陽明交通大學
+統計研究所
+碩士論文
+A Thesis
+Submitted to Institute of Statistics
+College of Science
+National Y ang Ming Chiao Tung University
+in partial Fulfilment of the Requirements
+for the Degree of
+Master
+in
+Statistics
+June 2024
+Taiwan, Republic of China
+中華民國 一一三年六月
+
+===== PAGE 3 =====
+
+結合卡爾曼濾波器與類神經網路的時間序列預測方法
+學生：林裕倫 指導教授：高竹嵐 博士
+國立陽明交通大學 統計研究所
+摘 要
+從金融市場對於價格的預測到天氣溫差的變化，這些都脫離不了時間序列模型，傳
+統的 ARIMA 模型雖然在穩定的線性資料下具有高預測能力和解釋力，但對於非線性資
+料如氣溫或天氣的預測卻存在局限性。為了克服這些挑戰，我們找到了 ARIMA-ANN
+混合式的時間序列模型，是將傳統的時間序列模型與人工神經網絡（ ANN）結合，而
+本文引入了卡爾曼濾波器以提升模型性能。
+此外，我們提出了一種針對時間序列資料的 bootstrap 方法，使得 ANN 能成功進行
+區間預測。通過這種結合，我們的模型不僅能捕捉非線性關係和動態變化，還能提供
+更準確和穩健的預測結果。我們使用模擬的時間序列資料驗證了 bootstrap 方法的有效
+性，並在實務面上使用太陽黑子和台灣股市的資料進行測試。結果顯示，我們的模型
+在一步預測的情況下，其均方差表現與 Babu 所提出的模型相當，並在某些情況下有超
+越之處。
+這種創新方法展示了混合模型在複雜時間序列預測中的潛力，為金融市場等領域的
+實際應用提供了有力支持。
+關鍵詞: 時間序列模型, 混合式模型, 卡爾曼濾波器、ARIMA、ANN、bootstrap
+i
+
+===== PAGE 4 =====
+
+A Time Series Forecasting Method Combining Kalman Filter
+and Artificial Neural Networks
+Student: Lin, Y u-Lun Advisor: Dr. Kao, Chu-Lan
+Institute of Statistics
+National Y ang Ming Chiao Tung University
+Abstract
+From forecasting prices in financial markets to predicting temperature variations, time series
+models are indispensable. While traditional ARIMA models excel in forecasting stable linear
+data due to their high predictive power and interpretability, they fall short when dealing with
+nonlinear data such as temperatures or weather patterns. To overcome these challenges, we
+have developed a hybrid ARIMA-ANN time series model, combining traditional time series
+models with Artificial Neural Networks (ANN). Additionally, this paper introduces a Kalman
+filter to enhance model performance.
+Furthermore, we propose a bootstrap method for time series data, enabling ANN to success-
+fully perform interval forecasting. This hybrid approach allows our model to capture nonlinear
+relationships and dynamic changes, providing more accurate and robust predictions. We val-
+idate the effectiveness of the bootstrap method using simulated time series data and conduct
+practical tests using sunspot and Taiwan stock market data. The results demonstrate that our
+model’s mean squared error in one-step-ahead forecasting is comparable to Babu’s model and
+even surpasses it in some cases.
+This innovative method showcases the potential of hybrid models in complex time series
+forecasting, offering strong support for practical applications in financial markets and other
+fields.
+Keywords: time series model, hybrid model, Kalman filter, ARIMA, ANN, bootstrap
+ii
+
+===== PAGE 5 =====
+
+目 錄
+摘要 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . i
+Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii
+目錄 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . iii
+圖目錄 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . v
+表目錄 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . vi
+一、 緒論 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+1.1 研究動機與目的 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+二、 文獻探討 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2.1 ARIMA . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2.2 ANN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+2.3 ARIMA-ANN . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.4 bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.4.1 bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.4.2 block bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.5 卡爾曼濾波器 (Kalman filter) . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+三、 研究方法 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3.1 模型架構 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+3.2 bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+3.2.1 sort bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9
+3.2.2 sort block bootstrap . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+3.3 模型的區間預測 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+四、 研究結果 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+4.1 太陽黑子資料預測 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+4.1.1 準確率比較 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+4.1.2 模型的預測區間 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+iii
+
+===== PAGE 6 =====
+
+4.2 元大台灣 50 資料預測 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+4.2.1 準確率比較 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+4.2.2 模型的預測區間 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+五、 模型架構的延伸 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+六、 未來研究方向與結論 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+參考文獻 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 24
+iv
+
+===== PAGE 7 =====
+
+圖 目 錄
+2.1 ANN 模型架構 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3
+2.2 Kalman filter 的迭代過程 . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+3.1 ANN-ARIMA 模型架構 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 8
+3.2 原始的模擬資料 (資料集 2) . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+3.3 使用 sin 模型擬合的結果 . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+3.4 三種方法的假樣本與使用 sin 模型擬合的結果 . . . . . . . . . . . . . . . . 12
+4.1 太陽黑子的資料 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+4.2 我的模型與 Babu 模型的比較 (太陽黑子) . . . . . . . . . . . . . . . . . . . 16
+4.3 我的模型的區間預測 (太陽黑子) . . . . . . . . . . . . . . . . . . . . . . . . 16
+4.4 元大台灣 50 的日收盤價資料 . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+4.5 我的模型與 Babu 模型的比較 (股市資料) . . . . . . . . . . . . . . . . . . . 18
+4.6 我的模型的區間預測 (股市資料) . . . . . . . . . . . . . . . . . . . . . . . . 18
+5.1 太陽黑子資料經過一次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . 19
+5.2 太陽黑子資料經過二次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . 19
+5.3 太陽黑子資料經過三次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . 20
+5.4 模擬三份 AR1 的資料 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+5.5 三份 AR1 資料相加 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+5.6 模擬資料經過一次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . . . . 21
+5.7 模擬資料經過兩次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . . . . 22
+5.8 模擬資料經過三次卡爾曼濾波後 . . . . . . . . . . . . . . . . . . . . . . . . 22
+v
+
+===== PAGE 8 =====
+
+表 目 錄
+3.1 用 AR(1) 資料比較各 bootstrap 方法 . . . . . . . . . . . . . . . . . . . . . . 10
+3.2 用各種時間序列資料的預測值比較各 bootstrap 方法 . . . . . . . . . . . . . 10
+3.3 用模擬資料的預測值比較各 bootstrap 方法 . . . . . . . . . . . . . . . . . . 11
+3.4 各種預測方法的結果比較 (AR1 係數為負時) . . . . . . . . . . . . . . . . . 13
+vi
+
+===== PAGE 9 =====
+
+一、 緒論
+1.1 研究動機與目的
+台灣人對投資的熱情有目共睹，無論是股票市場、房地產、基金，還是近年來興起
+的數位貨幣，人們總能在各種投資領域中找到機會並積極參與，甚至在 2024 年 3 月台
+股達到了兩萬點的高峰，在論文題目的選擇中，我們也能看到許多關於投資的論文，
+但其實無論是哪一種的金融商品，都免不了要需要對價格進行預測，這些主題最根本
+的核心基本上都是對著時間序列資料建模，也就是本論文想要研究的主題，能不能找
+到一個更好的時間序列模型來預測資料呢?
+時間序列一直都是熱門的研究領域，但我們對於時間序列模型的架構卻還是倚賴
+ARIMA 之類的傳統模型，很多時候過度複雜的資料預測會失準，更甚至一些高波動、
+不穩定的資料本就不適合 ARIMA 模型，像是氣溫或是天氣之類的資料，時常需要機
+器學習的模型去幫助預測，但在穩定的線性資料下， ARIMA 也有非常高的價值，不僅
+僅是預測能力，模型的解釋力也非常的高，不過完全符合 ARIMA 模型假設的資料也
+不多，於是我就在思考能不能將兩種模型的優點結合起來，剛好發現了 Babu 的論文 A
+moving-average filter based hybrid ARIMA–ANN model for forecasting time series data[ 1]，
+也是將傳統的時間序列模型與 ANN 模型結合，去實現對於時間序列資料的預測，本篇
+的論文也是基於此想法下去改進，最後的結果也超越了 Babu[1] 提出的模型，且提出了
+一種對於時間序列資料的新的 bootstrap 方法，增加了預測區間的部分，使得預測不再
+僅僅只是點估計。
+本文將會用一組模擬的時間序列資料來驗證 bootstrap 方法的有效性，實務面則使用
+太陽黑子與台灣股市的資料來與 Babu[1] 提出的模型比較，最後得到的結果是在一步預
+測的情況下，我們的模型均方差是不輸他的模型的。
+1
+
+===== PAGE 10 =====
+
+二、 文獻探討
+由 於 ARIMA 和 ANN 的 建 模 技 術 都 已 經 發 展 得 十 分 成 熟， 本 章 只 會 簡 要 說 明
+ARIMA 和 ANN 的建模方法，討論的重點將著重於 ARIMA-ANN 的建模以及 bootstrap
+的抽樣方式。
+2.1 ARIMA
+ARIMA 全名為 Autoregressive Integrated Moving Average model ，為一種常用時間序
+列模型，利用過去的資料去預測未來，其中 AR 是 Autoregressive Model，是將過去的
+自己當作變數，具體的 AR(p) 模型如下:
+rt = ϕ0 +
+p∑
+i=1
+ϕirt−i + at (2.1)
+其中 rt 為時間為 t 的序列資料 r，ϕ0 為常數項， ϕi 為 rt−i 的係數，at 為時間為 t 的殘
+差，而 MA 則是 Moving-Average Model，是將過去的殘差當作變數，MA(q) 模型如下:
+rt = c0 + at −
+q∑
+i=1
+θiat−i (2.2)
+其 中 rt、at 與 前 面 一 樣，c0 為 常 數 項，θi 為 at−i 的 係 數， 將 這 兩 個 結 合 起 來 即 為
+ARMA 模型；若資料不為平穩的話，則需進行差分，差分即為 ARIMA 中 I 的含意，通
+常我們會用 d 來表示差分幾次，因此模型 ARIMA(p,d,q) 即為將一份資料差分 d 次後去
+擬合 ARMA(p,q) 模型。
+我們選擇 ARIMA 中的 order 時，是使用 AIC（赤池信息準則， Akaike Information
+Criterion）為標準，從 ARIMA(0,0,0) 搜索到 ARIMA(5,0,5)，只搜索到 5 是因為我們不
+希望使用到過大的 order，不只容易有過度擬合的問題，也容易讓模型不穩定，而且過
+大的 order 會容易讓程式的迭代算法變得不穩定，導致無法收斂到正確的解，進而出現
+錯誤。
+2
+
+===== PAGE 11 =====
+
+2.2 ANN
+ANN(Artificial Neural Network) 是 Warren McCulloch和 Walter Pitts在 A logical calculus
+of the ideas immanent in nervous activity [ 2] 提出的模型，裡面提到了 ANN 的基本架構和
+精神；在 ANN 模型中，可以任意增加隱藏層的層數，每一層的神經元數量也是可以自
+訂的，下圖為簡單的三層結構的 ANN，X1、X2、X3 為輸入的值， Wij 為輸入層的權
+重，總和 ∑是將各個 Xi 乘上權重 Wij 後加總；激活函數 f 有許多種，目前最流行的
+是 ReLU Function(Rectified Linear Unit) ，如 (2.3) 所示；在處理非線性的資料時， ANN
+和其他機器學習衍伸的模型已經成為主流的方法之一。
+圖 2.1: ANN 模型架構
+ReLU (x) = max(0, x) (2.3)
+使用 ANN 最主要的目的是不想要用太複雜的模型，我們丟進去的資料並不多，如
+果使用更複雜的模型容易造成過度擬合的問題，像是許多深度學習的模型，都需要大
+量資料才可以有比較好的效果。
+3
+
+===== PAGE 12 =====
+
+2.3 ARIMA-ANN
+ARIMA–ANN model 最 早 是 由 Zhang 在 [3] Time series forecasting using a hybrid
+ARIMA and neural network model 這 篇 論 文 提 出 的， 主 要 的 想 法 是 假 設 時 間 序 列 資
+料可以分成線性與非線性的兩個部分，用 ARIMA 去預測低波動的部分，而剩下的部
+分交由 ANN 去處理，具體來說就是將資料先用 ARIMA 建模，再將此模型的殘差交給
+ANN 去做預測，最後的預測值就是將 ARIMA 的預測值加上 ANN 的預測值，在此論
+文中，此模型在一步預測和多步預測都優於單獨的 ARIMA 模型或 ANN 模型；之後
+khashei 在 [4]A novel hybridization of artificial neural networks and ARIMA models for time
+series forecasting 這篇論文提出了另一個 ARIMA-ANN 的模型，此模型是先將資料用
+ARIMA 模型擬合，並且進行預測，最後將原始資料、 ARIMA 預測的資料以及誤差序
+列值都當作 ANN 的輸入，而最終 ANN 的輸出即為最終的預測值，在預測以及精度
+來說，此方法也比 Zhang 提出的模型有更好的性能；而 Babu 也在 [1]A moving-average
+filter based hybrid ARIMA–ANN model for forecasting time series data 提出了先用 MA 濾
+波器將資料分成低波動和高波動的部分，再分別用 ARIMA 跟 ANN 進行建模，MA 濾
+波器的想法是將資料取移動平均 (moving-average)，將此資料當作平穩資料，移動平均
+還需要一個長度 m，m 的取法是看平穩資料達到峰態 (Kurtosis) 等於 3；原始資料與平
+穩資料相減則是不平穩資料，也就是先前提到低波動和高波動的部分， Babu 也比較了
+Zhang 和 khashei 的方法，結果顯示 Babu 的方法會比其他兩個模型有更好的精度。
+2.4 bootstrap
+2.4.1 bootstrap
+bootstrap 是由 Bradley Efron 所提出的，在 An introduction to the bootstrap [ 5] 中有完
+整對於 bootstrap 的介紹，主要的想法是對樣本抽出放回的方式去抽樣，做出足以代表
+母體的分布，進而更準確的去描述母體；當時主要是對參數估計和統計量去做信賴區
+間，後面則推廣到可以去造預測值的信賴區間。
+4
+
+===== PAGE 13 =====
+
+2.4.2 block bootstrap
+Carlstein 在 The use of subseries values for estimating the variance of a general statistic
+from a stationary sequence [ 6] 中提出了 block bootstrap 的概念，將資料切成 b 個不重疊的
+blocks，再對這些 blocks 進行抽出放回的抽樣；這方法在一定程度上解決了 bootstrap 無
+法處理時間序列資料的問題，但如果資料背後有很強的結構， block bootstrap 也沒辦法
+模擬，我們將會在後面的 3.2.1討論。
+2.5 卡爾曼濾波器 (Kalman filter)
+Greg Welch 和 Gary Bishop 在 An introduction to the Kalman filter[ 7] 一文中詳細介紹
+了 Kalman filter 的歷史及用法，當資料有噪音時，卡爾曼濾波器可以很好的去過濾掉噪
+音，並估計出當時的狀態，現在也被運用在一些時間序列當中，此模型的想法是將觀
+測值和過去的狀態去預測現在的狀態，狀態值 x ∈ R n 和觀測值 z ∈ R m 如下兩式所示:
+xk+1 = Akxk + Buk + wk (2.4)
+zk = Hkxk + vk (2.5)
+其中，n × n 的矩陣 A 為在 k 到 k + 1 時的狀態相關矩陣，而 n × l 的矩陣 B 則為與控
+制項 u ∈ R l 相關的矩陣，m × l 的矩陣 H 則是將狀態 xk 變成觀測 zk 的矩陣，最後的
+wk 和 vk 則為噪音。
+至於具體的預算過程，我們會在下方進行詳細說明，首先我們需要先定義在 k 時的
+先驗狀態預測 ˆx−
+k ∈ R n 以及在 k 時且給定觀測值 zk 的後驗狀態預測 ˆxk ∈ R n，之後我
+們便可定義先驗及後驗的估計誤差如下:
+e−
+k ≡ xk − ˆx−
+k (2.6)
+ek ≡ xk − ˆxk (2.7)
+5
+
+===== PAGE 14 =====
+
+接下來我們可以得到先驗和後驗的估計誤差協方差矩陣:
+P −
+k = E[e−
+k e−T
+k ] (2.8)
+Pk = E[ekeT
+k ] (2.9)
+因為我們目標是用觀測值和先驗預測狀態去預測狀態值，我們可以用以下式子完成目
+標，對於 (2.10) 這樣架構的理由可以在 An introduction to the Kalman filter[ 7] 找到。
+ˆxk = ˆx−
+k + K(zk − Hk ˆx−
+k ) (2.10)
+其中 n × m 的矩陣 K 為卡爾曼增益 (Kalman gain)，建構方式如下:
+Kk = P −
+k H T
+k (HkP −
+k H T
+k + Rk)−1 (2.11)
+具體的迭代過程會如下圖所示，會分成時間更新 (Time Update) 和觀測更新 (Measure-
+ment Update)，將起始值帶入時間更新後，此模型將會開始迭代，利用觀測值，找出每
+個點的狀態，我們將會使用濾波後的狀態當作低波動的數據，將觀測值減掉狀態值即
+為我們高波動的數據。
+圖 2.2: Kalman filter 的迭代過程，圖源來自 An introduction to the Kalman filter
+6
+
+===== PAGE 15 =====
+
+三、 研究方法
+3.1 模型架構
+我們的模型架構如圖 3.1所示，主要的想法是參考 Babu[1] 提出的模型架構，但我
+們將前面 MA-filter 的部分改成了卡爾曼濾波器，並且多做了區間預測的部分；模型主
+要的想法是將時間序列資料 rt 分成低波動部分 lt 和高波動部分 ht，如 (3.1)，並且用
+ARIMA 模型去預測低波動部分 lt，如 (3.2)，其中 f 為 ARIMA 模型；高波動部分 ht 則
+用 ANN 去做預測，如 (3.3)，其中 g 為 ANN 模型；最後我們的預測結果如 (3.4)，也就
+是將前面兩個模型的預測值相加，可以得到我們的預測值 ˆrt 。
+rt = lt + ht (3.1)
+ˆlt = f (lt−1, lt−2, . . . , lt−p) (3.2)
+ˆht = g(ht−1, ht−2, . . . , ht−p) (3.3)
+ˆrt = ˆlt + ˆht (3.4)
+關於區間預測的部分，由於 ANN 並不會產生預測區間，所以我們選擇用 bootstrap 來
+產生，但是傳統的 bootstrap 在資料有時間結構時並不管用，我們也嘗試過使用 block
+bootstrap，但效果也有限，於是我們想出了新的 bootstrap 方法來使用，將會在 3.2.1章
+介紹此方法；使用此方法產生區間預測後，我們再將 ARIMA 本身就會有的區間預測相
+加，即可獲得最後預測的區間預測。
+7
+
+===== PAGE 16 =====
+
+圖 3.1: 模型架構
+接下來我們將討論此模型細節，一開始會先將時間序列資料進行卡爾曼濾波，觀測
+值 z ∈ R 1 即為原始時間序列，令 H = 1 和 A = 1 ，使得 x ∈ R 1，並決定初始 ˆx−
+k 為
+時間序列資料的初始值，最後依照資料的特性決定 Qk、Rk 和初始 P −
+k ，可以用做圖
+的方式去檢查是否有達到濾波的效果，整個模型的 ˆxk 為低波動部分 lt，剩下的為高
+波動部分 ht，我們先來討論低波動的 lt 部分，我們使用 AIC 的標準去選擇模型，搜
+索 ARIMA(0,0,0) 到 ARIMA(5,0,5) 模型中 AIC 最小的當作我們 lt 的模型；高波動部分
+ht 則用過去 n 天的資料當作輸入去訓練模型， n 的取法為從 ARIMA 的 order 中，取出
+較大 p 或 q 乘以 10，這樣可以參考到 ARIMA 的 order 也可以解決 ANN 中的 input 太
+少的問題； ANN 使用 3 層的架構，包含了兩層隱藏層，每個隱藏層含 10 個神經元以
+及使用 ReLU 激活函數，最後使用一層輸出層來產生模型的輸出，使用的損失函數
+(loss function) 為均方差 (mean squared error) 來訓練模型，使用的優化器 (optimizer) 為
+Adam(Adaptive Moment Estimation)，是從梯度下降演變成的優化器，可以解決傳統梯度
+8
+
+===== PAGE 17 =====
+
+下降收斂速度過慢，或是陷入局部最優解的問題；這個 ANN 模型是參考 Babu[1] 論文
+中的 ANN 部分，但我將原本模型中的激活函數從 sigmoid 改成 ReLU，在太陽黑子的
+數據集中， sigmoid 模型的均方差為 387.5301，ReLU 模型的均方差為 373.4157，在股
+市的數據集中， sigmoid 模型的均方差為 2.5314，ReLU 模型的均方差為 2.5180，因此
+我認為在這個模型的表現中，ReLU 會表現的比 sigmoid 好。
+3.2 bootstrap
+在做研究的同時，我們同時遇到了想要製造預測區間的問題，使用的方法是用
+bootstrap 去生成假資料並做預測，使得有更多的預測值，再將其取分位數的預測區
+間，但由於我們的資料為時間序列資料，如果使用傳統的 bootstrap 的話，會導致時間
+結構消失，為此我們嘗試了許多方法，並找出了一種可以保留時間結構的 bootstrap，
+在 2.4已經簡單介紹 bootstrap 與 block bootstrap 是如何操作的，接下來將會討論我們所
+提出的 bootstrap 方法。
+3.2.1 sort bootstrap
+sort bootstrap 是我們新提出的方法，想法是將 bootstrap 用原本資料的順序排序，以
+保留原本資料的序列結構，具體的步驟如下:
+Step 1: 將原本的資料先做編號；假如有十筆資料，將每一筆資料都標上編號 1 到 10。
+Step 2: 將原本的資料進行 bootstrap 並排序；假如資料 bootstrap 的結果為 [1,5,2,2,3,7,3,6,9,8]，
+則排序過後為 [1,2,2,3,3,5,6,7,8,9]，要特別注意的是，這並不是照著大小排序，
+而是照著原本資料的順序排序。
+Step 3: 重複”Step 2” n 次即為我們的 bootstrap 樣本。
+此方法的一階動差與二階動差皆與 bootstrap 一致，排序並不影響樣本內的一二階動
+差，更重要的是樣本外的表現，我們使用了一些簡單的時間序列資料來驗證我們的方
+法是否有效，以下以 AR(1) ϕ = 0.8 的情況舉例:
+9
+
+===== PAGE 18 =====
+
+表 3.1: AR(1) ϕ = 0.8 之各方法比較，真實預測值為 0.411
+bootstrap block bootstrap sort bootstrap
+預測值 0.091 0.175 0.255
+信賴區間 [-0.052, 0.230] [-2.061, 2.766] [-0.082, 0.502]
+真實值是否在信賴區間內 無 有 有
+Step 1: 模擬生成一組 AR(1) ϕ = 0.8 的數據，我們稱為資料集 1。
+Step 2: 將資料集 1 使用 ARMA(1,0) 模型去擬合，並獲得其模型的一步預測，我們稱為
+真實預測值。
+Step 3: 使用 bootstrap、block bootstrap、sort bootstrap 三種方法，各生成 1000 筆模擬資
+料，並都對其進行 ARMA(1,0) 模型的擬合和一步預測。
+Step 4: 將模擬資料的一步預測值取平均，與真實預測值去做比對，表 3.1
+可以看出來我們的提出的方法表現得最好，而且也可以對這些預測值做區間預測，
+結果也只有我們的方法將真實預測值包在區間內，我們也模擬了 AR(1) ϕ = −0.8、
+MA(1) θ = −0.8、ARMA(1,1) ϕ = 0.8, θ = 0.7 的情況，整理成表格如 3.2:
+表 3.2: 各種 bootstrap 方法的預測值比較
+AR(1) ϕ=0.8 AR(1) ϕ=-0.8 MA(1) θ = 0.8 ARMA(1,1)
+真實預測值 0.411 -0.135 -0.401 -2.234
+bootstrap 預測值 0.091 0.009 -0.033 -0.105
+mybootstrap 預測值 0.255 0.037 -0.539 -1.64
+block bootstrap 預測值 0.175 -0.031 -0.133 -0.242
+差距最小的為 mybootstrap block bootstrap mybootstrap mybootstrap
+可以看到我們在 ϕ = −0.8 的表現並不好，那是因為 AR1 模型係數如果為負的話，
+資料前後項會有一個負相關，我們的方法並不能抓取這個特徵，但 block bootstrap 可以
+一定程度的保留這個方法，因為每一個 block 中都會保留資料的前後關係，為了這個
+case，我們也另外想了辦法，將會在本章節的最後介紹。
+也許原本的 block bootstrap 就可以解決一些時間序列的 bootstrap 問題，但其實如果
+資料後面有一個很強的相關性的話， block bootstrap 是完全沒辦法處理的，像是若是資
+料為一個 sin 波加上 AR1 的模型，block bootstrap 會完全抓不到 sin 波的特徵，因為在
+隨機抽樣的時候 sin 波的特徵就已經被拔掉了，但我們的方法可以很大程度的保留資料
+10
+
+===== PAGE 19 =====
+
+背後的特徵，下面我們就用 3 × sin(x) + ar(1) = y 去造模擬樣本，並用上面的方式去
+做樣本外的比較，以下是詳細的過程:
+Step 1: 模擬生成一組 AR(1) ϕ = 0 .8 和 3 × sin(x) 相加的數據，我們稱為資料集 2，如
+圖 3.2所示。
+Step 2: 先將資料集 2 使用 y = a × sin(x) + b 的模型去擬合，並獲得其模型的各個點的
+預測，我們稱為 sin 預測值，以及其一步預測，稱為 sin 的真實預測值，圖 3.3為
+資料集 2 與此模型擬合後。
+Step 3: 再將資料集 2 減掉 sin 預測值，使其消除 sin 的影響，稱為 AR1 預測值，再對
+AR1 預測值用 AR(1) 模型去做擬合，獲得其一步預測，稱為 AR1 的真實預測
+值。
+Step 4: 使 用 bootstrap、block bootstrap 、sort bootstrap 三 種 方 法， 各 對 資 料 集2 生 成
+1000 筆模擬資料，並都對其進行步驟二、三的方法，獲得 sin 跟 AR1 的預測
+值，圖 3.4為各方法隨機取一次假樣本用步驟二的模型擬合後的結果。
+Step 5: 將模擬資料的 sin 跟 AR1 的預測值取平均，與真實預測值去做比對，結果如
+Table 3.3。
+表 3.3: 各種 bootstrap 方法的預測值結果比較
+sin 的部分 AR(1) 的部分
+真實預測值 -1.792 0.493
+bootstrap 預測值 0.643 0.001
+mybootstrap 預測值 -1.766 0.335
+block bootstrap 預測值 0.636 0.030
+差距最小的為 mybootstrap mybootstrap
+11
+
+===== PAGE 20 =====
+
+圖 3.2: 原始的模擬資料 (資料集 2)
+ 圖 3.3: 使用 sin 模型擬合的結果
+圖 3.4: 三種方法的假樣本與使用 sin 模型擬合的結果
+在 sin 的 部 分，bootstrap 和 block bootstrap 完 全 抓 不 到sin 的 特 徵， 這 點 可 以 從
+圖 3.4很明顯的看出來，但 sort bootstrap 很大程度的保留了 sin 的特徵，所以如果資料
+後面有很強大的結構關係時，我們認為 sort bootstrap 可以有很好的表現；在表 3.3的部
+分，我們也可以看到不僅僅是在 sin 的部分，AR1 預測的表現也是遠比其他兩個方法
+好很多，因為前面的 sin 模型如果不能準確預測的話，後面的 AR 預測將會被 sin 的影
+響打亂，因此我們認為 sort bootstrap 在這種情況下，是可以去取代傳統的 bootstrap 方
+法的。
+至於為何 sort bootstrap 能有不錯的效果呢，我們提出了一個簡單的想法，其實
+就和線性回歸中的 bootstrap 方法一樣，線性回歸中， bootstrap 可以是同時抽出放回
+一組 (x, y)，而我們的方法則是抽出一組資料與編號，假設我們的時間序列資料為
+x1, x2, ..., xt，並且將此資料標籤 1, 2, ..., t，則我們就是在抽出放回一組 (xm, m)；舉個
+例子，假設我們的資料 y 來自 sin(x) + ϵ，ϵ ∼ N (0, 1)，那我們進行 bootstrap 時，必定
+也是去抽 (x, y)，也就是說，我們其實是將一維的時間序列資料，把時間的部分補回
+12
+
+===== PAGE 21 =====
+
+去，將資料變成二維的、含時間項的資料。
+3.2.2 sort block bootstrap
+如果我們將 sort 的想法放到 block bootstrap 是否可以有 sort 的優點，同時也可以解
+決 AR1 係數為負的問題呢，我們抱持著這個想法去嘗試了一下，詳細的方法跟 block
+bootstrap 一樣，只是多了一個將 block 排序的動作，我們用這個方法再去對前面的 AR1
+ϕ = −0.8 的資料集做一樣的動作，結果並沒有比 block bootstrap 好，再去用 sin 和 AR1
+的模擬樣本去估，但這次的 ϕ 改成 −0.8，結果如表 3.4所示，在 sin 的表現上並沒有比
+單純的 sort bootstrap 好，但在 AR 的表現上還算不錯，但我們認為此方法還可以再改
+進，因此如果確定 AR1 的係數為負的情況，我們認為應該再試試其他方法。
+表 3.4: 各種預測方法的結果比較 (AR1 係數為負時)
+sin 的部分 AR(1) 的部分
+真實預測值 -1.673 -0.166
+bootstrap 預測值 0.561 -0.004
+mybootstrap 預測值 -1.650 0.032
+block bootstrap 預測值 0.556 -0.016
+my block bootstrap 預測值 -1.300 -0.088
+差距最小的為 mybootstrap my block bootstrap
+3.3 模型的區間預測
+我們對資料進行一步點預測完之後，接下來想對資料進行區間預測，基本的想法是
+將 ARIMA 的區間預測和 ANN 的區間預測相加即為所求，具體的算法與細節如下所示；
+ARIMA 的一步區間預測是使用模型的殘差去預測，設模型殘差為 ˆσ ，則 95% 的區間預
+測為:
+ˆlt+1|t ± t0.95(n − 1)ˆσ
+其 中 ˆlt+1|t 為 ARIMA 部 分 的 一 步 點 預 測，t0.95(n − 1) 為 自 由 度 為n-1 的 T 統 計 量；
+bootstrap 的區間預測是將實驗重複 n 次，做出 n 個預測值後，將第 97.5 分位數和 2.5 分
+位數的值取出做為區間預測的上界和下界，我們令 97.5 分位數和 2.5 分位數為 ˆh0.975 和
+13
+
+===== PAGE 22 =====
+
+ˆh0.025，即可將 bootstrap 的 95% 區間預測寫成 [ˆh0.025, ˆh0.975]；結合以上兩個區間預測，
+我們可得到最後完整的 95% 區間預測為
+[ˆlt+1|t − t0.95(n − 1)ˆσ + ˆh0.025, ˆlt+1|t + t0.95(n − 1)ˆσ + ˆh0.975]
+14
+
+===== PAGE 23 =====
+
+四、 研究結果
+為了驗證我們模型的有效性，我們使用了太陽黑子和股市的資料，與 Babu 的模型
+架構進行比較，以下為比較結果:
+4.1 太陽黑子資料預測
+首先我們使用的資料是太陽黑子的資料，由於此資料容易取得，且是具有結構關係
+的時間序列資料，由於此資料集從一百多年前就有紀錄了，但我認為過舊的資料不僅
+不準確且有缺失值的問題，所以我想使用從 1900 年 1 月 1 號到到 2023 年 1 月 1 號的資
+料，此資料集為月資料，以下為使用的資料集:
+圖 4.1: 太陽黑子的月資料
+15
+
+===== PAGE 24 =====
+
+4.1.1 準確率比較
+此資料總共 1477 筆資料，我們將資料集切成前 0.8 為訓練集，後 0.2 為測試集，我
+們使用訓練集來尋找我們 ARIMA 模型的 order 以及訓練 ANN 的部分，最後在使用測
+試集來進行測試，以下為我們模型與 Babu 模型的比較，由於測試集的數量過多，圖的
+部分我們只剪取後 20 筆資料:
+圖 4.2: 我的模型與 Babu 模型的比較
+圖的部分並沒有明顯差別，但 MSE 的部分可以發現我們是比 Babu 的模型表現來的好。
+4.1.2 模型的預測區間
+做完點估計之後，我們使用 3.3提到的方法進行區間預測，結果如下:
+圖 4.3: 我的模型的區間預測
+16
+
+===== PAGE 25 =====
+
+4.2 元大台灣 50 資料預測
+我們使用的資料為元大台灣卓越 50 證券投資信託基金，簡稱元大台灣 50 的日收盤
+價資料，此為台灣的 ETF 型股票，採取追蹤台灣 50 指數的被動式管理，成分股包含台
+灣上市股票市值前五十大的個股，可以反映台灣的股市狀況；我們使用 2018 年 1 月 1
+號到 2023 年 1 月 1 號的資料，希望資料長度維持在 1000 筆以上。
+圖 4.4: 元大台灣 50 的日收盤價資料
+4.2.1 準確率比較
+此資料總共 1220 筆資料，我們將資料集切成前 0.8 為訓練集，後 0.2 為測試集，與
+上面一樣，我們使用訓練集來尋找我們 ARIMA 模型的 order 以及訓練 ANN 的部分，最
+後在使用測試集來進行測試，以下為我們模型與 Babu 模型的比較，由於測試集的數量
+過多，圖的部分我們只剪取後 20 筆資料:
+17
+
+===== PAGE 26 =====
+
+圖 4.5: 我的模型與 Babu 模型的比較
+圖的部分可以看到 Babu 的模型預測的並不太好，且 MSE 的部分可以發現我們是比
+Babu 的模型表現來的好。
+4.2.2 模型的預測區間
+做完點估計之後，我們使用 3.3提到的方法進行區間預測，結果如下:
+圖 4.6: 我的模型的區間預測
+18
+
+===== PAGE 27 =====
+
+五、 模型架構的延伸
+雖然我們希望我們的模型盡量從簡，但其實我們也好奇如果對模型進行一些簡單
+的加工會不會對預測有幫助，例如我們意識到在 4.1的資料中，一次的卡爾曼濾波並
+不能將資料的低波動和高波動部分完全分開，可以看到 5.1的 ANN train 部分還有時間
+結構在後面，所以我們對此資料分別進行了兩次和三次的濾波，並且使用兩個與三
+個 ARIMA 模型去擬合線性部分，但結果表示並不會比一開始的模型好，圖 5.1為太陽
+黑子資料濾波後高波動與低波動部分，把兩份資料稱為 ARIMA 訓練集和 ANN 訓練
+集，圖 5.2為濾波兩次後的結果，也就是 5.1中 ANN 訓練集的部分再進行一次濾波，其
+中 ARIMA train-1、ARIMA train-2 使用 ARIMA 模型去擬合，剩下的 ANN train 用 ANN
+去擬合，圖 5.3為濾波三次後的結果，也就是將圖 5.2中 ANN 訓練集的部分再進行一
+次濾波，其中 ARIMA train-1、ARIMA train-2、ARIMA train-3 使用 ARIMA 模型去擬
+合，剩下的 ANN train 用 ANN 去擬合，最後預測的 MSE 分別為 373.3337、389.5415、
+403.1174，可以看出來多濾波幾次並不會提升我們模型的預測能力。
+圖 5.1: 資料經過一次卡爾曼濾波後
+圖 5.2: 資料經過二次卡爾曼濾波後
+19
+
+===== PAGE 28 =====
+
+圖 5.3: 資料經過三次卡爾曼濾波後
+事實上，我們可以去模擬如果將複數個時間序列資料加起來，使用卡爾曼濾波器去
+進行多次的濾波，是否能將時間序列的資料分離出來，以下我們將進行一次簡單的模
+擬；先模擬出三份 AR1 的資料，分別為 ϕ = 0 .8 和殘差項的標準差為 10、ϕ = 0 .7 和
+殘差項的標準差為 5、ϕ = 0 .6 和殘差項的標準差為 3，如圖 5.4所示，之後將三份資料
+相加如圖 5.5，在將此資料進行三次濾波，第一次的結果如圖 5.6，且使用最佳 AIC 的
+方式去找 order，再對 ARIMA 進行擬合，第二、三次的濾波也基於同樣的方式，結果
+如 5.7、 5.8所示。
+圖 5.4: 模擬三份 AR1 的資料
+20
+
+===== PAGE 29 =====
+
+圖 5.5: 三份 AR1 資料相加
+圖 5.6: 資料經過一次卡爾曼濾波後
+21
+
+===== PAGE 30 =====
+
+圖 5.7: 資料經過兩次卡爾曼濾波後
+圖 5.8: 資料經過三次卡爾曼濾波後
+從上面的分析可以看出，經過多次卡爾曼濾波，我們仍然無法將三份時間序列資料
+分離，因此我們可以得到一個結論，多做幾次的卡爾曼濾波並無法更好的分離資料。
+22
+
+===== PAGE 31 =====
+
+六、 未來研究方向與結論
+本文雖然是使用卡爾曼濾波器將資料分成高波動和低波動的部分，但並未使用古典
+的波動性模型 (ex.GARCH) 進行比較，其中的原因為波動性模型基本上著重於資料的變
+異數或二階動差，但我們進行的比較為與原始資料的均方差，用波動性模型會較不合
+適，相反的，如果認為資料具有某種 ARIMA 以外的模型特徵，我認為將 ARIMA 變成
+其他的線性模型也會有不錯的效果。
+本文在 3.2.1所提供的 sort bootstrap 方法，在模擬的數據上是可行的，但我們目前還
+不能在數學上證明此方法是有效，在 Forecasting nonlinear time series with neural network
+sieve bootstrap[8] 這篇文章中，也有提出一種時間序列的 bootstrap 的方法，比較兩種
+bootstrap 的方法或許可以是一個研究方向。
+類神經網路與卡爾曼濾波器都有許多的調整空間，類神經網路的部分從神經元、隱
+藏層、激活函數這些模型設置的部分，到學習率、epochs、權重衰減等超參數調整，而
+卡爾曼濾波器則有隱藏狀態和初始值設定的問題，這些基本上都有討論與改進的空間，
+但我認為模型整體的架構才是重點，我們的模型很好的結合了 ARIMA 和 ANN 的優
+點，且在預測數據的表現皆不輸 Babu[1] 提出的模型，且我們的模型假設十分寬鬆，基
+本上可以應用在各種時間序列的資料上，因此本文提供了一個應用廣泛且簡單準確的
+時間序列模型。
+23
+
+===== PAGE 32 =====
+
+參 考 文 獻
+[1] C. N. Babu and B. E. Reddy, “A moving-average filter based hybrid arima–ann model for
+forecasting time series data,” Applied Soft Computing, vol. 23, pp. 27–38, 2014.
+[2] W. S. McCulloch and W. Pitts, “A logical calculus of the ideas immanent in nervous activ-
+ity,” The bulletin of mathematical biophysics , vol. 5, pp. 115–133, 1943.
+[3] G. P . Zhang, “Time series forecasting using a hybrid arima and neural network model,”
+Neurocomputing, vol. 50, pp. 159–175, 2003.
+[4] M. Khashei and M. Bijari, “A novel hybridization of artificial neural networks and arima
+models for time series forecasting,” Applied soft computing, vol. 11, no. 2, pp. 2664–2675,
+2011.
+[5] B. Efron and R. J. Tibshirani, An introduction to the bootstrap . Chapman and Hall/CRC,
+1994.
+[6] E. Carlstein, “The use of subseries values for estimating the variance of a general statistic
+from a stationary sequence,” The annals of statistics , pp. 1171–1179, 1986.
+[7] G. Welch, G. Bishop et al., “An introduction to the kalman filter,” 1995.
+[8] F. Giordano, M. La Rocca, and C. Perna, “Forecasting nonlinear time series with neural
+network sieve bootstrap,” Computational Statistics & Data Analysis , vol. 51, no. 8, pp.
+3871–3884, 2007.
+24

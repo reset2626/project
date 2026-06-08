@@ -1,0 +1,995 @@
+                                    Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+                                                                                                                  www.elsevier.com/locate/csda
+
+
+
+
+               Forecasting nonlinear time series with neural network
+                                 sieve bootstrap
+                              Francesco Giordano, Michele La Rocca∗ , Cira Perna
+              Department of Economics and Statistics, University of Salerno, via Ponte Don Melillo, 84084 Fisciano, Salerno, Italy
+
+                          Received 21 October 2005; received in revised form 10 March 2006; accepted 14 March 2006
+                                                        Available online 7 April 2006
+
+
+
+
+Abstract
+  A new method to construct nonparametric prediction intervals for nonlinear time series data is proposed. Within the framework
+of the recently developed sieve bootstrap, the new approach employs neural network models to approximate the original nonlinear
+process. The method is ﬂexible and easy to implement as a standard residual bootstrap scheme while retaining the advantage of
+being a nonparametric technique. It is model-free within a general class of nonlinear processes and avoids the speciﬁcation of a
+ﬁnite dimensional model for the data generating process. The results of a Monte Carlo study are reported in order to investigate the
+ﬁnite sample performances of the proposed procedure.
+© 2006 Elsevier B.V. All rights reserved.
+
+Keywords: Artiﬁcial neural networks; Prediction intervals; Nonlinear time series
+
+
+
+
+1. Introduction
+
+   In the analysis of time series data, the estimation of forecast intervals based on an observed sample path of the
+process is a key issue. If the process is linear and the distribution of the error process is known, the methodology
+is well developed but, for departures from the true underlying distribution, the prediction intervals perform poorly
+(Thombs and Schucany, 1990). In this latter case, several distribution free alternatives based on the bootstrap and
+on the speciﬁcation of ﬁnite dimensional linear models have been proposed (Grigoletto, 1998; Pascual et al., 2006).
+More recently, Alonso et al. (2002) proposed an AR-Sieve bootstrap approach with the interesting property of being
+model-free within the class of linear processes. The approach, which does not impose the choice of a particular model,
+is effective for linear and “weakly” nonlinear processes. Unfortunately, it is not consistent if the underlying process
+does not admit an AR(∞) representation.
+   In this paper we propose a new method to construct nonparametric prediction intervals for nonlinear time series data.
+Our approach is in the spirit of the sieve bootstrap proposed by Bühlmann (1997), following the scheme of Alonso
+et al. (2002) for linear processes, but it uses the class of neural network models to approximate the original nonlinear
+process (Giordano et al., 2005).
+
+
+  ∗ Corresponding author. Tel.: +39 089 962200; fax: +39 089 962049.
+   E-mail address: larocca@unisa.it (M. La Rocca).
+
+0167-9473/$ - see front matter © 2006 Elsevier B.V. All rights reserved.
+doi:10.1016/j.csda.2006.03.003
+3872                         F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+
+   The paper is organized as follows. In Section 2, we describe the neural network sieve (NN-Sieve) bootstrap for
+estimating forecast intervals. In Section 3, we report the results of a Monte Carlo simulation designed to study the
+performances of the proposed procedure and to compare it to the AR-Sieve bootstrap scheme. Finally, some concluding
+remarks are reported in Section 4.
+
+
+2. Neural network sieve bootstrap forecast intervals
+
+   The sieve bootstrap is based on the idea of sieve approximation and it should be seen as a nonparametric scheme.
+Following Bühlmann (1999), a general stochastic process {Yt , t = 0, ±1, ±2, . . .} can be approximated by a family
+of models {Mr , r = 1, 2, . . .} equipped with a model selection rule. Clearly, a key issue is the selection of a proper
+parametric model family.
+   For general stationary categorical processes, the variable length Markov chain has been used (Bühlmann, 1999).
+For linear processes, a straightforward choice is the class of AR(p) models with ﬁnite unknown p, assuming that some
+consistent estimator is available (Bühlmann, 1997). The latter approach performs better than other bootstrap techniques
+if the data generating process is linear, representable as an AR(∞) process.
+    If the model is nonlinear, the AR-Sieve bootstrap is not consistent and its success is related to the closeness of the
+underlying process to the AR(∞) representation. Bühlmann (1997, 2002) shows, by simulation, that for exponential
+autoregressive models of order 2 and for some classes of self-exciting threshold autoregressive models, the AR-Sieve
+bootstrap estimation exhibits a bias which does not decrease with increasing sample size. Therefore, an alternative
+approach for nonlinear data generating processes is needed.
+    Let {Yt , t = 1, 2, . . . , T }, a time series modeled as
+
+       Yt = g (Yt−1 , . . . , Yt−d ) + εt ,
+
+where εt are iid random variables, with continuous density function, positive almost everywhere, with zero mean and
+E|εt | < ∞. The function g(·) : Rd → R is bounded on bounded sets and it is L1 -integrable with respect to a ﬁnite
+measure  deﬁned on Rd . The unknown function g(·) can be approximated by using a one layer feedforward neural
+network model, NN(d, r), deﬁned as
+                                             ⎛                  ⎞
+                                   r       d
+        f yt−1 , . . . , yt−d ; rd =   ck  ⎝   akj yt−j + ak0 ⎠ + c0 ,                                         (1)
+                                       k=1         j =1
+
+where d is the number of input neurons (the order of the autoregression), r is the hidden layer size, akj is the weight of the
+connection between the jth input neuron and the kth neuron in the hidden level; ck , k = 1, . . . , r is the weight of the link
+between the kth neuron in the hidden layer and the output; ak0 and c0 are, respectively, the bias term of the hidden neurons
+and of the output; (·) is the activation function of the hidden layer. We deﬁne rd = (c0 , c1 , . . . , cr , a1 , a2 , . . . , ar )
+where ai = (ai0 , ai1 , . . . , aid ) and rd ∈ Rr(d+2)+1 .
+  As usual in neural network applications, we will assume a sigmoidal activation function such as the logistic or the
+hyperbolic tangent function. In this case, single hidden layer neural networks are universal approximators in that they
+can arbitrarily closely approximate, in an appropriate corresponding metric, to L1 -integrable functions (Hornik, 1991).
+That is, for each  > 0, there exists a single hidden feed forward neural network with r neurons in the hidden layer and
+weights 0rd , such that
+
+        g(x) − f x, 0rd         ⩽,                                                                                                (2)
+
+where  ·  is the L1 ()-norm.
+  This latter property justiﬁes the use of a feedforward neural network in a procedure of sieve bootstrap for nonlinear
+processes. In the proposed approach, the number d ∗ of neurons in the input layer is selected so that the family of
+networks NN(d ∗ , r) can be used as the class of models Mr ; we assume that the ﬁnite unknown hidden layer size r can
+be chosen appropriately.
+                               F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884      3873
+
+
+   The NN-Sieve bootstrap procedure, to construct the predictive interval for the future observation YT +h , runs as
+follows.
+
+ (1) Given a sample {Y1 , . . . , YT }, select the input size d ∗ and estimate the hidden layer size r̂. Clearly, this model
+     selection step is critical but it has been deeply studied from both machine learning and statistical perspective.
+     Several solutions have been proposed involving information criteria (Kuan and White, 1994), pruning, stopped
+     training and regularization (Reed, 1993) and inferential techniques (Anders and Korn, 1999; La Rocca and Perna,
+     2005). Finally, it is worthwhile to stress that, although the parameters of a neural network model are unidentiﬁable,
+     when focusing on prediction the problem disappears (Hwang and Ding, 1997).
+ (2) Estimate the neural network model NN(d ∗ , r̂) by minimizing some kind of loss function including the mean
+     square error or some robust alternatives based on M-estimators (Kuan and White, 1994; Capobianco, 2000).
+     Alternative approaches based on the application of optimization heuristics, such as evolutionary algorithms, can
+     be successfully used (Winker and Gilli, 2004).
+ (3) Deﬁne the empirical distribution function of the centered residuals ε̂t
+
+                            −1 
+                                 T
+                                          
+            F̂ (x) = T − d ∗       I ε̂t ⩽x ,
+                                       t=d ∗ +1
+
+     where I(·) denotes the indicator function.
+ (4) Draw a resample εt∗ of iid observations from F̂ and deﬁne
+                    ∗                         
+          Yt∗ = f Yt−1               ∗
+                         , . . . , Yt−d ; ˆ rd + εt∗ ,
+     with the ﬁrst d observations ﬁxed to the mean value of Yt and t = 1, . . . , T + n. The ﬁrst n observations are
+     discarded in order to make negligible the effect of starting values.
+ (5) Compute the estimation of the coefﬁcients ˆ ∗rd .
+ (6) Compute the future bootstrap observations
+                                                      
+           YT∗+h = f YT∗+h−1 , . . . , YT∗+h−d , ˆ ∗rd + εT∗ +h ,
+
+     where h > 0, εT∗ +h is an observation from the empirical distribution function F̂ (x) and Yt∗ = Yt for t ⩽T . The
+     latter is to get a conditional distribution of YT +h given the observed data.
+ (7) The bootstrap distribution FY∗T +h of YT∗+h is used to approximate FYT +h , the unknown conditional distribution of
+     YT +h .
+
+As usual a Monte Carlo estimate of the bootstrap distribution is obtained by repeating B times steps 4–6. Thus, for each
+forecast horizon h, we obtain a set of B forecasts YT∗,b+h , b = 1, 2, . . . , B and the following empirical distribution
+function:
+
+                       1 
+                         B
+      F̂Y∗T +h (x) =       I YT∗,b
+                                +h ⩽x
+                       B
+                         b=1
+
+can be used to get an estimate of FY∗T +h .
+  The 1 −  prediction interval for YT +h is given by
+                              
+       Q̂∗ (/2), Q̂∗ (1 − /2) ,
+
+where Q̂∗ (·) = F̂Y∗−1
+                    T +h
+                         (·) is the quantile function associated to the estimated bootstrap distribution.
+  Observe that, if we omit step 5 and use ˆ rd in the recursion in step 6, the resampling plan shares the same logic as the
+conditional bootstrap of Cao et al. (1997). The prediction intervals, in this latter case, do not incorporate the variability
+due to the parameter estimation.
+  Finally, better prediction intervals may be obtained by using the double bootstrap (Nankervis, 2005) or the approach
+suggested by Brodin (2006). These techniques are still under investigation.
+3874                             F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+                                        M1                                                                                M2
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M3                                                                                M4
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M5                                                                                M6
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M7                                                                                M8
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M9                                                                               M10
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 1. Medians of the distributions of the Kolomogorov–Smirnov statistic for the “true” models M1–M10. One hundred Monte Carlo runs. AR-Sieve
+bootstrap (white bars) and NN-Sieve bootstrap (dashed bars). Time series length T = 300, 500, 1000. Forecasting horizon h = 1, . . . , 5.
+
+
+
+
+3. Simulation results
+
+   In this section, we present the results of a Monte Carlo experiment carried out to analyze the ﬁnite sample behavior
+of the proposed bootstrap estimates of prediction intervals for nonlinear processes. We compare our proposal with the
+AR-Sieve bootstrap approach proposed by Alonso et al. (2002).
+  As data generating processes, we consider the following models:
+
+(M1) Yt = 0.6Yt−1 + εt
+           t−1 + εt  2 
+(M2) Yt = 0.9Y                                          2 
+(M3) Yt = 0.5 + 0.9 exp −Yt−1     Yt−1 − 0.8 − 1.8 exp −Yt−1     Y   + εt
+                       2                            2  t−2
+(M4) Yt = 0.5 + 1.9 exp −Yt−1 Yt−1 − 0.8 − 1.8 exp −Yt−1 Yt−2 + εt
+(M5) Yt = (−0.7Yt−1 − 1) I (Yt−1 > 0) − 0.6Yt−1 I (Yt−1 ⩽0) + εt
+(M6) Yt = (−1.4Yt−1 − 1) I (Yt−1 > 0) − 0.6Yt−1 I (Yt−1 ⩽0) + εt
+(M7) Yt = (−0.6Yt−1 − 0.4) I (Yt−1 > 0) + (−0.9Yt−1 + 1.5) I (Yt−1 ⩽0) + εt
+                                 F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884                                          3875
+
+                                        M1                                                                                M2
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+          h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M3                                                                                M4
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+          h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M5                                                                                M6
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+          h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M7                                                                                M8
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+          h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M9                                                                               M10
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+          h=1            h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 2. Median absolute deviations of the distributions of the Kolomogorov–Smirnov statistic for the “true” models M1–M10. One hundred Monte
+Carlo runs. AR-Sieve bootstrap (white bars) and NN-Sieve bootstrap (dashed bars). Time series length T = 300, 500, 1000. Forecasting horizon
+h = 1, . . . , 5.
+
+
+
+
+(M8) Yt = 0.7 |Yt−1 | / (2 + |Yt−1 |) + εt
+                                          −1
+(M9) Yt = 0.8Yt−1 − 0.8Yt−1 1 + e−10Yt−1       + εt
+                                                                          −1
+(M10) Yt = 0.3Yt−1 + 0.6Yt−2 + (0.1 − 0.9Yt−1 + 0.8Yt−2 ) 1 + e−10Yt−1         + εt
+with εt ∼ N(0, 1).
+  Models M1 and M2 have autoregressive AR(1) structure with gaussian innovations; M2 has the root of the char-
+acteristic equation closer to the nonstationary region. Since the AR-Sieve bootstrap relies on linear approximation,
+we use these models as a benchmark for our proposal. In this case, the AR-Sieve approach is known to be “optimal”
+(Bühlmann, 2002).
+  Models M3–M10 are some of the most used classes of parametric nonlinear models for the conditional mean.
+Speciﬁcally, M3 and M4 are exponential autoregressive models of order 2, EXPAR(2); they differ in that M4 has a
+more complex nonlinear structure since it has an attractor of period 4 while M2 has an attractor of period 2. Models
+M5, M6 and M7 are self-exciting threshold autoregressive models, SETAR(2,1,1); model M6 has a not stationary ﬁrst
+3876                             F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+                                        M1                                                                                M2
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+                                                                                   0.0
+ 0.0   300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M3                                                                                M4
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M5                                                                                M6
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M7                                                                                M8
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M9                                                                               M10
+0.30                                                                              0.30
+
+
+0.15                                                                              0.15
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 3. Medians of the distributions of the Kolomogorov–Smirnov statistic for the estimated models M1–M10. One hundred Monte Carlo runs.
+AR-Sieve bootstrap (white bars) and NN-Sieve bootstrap (dashed bars). Time series length T = 300, 500, 1000. Forecasting horizon h = 1, . . . , 5.
+
+
+
+
+regime, while remaining globally stable (see Tong, 1990). Model M8 is a general nonlinear autoregressive model while
+M9 and M10 are, respectively, smooth transition autoregressive models, STAR(1) and STAR(2).
+   These models have been already used in several Monte Carlo studies involving nonlinear relationships (Zhang et al.,
+2001). Particularly, models M3 and M7 have been used by Bühlmann (1997) as challenging models for the AR-Sieve
+bootstrap. In these cases, the AR-Sieve is shown to be not consistent since they cannot be represented as linear models.
+As pointed out by Bühlmann (2002), the AR-Sieve bootstrap has a bias which does not decrease with increasing sample
+size and, as a consequence, the predictive intervals based on this technique are expected to behave poorly.
+   For the simulation design, we consider h-step ahead forecasts with h = 1, . . . , 5 and we ﬁx the nominal coverage of
+the predictive intervals to 1 −  = 0.90 and 1 −  = 0.95. Moreover, we consider series of different lengths, namely
+T = 300, T = 500 and T = 1000, 100 Monte Carlo runs and 999 replicates to estimate the bootstrap distributions. All
+the computations are implemented in S-plus and the code is available by the authors on request.
+   To study the different prediction intervals, we refer to the evaluation of the distribution forecasts by using a
+Kolmogorov–Smirnov type statistic. The approach is straightforward and it is based on a classical result: the integral
+transform of a sequence, generated from the true conditional distribution function FYT +h (x), is distributed as a uniform
+                                 F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884                                          3877
+
+                                        M1                                                                                M2
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M3                                                                                M4
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M5                                                                                M6
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M7                                                                                M8
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M9                                                                               M10
+0.20                                                                              0.20
+
+
+0.10                                                                              0.10
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 4. Median absolute deviations of the distributions of the Kolomogorov–Smirnov statistic for the estimated models M1–M10. One hundred Monte
+Carlo runs. AR-Sieve bootstrap (white bars) and NN-Sieve bootstrap (dashed bars). Time series length T = 300, 500, 1000. Forecasting horizon
+h = 1, . . . , 5.
+
+
+distribution U (0, 1). Therefore, if the unknown true distribution function and its bootstrap approximation F̂Y∗T +h (x) are
+close, the integral transform of the previous sequence, by using the bootstrap distribution function estimate, should be
+close to the uniform distribution U (0, 1) (see Diebold et al., 1998, p. 867 for a discussion).
+   For each model M1–M10 and for T = 300, 500, 1000, the simulation experiment is implemented as illustrated by
+Algorithm 1 where we ﬁxed S = 100, H = 5 and R = 1000. The bootstrap distributions are computed using B = 999
+replicates. The algorithm can be used for both AR-Sieve and NN-Sieve bootstrap.
+
+Algorithm 1. Estimation of Kolmogorov–Smirnov goodness of ﬁt statistics.
+
+Require: S > 0 {Monte Carlo replications}
+Require: H > 0 {Forecasting horizon}
+Require: R > 0 {Number of future values}
+1: for i = 1 to S do
+2:   Generate the pseudo-time series Yi = {Yi1 , . . . , YiT }
+3878                             F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+                                        M1                                                                                M2
+0.05                                                                              0.05
+
+
+0.02                                                                              0.02
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M3                                                                                M4
+0.05                                                                              0.05
+
+
+0.02                                                                              0.02
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M5                                                                                M6
+0.05                                                                              0.05
+
+
+0.02                                                                              0.02
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M7                                                                                M8
+0.05                                                                              0.05
+
+
+0.02                                                                              0.02
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+                                        M9                                                                               M10
+0.05                                                                              0.05
+
+
+0.02                                                                              0.02
+
+
+ 0.0                                                                               0.0
+       300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000          300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1           h=2            h=3            h=4            h=5                   h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 5. Medians of the distributions of the coverage error for the models M1–M10. One hundred Monte Carlo runs. AR-Sieve bootstrap (white bars)
+and NN-Sieve bootstrap (dashed bars). Nominal coverage 1 −  = 0.95. Time series length T = 300, 500, 1000. Forecasting horizon h = 1, . . . , 5.
+
+
+
+3: for h = 1 to H do
+4: Compute F̂Y∗i,T +h (x) {Sieve bootstrap distribution}
+5: for j = 1 to R do
+                 j
+6: Compute Yi,T +h {Future value generated from the “ true” model}
+7: Zi,T +h = F̂Y∗i,T +h (Yi,T +h )
+       j                   j
+
+8: end for
+9: Compute KS ih {Kolmogorov.Smirnov goodness ﬁt statistic}
+10: end for
+11: end for
+12: return KS ih , i = 1, 2, . . . , S; h = 1, . . . , H
+
+
+  The medians and the median absolute deviations of the Kolmogorov–Smirnov statistics over the S Monte Carlo runs
+are reported in Figs. 1 and 2. As expected, the two procedures perform similarly when the data generating process
+                                 F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884                                            3879
+
+                                         M1                                                                                 M2
+
+
+0.015                                                                              0.015
+
+
+
+  0.0                                                                                0.0
+        300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000           300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                    h=1            h=2            h=3            h=4            h=5
+
+                                         M3                                                                                 M4
+
+0.015                                                                              0.015
+
+
+
+  0.0                                                                                0.0
+
+        300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000           300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                    h=1            h=2            h=3            h=4            h=5
+
+                                         M5                                                                                 M6
+
+0.015                                                                              0.015
+
+
+
+  0.0                                                                                0.0
+
+        300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000           300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                    h=1            h=2            h=3            h=4            h=5
+
+                                         M7                                                                                 M8
+
+0.015                                                                              0.015
+
+
+
+  0.0                                                                                0.0
+
+        300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000           300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                    h=1            h=2            h=3            h=4            h=5
+
+                                         M9                                                                                M10
+
+0.015                                                                              0.015
+
+
+
+  0.0                                                                                0.0
+
+        300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000           300 500 1000   300 500 1000   300 500 1000   300 500 1000   300 500 1000
+           h=1            h=2            h=3            h=4            h=5                    h=1            h=2            h=3            h=4            h=5
+
+
+Fig. 6. Median absolute deviations of the distributions of the coverage error for the models M1–M10. One hundred Monte Carlo runs. AR-Sieve
+bootstrap (white bars) and NN-Sieve bootstrap (dashed bars). Nominal coverage 1 −  = 0.95. Time series length T = 300, 500, 1000. Forecasting
+horizon h = 1, . . . , 5.
+
+
+
+is linear (models M1 and M2) where the AR-Sieve bootstrap can be considered as optimal. On the contrary, when
+the data generating process is nonlinear, the NN-Sieve bootstrap outperforms the AR-Sieve, leading to a bootstrap
+approximation closer to the true unknown conditional distribution function (models M3–M7 and M10). For the models
+M8 and M9, where the nonlinear structure is weak, the two resampling schemes can be considered almost equivalent.
+   Moreover, it is worthwhile stressing that the NN-Sieve bootstrap approach shows a consistent behavior with decreas-
+ing medians and decreasing median absolute deviations for increasing time series lengths, for all the models considered
+in the simulation design (see Figs. 1 and 2).
+   In order to evaluate the impact of parameter estimation on conditional distributions, the previous procedure is modiﬁed
+                                                           j
+only in step 6 of Algorithm 1, where the future values YT +h with h = 1, . . . , 5 and j = 1, . . . , R are generated by using
+the models M1–M10 with parameters estimated on the simulated series (see Figs. 3 and 4). Clearly, the results obtained
+by using estimated models are very much similar to those obtained by using models with the “true” parameters and,
+so, this aspect will not be further investigated in the following.
+   To conﬁrm the good performances of the NN-Sieve bootstrap approach, the different prediction intervals are evaluated
+by referring to their empirical coverage, length and a combined measure of them, as in Alonso et al. (2002).
+3880                              F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+Table 1
+CQh index for linear models M1 and M2 computed by using AR-Sieve and NN-Sieve bootstrap
+
+Model       T                Forecast horizons
+
+                             1                       2                        3                        4                   5
+
+                             AR          NN          AR           NN          AR          NN           AR          NN      AR      NN
+
+M1           300             0.128       0.128       0.124        0.125       0.128       0.127        0.123       0.126   0.122   0.123
+             500             0.054       0.058       0.052        0.054       0.054       0.057        0.058       0.056   0.055   0.057
+            1000             0.020       0.026       0.028        0.020       0.023       0.019        0.020       0.021   0.019   0.019
+
+M2           300             0.222       0.224       0.219        0.220       0.208       0.210        0.196       0.199   0.191   0.191
+             500             0.105       0.108       0.108        0.108       0.103       0.101        0.096       0.090   0.090   0.093
+            1000             0.021       0.020       0.029        0.030       0.024       0.025        0.017       0.016   0.020   0.018
+
+
+
+
+  Again, for each model M1–M10 and for T = 300, 500, 1000, we ﬁxed S = 100, H = 5 and R = 1000. The bootstrap
+distributions are computed using B = 999 replicates. The procedure is illustrated in Algorithm 2 which can be used for
+both AR-Sieve and NN-Sieve bootstrap.
+
+Algorithm 2. Estimation of empirical coverage and length of prediction intervals.
+
+Require: S > 0 {Monte Carlo replications}
+Require: H > 0 {Forecasting horizon}
+Require: R > 0 {Number of future values}
+Require: 0 < 1 −  < 1 {Nominal coverage level}
+1: for i = 1 to S do
+2: Generate the pseudo-time series Yi = {Yi1 , . . . , YiT }
+3: for h = 1 to H do
+4: Q̂∗ih (x) = F̂Y∗−1
+                   i,T +h
+                          (x) {Sieve bootstrap quantile function}
+       ∗      ∗
+5: Lih = Q̂ih (1 − /2) − Q̂∗ih (/2)
+6: for j = 1 to R do
+                  j
+7:   Compute Yi,T +h {Future value generated from the “ true” model}
+8: end for
+9: end for
+             [R(1−/2)]        [R /2]
+10: Lih = Yi,T +h         − Yi,T +h {“ Theoretical” interval length}
+      ∗ = 1
+              R
+                   I Q̂∗ih (/2) ⩽Yi,T +h ⩽ Q̂∗ih (1 − /2)
+                                       j
+11: Cih    R
+                 j =1
+12: end for
+                
+                S
+13: C̄h∗ = S1          ∗
+                      Cih
+                i=1
+                S
+14: L̄∗h = S1         L∗ih
+            i=1
+          1 
+             S
+15: L̄h = S     Lih
+            i=1                                    
+16: return CQh = 1 − C̄h∗ /(1 − ) + 1 − L̄∗h /L̄h  , h = 1, 2, . . . , H
+
+
+  In Figs. 5 and 6, the medians and the mean absolute deviations of the observed error coverage are reported for the
+AR-Sieve bootstrap and for the NN-Sieve bootstrap, for the nominal level 1 −  = 0.95. These results are consistent
+with those obtained by using the Kolmogorov–Smirnov statistic previously discussed.
+                            F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884                3881
+
+Table 2
+CQh index for nonlinear models M3 and M4 computed by using AR-Sieve and NN-Sieve bootstrap
+
+Model       T          Forecast horizons
+
+                       1                       2                        3                        4                    5
+
+                       AR          NN          AR           NN          AR          NN           AR          NN       AR      NN
+
+M3           300       0.646       0.188       0.300        0.109       0.223       0.156        0.176       0.139    0.182   0.144
+             500       0.552       0.114       0.235        0.117       0.163       0.088        0.111       0.082    0.112   0.094
+            1000       0.455       0.035       0.151        0.019       0.079       0.016        0.042       0.020    0.035   0.010
+
+M4           300       0.798       0.202       0.405        0.223       0.242       0.170        0.195       0.158    0.196   0.174
+             500       0.674       0.109       0.322        0.159       0.160       0.089        0.111       0.098    0.115   0.101
+            1000       0.588       0.018       0.241        0.004       0.087       0.037        0.041       0.009    0.045   0.010
+
+
+
+Table 3
+CQh index for nonlinear models M5, M6 and M7 computed by using AR-Sieve and NN-Sieve bootstrap
+
+Model       T          Forecast horizons
+
+                       1                       2                        3                        4                    5
+
+                       AR          NN          AR           NN          AR          NN           AR          NN       AR      NN
+
+M5           300       0.163       0.133       0.149        0.121       0.132       0.095        0.135       0.093    0.134   0.094
+             500       0.077       0.045       0.070        0.041       0.051       0.025        0.048       0.029    0.053   0.023
+            1000       0.041       0.011       0.041        0.008       0.022       0.023        0.024       0.026    0.032   0.022
+
+M6           300       0.406       0.243       0.227        0.209       0.242       0.134        0.225       0.181    0.220   0.119
+             500       0.312       0.156       0.148        0.141       0.161       0.039        0.140       0.105    0.139   0.019
+            1000       0.232       0.042       0.061        0.015       0.082       0.037        0.056       0.014    0.059   0.055
+
+M7           300       0.175       0.126       0.180        0.121       0.220       0.133        0.216       0.137    0.236   0.137
+             500       0.125       0.072       0.133        0.059       0.163       0.077        0.158       0.067    0.170   0.083
+            1000       0.100       0.043       0.098        0.034       0.136       0.058        0.130       0.044    0.140   0.064
+
+
+
+Table 4
+CQh index for nonlinear model M8 computed by using AR-Sieve and NN-Sieve bootstrap
+
+Model           T       Forecast horizons
+
+                        1                      2                        3                        4                    5
+
+                       AR           NN         AR           NN          AR           NN          AR           NN      AR      NN
+
+M8           300        0.132       0.137      0.127        0.129       0.117        0.121       0.124        0.125   0.136   0.133
+             500        0.071       0.073      0.064        0.069       0.055        0.064       0.067        0.067   0.071   0.074
+            1000        0.009       0.003      0.003        0.005       0.005        0.007       0.001        0.008   0.004   0.003
+
+
+
+   Again, as expected the two procedures perform similarly when the data generating process is linear (models M1 and
+M2) showing comparable error coverage for the estimated prediction intervals. These results are conﬁrmed by looking
+at the index CQh computed by using Algorithm 2. Clearly, the smaller are the values of the index CQh , the better are the
+predictive performances of the method. As expected, the AR-Sieve and the NN-Sieve bootstrap are basically equivalent
+for the two linear models, for all forecasting horizons and for all time series lengths (see Table 1). It is also quite clear
+that the performances improve as the sample size increases. The behavior of the two approaches is rather similar for
+all the forecasting horizons considered.
+   When the data generating process is nonlinear, the NN-Sieve bootstrap outperforms the AR-Sieve in almost all the
+cases considered. The better results of the proposed procedure are both in terms of bias (the medians of the error
+3882                           F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+Table 5
+CQh index for nonlinear models M9 and M10 computed by using AR-Sieve and NN-Sieve bootstrap
+
+Model         T          Forecast horizons
+
+                         1                         2                        3                        4                        5
+
+                         AR             NN        AR               NN       AR            NN         AR              NN       AR                NN
+
+M9             300       0.189          0.188      0.142           0.143    0.132         0.132      0.124           0.130    0.119             0.133
+               500       0.111          0.106      0.072           0.072    0.062         0.059      0.061           0.059    0.058             0.061
+              1000       0.041          0.039      0.002           0.007    0.007         0.006      0.012           0.007    0.018             0.015
+
+M10            300       0.347          0.571      0.249           0.417    0.274         0.728      0.210           0.396    0.214             0.677
+               500       0.260          0.201      0.181           0.161    0.191         0.160      0.140           0.127    0.141             0.128
+              1000       0.131          0.078      0.047           0.029    0.080         0.044      0.023           0.008    0.026             0.013
+
+
+
+
+                                      M1                                                                       M2
+3.0                                                                        3.0
+
+2.0                                                                        2.0
+
+1.0                                                                        1.0
+         AR         NN           AR         NN         AR          NN               AR         NN         AR         NN            AR          NN
+              300                     500                   1000                         300                   500                      1000
+
+                                      M3                                                                       M4
+3.0                                                                        3.0
+
+2.0                                                                        2.0
+
+1.0                                                                        1.0
+         AR         NN           AR         NN         AR          NN               AR         NN         AR         NN            AR          NN
+              300                     500                   1000                         300                   500                      1000
+
+                                      M5                                                                       M6
+3.0                                                                        3.0
+
+2.0                                                                        2.0
+
+1.0                                                                        1.0
+         AR         NN           AR         NN         AR          NN               AR         NN         AR         NN            AR          NN
+              300                     500                   1000                         300                   500                      1000
+
+                                      M7                                                                       M8
+3.0                                                                        3.0
+
+2.0                                                                        2.0
+
+1.0                                                                        1.0
+         AR         NN           AR         NN         AR          NN               AR         NN         AR         NN            AR          NN
+              300                     500                   1000                         300                   500                      1000
+
+                                      M9                                                                       M10
+3.0                                                                        3.0
+
+2.0                                                                        2.0
+
+1.0                                                                        1.0
+         AR         NN           AR         NN         AR          NN               AR         NN         AR         NN            AR          NN
+              300                     500                   1000                         300                   500                      1000
+
+
+Fig. 7. Distribution of bootstrap estimates of the variance of the innovation process with AR-Sieve bootstrap (AR) and with the NN-Sieve bootstrap
+(NN). Time series length T = 300, 500, 1000. The horizontal reference line is the “true” variance of the innovation process.
+                                F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884                                 3883
+
+                                       M1                                                                           M2
+
+
+1.2                                                                           1.2
+
+
+
+0.8                                                                           0.8
+         NN*         NN          NN*         NN          NN*     NN                   NN*         NN          NN*         NN           NN*     NN
+               300                     500                  1000                            300                     500                   1000
+
+                                       M3                                                                           M4
+
+
+1.2                                                                           1.2
+
+
+
+0.8                                                                           0.8
+         NN*         NN          NN*         NN          NN*     NN                   NN*         NN          NN*         NN           NN*     NN
+               300                     500                  1000                            300                     500                   1000
+
+                                       M5                                                                           M6
+
+
+1.2                                                                           1.2
+
+
+
+0.8                                                                           0.8
+         NN*         NN          NN*         NN          NN*     NN                   NN*         NN          NN*         NN           NN*     NN
+               300                     500                  1000                            300                     500                   1000
+
+                                       M7                                                                           M8
+
+
+1.2                                                                           1.2
+
+
+
+0.8                                                                           0.8
+         NN*         NN          NN*         NN          NN*     NN                   NN*         NN          NN*         NN           NN*     NN
+               300                     500                  1000                            300                     500                   1000
+
+                                       M9                                                                           M10
+
+
+1.2                                                                           1.2
+
+
+
+0.8                                                                           0.8
+         NN*         NN          NN*         NN          NN*     NN                   NN*         NN          NN*         NN           NN*     NN
+               300                     500                  1000                            300                     500                   1000
+
+
+Fig. 8. Distribution variances of bootstrap replicates with parameter vector ﬁxed to ˆ rd (NN) and with parameter vector re-estimated in each bootstrap
+replicates (NN*). Time series length T = 300, 500, 1000. The horizontal reference line is the “true” variance of the innovation process.
+
+
+
+coverage are closer to zero) and variability (the median absolute deviation is lower). This is particularly true for models
+with a strong nonlinear structure such as the EXPAR models M3 and M4 (see Figs. 5 and 6 and Table 2) and for the
+SETAR models M5, M6 and M7 (see Figs. 5 and 6 and Table 3). When the nonlinear structure is weak and the data
+generating process can be well approximated by a linear process (such as for models M8 and M9) the performances
+of the two methods are basically equivalent, in terms of observed error coverage and observed lengths (see Figs. 5 and
+6 and Tables 4 and 5). More complex is the behavior of the bootstrap approaches for the model M10. In this case, the
+distributions of the error coverage appear to be similar for the two approaches (see Figs. 5 and 6) but, when looking at
+the CQh index (see Table 5), clearly the NN-Sieve outperforms the AR-Sieve for time series length greater than 300.
+This can be explained with shorter predictive intervals for equivalent observed coverage. The better behavior of the
+NN-Sieve bootstrap predictions intervals is clear for all the forecasting horizons considered.
+   Similar results hold if the nominal coverage is ﬁxed to 1 −  = 0.90 and so they are not reported here.
+   Moreover, the simulation experiment is designed to evaluate the effect of the approximation to the true system by the
+linear autoregressive model and by the neural network model, when using the two alternatives resampling schemes. For
+each Monte Carlo run, the bootstrap estimation of the variance of the innovation process is computed for the AR-Sieve
+and the NN-Sieve bootstrap (see Fig. 7). The closer is the bootstrap estimate to the “true” variance of the innovation
+3884                           F. Giordano et al. / Computational Statistics & Data Analysis 51 (2007) 3871 – 3884
+
+
+process, the better is the approximation to the true system by the model used in the bootstrap scheme. Again, for linear
+and weakly nonlinear data generating processes, the performances of the two resampling schemes are comparable. On
+the contrary, for nonlinear processes the AR-Sieve shows a sizable bias.
+   Finally, the contribution of the parameter estimation error of the neural network models involved in the resampling
+scheme is evaluated. For each Monte Carlo run, the NN-Sieve bootstrap replicates of YT +1 are generated both using
+neural network models with the parameter vector ﬁxed to ˆ rd and with parameter vector re-estimated in each bootstrap
+replicate (that is by using ˆ ∗rd ). The distribution variances of the bootstrap replicates over the 100 Monte Carlo runs are
+reported in Fig. 8. The inﬂuence of parameter estimation is sizable only for nonlinear data generating processes and
+for relatively small values of the time series length. Forecasting horizons greater than one have not been considered
+because of the so-called noise ampliﬁcation (Yao and Tong, 1994) which is instead related to the dynamic structure of
+the true system.
+
+4. Concluding remarks
+
+  A new bootstrap approach to estimate the prediction intervals for nonlinear time series has been presented. The
+proposed bootstrap technique, which is based on the use of artiﬁcial neural networks in a sieve bootstrap scheme, has
+the advantage of being ﬂexible and easy to implement as a standard residual bootstrap technique. In any case it has a
+nice nonparametric property being model-free within a general class of nonlinear processes, avoiding the speciﬁcation
+of a ﬁnite dimensional model for the data generating process.
+   The simulation experiment, carried out to study the ﬁnite sample performances of the proposed method, shows that
+for nonlinear models the NN-Sieve bootstrap outperforms the AR-Sieve in terms of both mean and variability of the
+observed coverage. For linear and weak nonlinear models the two approaches seem to be equivalent.
+
+Acknowledgments
+
+   The authors wish to thank the editor and two anonymous referees for careful review and valuable suggestions.
+
+References
+
+Alonso, A.M., Pena, D., Romo, J., 2002. Forecasting time series with sieve bootstrap. J. Statist. Plann. Inference 100, 1–11.
+Anders, U., Korn, O., 1999. Model selection in neural networks. Neural Networks 12, 309–323.
+Brodin, E., 2006. On quantile estimation by bootstrap. Comput. Statist. Data Anal. 50, 1398–1406.
+Bühlmann, P., 1997. Sieve bootstrap for time series. Bernoulli 3, 123–148.
+Bühlmann, P., 1999. Bootstrap for time series. Research Report, 87. Seminar fur Statistik, ETH.
+Bühlmann, P., 2002. Bootstrap for time series. Statist. Sci. 17, 52–72.
+Cao, R., Ferrero-Bande, M., Gonzales-Manteiga, W., Prada-Sanchez, J.M., Garcia-Jurado, I., 1997. Saving computer time in constructing consistent
+   bootstrap prediction intervals for autoregressive processes. Comm. Statist. Simulation Comput. 26, 447–456.
+Capobianco, E., 2000. Neural networks and statistical inference: seeking robust and efﬁcient learning. Comput. Statist. Data Anal. 32, 443–454.
+Diebold, F.X., Gunthera, T.A., Tay, A.S., 1998. Evaluating density forecasts with applications to ﬁnancial risk management. Internat. Economic Rev.
+   39, 863–883.
+Giordano, F., La Rocca, M., Perna, C., 2005. Neural network sieve bootstrap for nonlinear time series. Neural Network World 15, 327–334.
+Grigoletto, M., 1998. Bootstrap prediction intervals for autoregression: some alternatives. Internat. J. Forecasting 14, 447–456.
+Hornik, K., 1991. Approximation capabilities of multilayer feedforward networks. Neural Networks 4, 251–257.
+Hwang, J.T.G., Ding, A.A., 1997. Prediction intervals for artiﬁcial neural networks. J. Amer. Statist. Assoc. 92, 748–757.
+Kuan, C., White, H., 1994. Artiﬁcial neural networks: an econometric perspective. Econometric Rev. 13, 1–91.
+La Rocca, M., Perna, C., 2005. Variable selection in neural network regression models with dependent data: a subsampling approach. Comput.
+   Statist. Data Anal. 48, 415–429.
+Nankervis, J.C., 2005. Computational algorithms for double bootstrap conﬁdence intervals. Comput. Statist. Data Anal. 49, 461–475.
+Pascual, L., Romo, J., Ruiz, E., 2006. Bootstrap prediction for returns and volatilities in GARCH models. Comput. Statist. Data Anal. 50,
+   2293–2312.
+Reed, R., 1993. Pruning algorithms—a survey. IEEE Trans. Neural Networks 4, 740–747.
+Thombs, L.A., Schucany, W.R., 1990. Bootstrap prediction intervals for autoregression. J. Amer. Statist. Assoc. 85, 486–492.
+Tong, H., 1990. Nonlinear Time Series: A Dynamical System Approach. Oxford University Press, Oxford.
+Winker, P., Gilli, M., 2004. Applications of optimization heuristics to estimation and modelling problems. Comput. Statist. Data Anal. 47, 211–223.
+Yao, Q., Tong, H., 1994. Quantifying the inﬂuence of initial values on non-linear prediction. J. Roy. Statist. Soc. B 56, 701–725.
+Zhang, G.P., Patuwo, B.E., Hu, M.Y., 2001. A simulation study of artiﬁcial neural networks for nonlinear time series forecasting. Comput. Oper.
+   Res. 28, 381–396.
+

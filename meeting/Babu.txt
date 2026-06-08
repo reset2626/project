@@ -1,0 +1,1064 @@
+                                                                 Applied Soft Computing 23 (2014) 27–38
+
+
+
+                                                             Contents lists available at ScienceDirect
+
+
+                                                            Applied Soft Computing
+                                                journal homepage: www.elsevier.com/locate/asoc
+
+
+
+
+A moving-average ﬁlter based hybrid ARIMA–ANN model for
+forecasting time series data
+C. Narendra Babu ∗ , B. Eswara Reddy
+Department of Computer Science & Engineering, JNT University College of Engineering, Anantapuramu, India
+
+
+
+
+a r t i c l e        i n f o                           a b s t r a c t
+
+Article history:                                       A suitable combination of linear and nonlinear models provides a more accurate prediction model than an
+Received 26 July 2013                                  individual linear or nonlinear model for forecasting time series data originating from various applications.
+Received in revised form 2 May 2014                    The linear autoregressive integrated moving average (ARIMA) and nonlinear artiﬁcial neural network
+Accepted 5 May 2014
+                                                       (ANN) models are explored in this paper to devise a new hybrid ARIMA–ANN model for the prediction of
+Available online 5 June 2014
+                                                       time series data. Many of the hybrid ARIMA–ANN models which exist in the literature apply an ARIMA
+                                                       model to given time series data, consider the error between the original and the ARIMA-predicted data as a
+Keywords:
+                                                       nonlinear component, and model it using an ANN in different ways. Though these models give predictions
+Time series forecasting
+ARIMA
+                                                       with higher accuracy than the individual models, there is scope for further improvement in the accuracy if
+ANN                                                    the nature of the given time series is taken into account before applying the models. In the work described
+Hybrid model                                           in this paper, the nature of volatility was explored using a moving-average ﬁlter, and then an ARIMA and
+Box–Jenkins methodology                                an ANN model were suitably applied. Using a simulated data set and experimental data sets such as
+                                                       sunspot data, electricity price data, and stock market data, the proposed hybrid ARIMA–ANN model was
+                                                       applied along with individual ARIMA and ANN models and some existing hybrid ARIMA–ANN models.
+                                                       The results obtained from all of these data sets show that for both one-step-ahead and multistep-ahead
+                                                       forecasts, the proposed hybrid model has higher prediction accuracy.
+                                                                                                                          © 2014 Elsevier B.V. All rights reserved.
+
+
+
+
+Introduction and related work                                                           time series data, various prediction techniques have been proposed
+                                                                                        in the literature, which may use either linear or nonlinear models.
+    Time series forecasting is now a very important research area,                      A type of linear model, namely the autoregressive integrated mov-
+owing to the importance of prediction in various applications. Fore-                    ing average (ARIMA), and a type of nonlinear model, the artiﬁcial
+casting Internet trafﬁc helps service providers to enhance their                        neural network (ANN), were chosen for study in this paper.
+services. Forecasting climate change helps the agricultural sector.                         ARIMA models assume that the present data are a linear func-
+Forecasting disasters aids in taking necessary precautions and helps                    tion of past data points and past errors. They also assume that the
+mankind to be prepared. Forecasting ﬁnancial data helps investors                       errors are white in nature, and require that the data be made sta-
+to invest safely in the market. However, time series data do not                        tionary before ﬁtting a linear equation to the data. In the literature,
+always have the same characteristics. Some time series are sea-                         ARIMA models have been applied to various time series data, such
+sonal: for example, road trafﬁc is high at some particular times                        as electricity prices [1,2], sugar prices [3], stock market data [4],
+in the day, climate variations repeat according to the seasons, etc.                    and wind speeds [5], for the prediction of future values. ARIMA
+Some other time series are nonseasonal, such as ﬁnancial and stock                      models can help in understanding the dynamics of the data in a
+market data. Some time series are highly volatile, such as wind                         given application. Before forecasting time series data, various pre-
+speed data, and some are less volatile, such as global temperature                      processing steps can be applied to the raw data if necessary. In [6],
+and annual rainfall. Some data are almost linear in nature, such as                     a wavelet transformation was applied before forecasting of global
+the growth of an animal, plant, or human being, but many other sets                     temperature data. In [7], new classiﬁcation and feature extraction
+of data are nonlinear in nature. Some data are Gaussian in nature,                      techniques were proposed for electrocardiography data. These pre-
+whereas some other data are non-Gaussian. For forecasting such                          processing steps can be applied to the raw data to obtain more
+                                                                                        accurate predictions. In this paper, the basic ARIMA model was
+                                                                                        chosen as the linear prediction model.
+ ∗ Corresponding author. Tel.: +91 9035644182.                                              One efﬁcient nonlinear technique for time series forecasting is
+    E-mail address: narendrababu.c@gmail.com (C.N. Babu).                               ANNs [8]. ANNs are advantageous compared with ARIMA in many
+
+http://dx.doi.org/10.1016/j.asoc.2014.05.028
+1568-4946/© 2014 Elsevier B.V. All rights reserved.
+28                                             C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+
+applications because ANNs do not assume linearity. They are capa-               ARIMA- and ANN-based modeling techniques
+ble of ﬁtting a nonlinear function to the given data and do not need
+the data to be made stationary. They are also adaptive in nature.                  Detailed descriptions of the ARIMA and ANN modeling tech-
+For these reasons, ANN models have become more popular in fore-                 niques are available in the literature. However, to make the
+casting. ANNs have been applied to various time series data, such               discussion complete, a brief description of these modeling meth-
+as electricity demand data [9], ﬁnancial data [10], river ﬂow data              ods is presented in this section. Also, some of the popular existing
+[11], and network data [12], for forecasting. In all these cases ANNs           hybrid modeling schemes are outlined.
+were shown to yield good forecasts compared with ARIMA mod-
+els. In [13], neural networks were used to predict earthquakes in               ARIMA
+Chile. There is no universal model which can suit all applications.
+The prediction accuracy can be improved if two different models are                 ARIMA is a linear modeling technique. In this technique, the
+applied to the same data rather than a single model. So, many hybrid            given time series data are ﬁrst checked for stationarity. If they are
+techniques have been proposed in the literature, which combine                  not stationary, a differencing operation is performed. If the data
+the advantages of two or more individual models.                                are still nonstationary, differencing is again performed until the
+    A hybrid ARIMA–ANN model was proposed by Zhang [14], which                  data are ﬁnally made stationary. If the differencing is performed d
+was shown to give more accurate predictions than the individual                 times, the integration order of the ARIMA method is said to be d. The
+models. On Wolf’s sunspot data, Canadian lynx data, and exchange                resultant data are modeled as an autoregressive moving average
+rate time series data, this hybrid model was shown to outperform                (ARMA) time series as follows. The data value at any given time t,
+individual ARIMA and ANN models in the case of one-step-ahead                   say yt , is considered as a function of the previous p data values, say
+prediction. Another hybrid ARIMA–ANN method was proposed by                     yt−1 , yt−2 , . . ., yt−p , and the errors at times t, t − 1, . . ., t − q, say nt ,
+Khashei and Bijari [15], which was shown to give better perfor-                 nt−1 , . . ., nt−q . The corresponding ARMA equation is shown in (1).
+mance for one-step-ahead forecasting than the method proposed                   In (1), a1 to ap are the autoregressive (AR) coefﬁcients and b1 to bq
+by Zhang [14]. The hybrid method proposed by Zhang was also used                are the MA coefﬁcients. Thus the time series model is denoted as
+for electricity price forecasting in [16] and for water quality time            ARIMA(p, d, q). The ARMA model assumes that the error sequence
+series prediction in [17].                                                      nt is white noise and is Gaussian distributed, so the variance of this
+    In addition to the ARIMA and ANN models, many other predic-                 error is also a model parameter. The ARIMA modeling procedure
+tion models are available in the literature. Some of them are based             has three steps: (a) identifying the model order, i.e., identifying p
+on support vector machines [18], and some others on fuzzy models                and q; (b) estimating the model coefﬁcients; and (c) forecasting the
+[19]. Modiﬁed forms of ARIMA models such as SARIMA [20] and                     data.
+FARIMA [21] are also available. GARCH models have also used for                     Identifying the orders p, q is done using correlation analysis [28],
+ﬁnancial forecasting, as in [22]. In [23,24], autoregressive (AR) and           using the nature of the autocorrelation function and partial auto-
+GARCH models were used for forecasting ﬁnancial data. Spectral                  correlation function. The model coefﬁcients are estimated using the
+techniques based on SVD were proposed in [16] and the refer-                    Box–Jenkins method [28]. Of the various estimation approaches
+ences therein. Decomposition-based ARIMA, ARIMA–GARCH, and                      other than the nonlinear maximum likelihood approach, which
+ANN models were also studied in [25–27] and elsewhere. Most of                  is computationally more complex, Gaussian maximum likelihood
+the time it is seen that if hybrid models are used instead of one               estimation (GMLE) approaches [29] are generally used for estima-
+model the prediction accuracy improves, but if the hybrid uses                  tion of the ARIMA model parameters. The model is validated by
+many decompositions and many models, then the accuracy will                     ﬁnding the Akakine information criterion (AIC). The best-suited
+degrade after some limit and the model will no longer be success-               ARIMA model has the minimum value of the AIC. After all the model
+ful. So, hybrid models should contain a limited number of individual            coefﬁcients have been estimated, the next values of the time series
+models to retain the simplicity of the model as well as to retain               are predicted using the available past data values and the model
+accuracy.                                                                       coefﬁcients. ARIMA models predict linear time series data with very
+    In this paper, a new hybrid ARIMA–ANN prediction model is                   good accuracy.
+proposed which is suitable for both one-step-ahead and multistep-
+ahead predictions. In this model, the nature of the time series is ﬁrst         yt = a1 yt−1 + a2 yt−2 + · · · + ap yt−p + nt + b1 nt−1 + · · · + bq nt−q (1)
+explored with the help of a moving-average (MA) ﬁlter and then
+ARIMA and ANN models are suitably applied. Instead of directly                  ANN
+applying the ARIMA or ANN model to the given data, the nature of
+the volatility of the time series data is ﬁrst understood, and then                 This is a nonlinear modeling technique which is suitable for
+the ARIMA and ANN models are applied to the data. This proposed                 modeling over a very wide range of applications. It is more ﬂexible
+method of prediction was applied to a known data set that was                   in terms of architecture. The neural-network architecture bears a
+generated by adding linear and nonlinear time series data. The                  high similarity to the neurons in the brain, hence the name “arti-
+performance accuracy of this method was better than the accu-                   ﬁcial neural network.” In this network architecture, there may be
+racy obtained by the models of Zhang [14] and Khashei and Bijari                two or more layers. For example, a three-layer ANN has three lay-
+[15]. On three different time series data, namely sunspot, electricity          ers, namely an input layer, a hidden layer, and an output layer. The
+price, and ﬁnancial data, for both one-step and multistep predic-               inputs can be of any number. Also, the number of neurons in the
+tions, the proposed method gave better accuracy than the other                  hidden layer is ﬂexible. A typical three-layer ANN, with the nomen-
+hybrids [14,15].                                                                clature, is shown in Fig. 1. The neurons are processing units which
+    The rest of the paper is organized as follows. In “ARIMA-                   are acyclically linked. Three-layer ANNs are widely used for time
+and ANN-based modeling techniques” section, the ARIMA, ANN,                     series forecasting. To model time series data using such a network,
+and some existing hybrid ARIMA–ANN models are described.                        the sequence yt is considered as a nonlinear function of yt−1 , . . .,
+The proposed method is discussed in detail in “Proposed hybrid                  yt−N . The corresponding equation is shown in (2). In (2), the func-
+ARIMA–ANN model” section. In “Results and discussion” section,                  tion g is a nonlinear function, and vt is a noise or error term. The
+the results are discussed in four subsections, along with tables of             ANN model output can be represented in terms of input and hidden-
+performance measures and graphs of predicted values. “Conclu-                   layer weight parameters. The transfer function of the hidden layer
+sion” section ends the paper with a conclusion.                                 is generally a sigmoid function, shown in (3), and that of the output
+                                              C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38                                       29
+
+
+
+
+                                                          Fig. 1. Three-layer ANN architecture.
+
+
+layer is a linear function. The model coefﬁcients in an ANN are the            Khashei and Bijari’s hybrid ARIMA–ANN model
+weights of each link and the bias values, as shown in Fig. 1.                      In 2010, Khashei and Bijari proposed another hybrid
+                                                                               ARIMA–ANN model for time series forecasting. This model
+yt = g(yt−1 , yt−2 , . . ., yt−N ) + vt                               (2)      also assumes that any time series data are the sum of two compo-
+                    1                                                          nents, linear and nonlinear. In this method, ﬁrst an ARIMA model
+Sigmoid(x) =                                                          (3)      is ﬁt to the given time series data and one data value is forecasted.
+                 1 + e−x
+                                                                               Then the past original data values, the present ARIMA-forecasted
+    To obtain these model coefﬁcients, a known data sequence is                data value, and the past error sequence values are all given as
+ﬁrst given as input to the ANN, and the ANN is trained with this               inputs to an ANN, and the output of the ANN is the ﬁnal forecasted
+training sequence. Training a neural network can be considered as              value. This method was shown to have better performance than
+minimizing the multivariate global error function formed by the                Zhang’s method in various applications in terms of prediction
+weight values. After training of the ANN, its performance is tested            accuracy [15].
+and validated. Many other training algorithms are available in the
+literature [30]. For example, in [14], a reduced gradient-based algo-
+                                                                               Proposed hybrid ARIMA–ANN model
+rithm was used for training the ANN. In [17] and [15], a scaled
+conjugate gradient algorithm and a Levenberg–Marquardt (LM)
+                                                                                   In this paper, a new hybrid ARIMA–ANN model is proposed,
+training algorithm, respectively, were incorporated. In the work
+                                                                               which is outlined in this section. The technique ﬁrst characterizes
+presented in this paper, the ANN model was trained using an LM
+                                                                               the given data based on the nature of the volatility of the data. Then
+training algorithm.
+                                                                               ARIMA and ANN models are suitably applied. Before describing
+    The performance of ANNs is better than that of the ARIMA
+                                                                               this technique, we ﬁrst discuss some interesting facts about ARIMA
+method in many applications. This is because ANNs can model non-
+                                                                               sequences, which are used in understanding and characterizing the
+linear time series data accurately, as seen from the model equation
+                                                                               given data.
+in (2).
+                                                                                   In the hybrid methods proposed by Zhang [14] and by Khashei
+                                                                               and Bijari [15], the data are assumed to be the sum of linear and
+Hybrid models using ARIMA and ANN                                              nonlinear components. But the given data are not decomposed into
+                                                                               linear and nonlinear components; instead, a linear ARIMA model
+    Often, the given data may have both linear and nonlinear charac-           is ﬁt directly to the data and the error sequence thus obtained is
+teristics. So, hybrid models using both ANN and ARIMA methods are              assumed to be the nonlinear component. Thus both of these hybrid
+better than individual models for obtaining accurate predictions.              methods explore and use the fact that the ARIMA model is linear.
+Two existing ARIMA–ANN hybrid models considered for discussion                 Ideal ARIMA sequences have many interesting properties, two of
+in this paper are illustrated as follows.                                      which are linearity and stationarity. Some other statistical facts
+                                                                               about ARIMA and ARMA sequences are the following: ﬁrst, the error
+Zhang’s hybrid ARIMA–ANN model                                                 sequence nt in (1) is Gaussian or normally distributed and white
+    In 2003, Zhang proposed a hybrid ARIMA–ANN model for time                  in nature [28], and second, a Gaussian time series represented as
+series forecasting. According to this model, any time series data are          a random vector [ yt yt−1 yt−2 · · · ] is joint-Gaussian in nature
+assumed to be the sum of two components, linear and nonlinear.                 [31].
+First, an ARIMA model is ﬁt to the given time series data. Then the                The second statistical fact can be explored further as follows.
+error sequence is assumed to be the nonlinear component and is                 A stationary Gaussian time series is always stationary in the strict
+modeled using an ANN. The predictions obtained from both the                   sense [31]. So, assuming that a given ARMA time series is strictly
+ARIMA model and the ANN model are combined to obtain the ﬁnal                  stationary, one possibility is that this series is a Gaussian time
+forecast. This is suitable for both one-step-ahead and multistep-              series. Usually, after making the given time series data station-
+ahead predictions. This model was shown to be better than the                  ary, estimation of the ARIMA model coefﬁcients is performed using
+individual ARIMA or ANN models in many applications in terms of                GMLE [29]. In this estimation, the model coefﬁcients are obtained
+prediction accuracy [16].                                                      as if the given time series were Gaussian. So, if the given stationary
+30                                                               C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+
+time series is truly Gaussian, then the estimated ARIMA model is a
+                                                                                                                             Time Series Data
+better ﬁt. So, it can be concluded that if the time series is stationary
+in the strict sense, an ARIMA model is more suitable for Gaussian                                                                                              Decomposition
+time series data. Then the random vector [ yt yt−1 yt−2 · · · ] is                                                                                             Using MA filter
+joint-Gaussian and each random variable yt is Gaussian distributed.
+    In general, to diagnose whether a given sequence is normally
+distributed or not, the Jarque–Bera normality test can be performed.
+A part of this test checks whether the kurtosis of the sequence, given                                            k !=3
+in (4), is 3 or not:                                                                                                            Tune m for
+                                                                                                                                 MA filter
+                                   4
+                   E{(y − E{y}) }
+kurtosis =                             2
+                                                                                         (4)
+                  (E{(y − E{y})2 })                                                                                                     k =3
+
+    In (4), y is the random variable for which the kurtosis is being
+                                                                                                                          Fix MA Filter of length m
+computed, and E stands for the expectation operation. If the kur-
+tosis value is 3, then the sequence is Gaussian; such sequences
+were considered as low-volatility data in the work described in                                                                                                    Subtractor
+the present paper. Sequences that did not have a kurtosis value of
+3 were considered as highly volatile data. A highly volatile time                                                                        k=3                  k !=3
+series is either leptokurtic or platykurtic in nature, which means
+that the distribution is non-Gaussian. Thus we can conclude that
+ARIMA models are suitable for any time series data when the data                                                                Trend Data                    Residual Data
+have a kurtosis value of approximately 3. With this understanding,
+the proposed model is described below.
+    Mathematically, the proposed model can be described as fol-                                                                   ARIMA                               ANN
+
+lows. The time series data yt are considered as a sum of a
+low-volatility component lt and a high-volatility component ht , as                                                                             Combine the
+given in (5). After making sure that lt is stationary, it is modeled                                                                              results
+as a linear function of past values of the sequence lt−1 , lt−2 , . . ., lt−p
+and the random error sequence nt , nt−1 , . . ., nt−q using an ARIMA
+model. This is shown in (6), where f is a linear function. Similarly,
+                                                                                                                                               Final Predictions
+ht is expressed as a nonlinear function of ht−1 , ht−2 , . . ., ht−N as
+shown in (7), and is modeled using an ANN. In (7), g represents
+the nonlinear function, and εt represents the model error. Using                                                                   Fig. 2. Proposed model.
+the ARIMA-predicted low-volatility component l̂t and the ANN-
+predicted high-volatility component ĥt , the predicted time series
+value ŷt is obtained as represented in (8).                                                          The proposed algorithm can give better accuracy compared with
+                                                                                                  the other hybrid models discussed in the previous section, which
+yt = lt + ht                                                                             (5)      ﬁrst directly ﬁt an ARIMA model to the given data. This can be
+l̂t = f (lt−1 , lt−2 , . . ., lt−p , nt , nt−1 , . . ., nt−q )                           (6)      understood from the following reasoning. A linear sequence cannot
+                                                                                                  be accurately modeled by a nonlinear model, and vice versa. A low-
+ĥt = g(ht−1 , ht−2 , . . ., ht−N ) + εt                                                 (7)      volatility series is Gaussian in nature and an ARIMA model suits
+                                                                                                  it better, which implies that it can be modeled accurately using a
+ŷt = l̂t + ĥt                                                                          (8)      linear model. Therefore, when the time series is less volatile, it can
+                                                                                                  be considered as a linear sequence. Similarly, if it is highly volatile
+   The steps of the algorithm for the proposed hybrid model are
+                                                                                                  in nature, it can be considered as a nonlinear sequence. If a lin-
+given below and are represented as a ﬂow chart in Fig. 2.
+                                                                                                  ear sequence is modeled by a linear model, the model error will be
+                                                                                                  small. The case for a nonlinear sequence is similar. So, when a given
+1 Using an MA ﬁlter, given in (9), the given time series data are
+                                                                                                  data set is decomposed into low- and high-volatility components,
+  separated or decomposed into two components such that one of
+                                                                                                  which are almost linear and nonlinear components, respectively,
+  the components is less volatile and the other is highly volatile.
+                                                                                                  the total model error will be small. On the other hand, if an ARIMA
+  The length of the MA ﬁlter, m, is adjusted so that this decomposi-
+                                                                                                  model is directly ﬁt to the data, the separation of linear and non-
+  tion is properly achieved. The ﬁrst decomposition is ytr , given in
+                                                                                                  linear components is not performed. So, there is a chance that part
+  (9), which is the smoothed trend component, and has low volatil-
+                                                                                                  of the linear component will be modeled by a nonlinear model,
+  ity. The second decomposition obtained from the MA ﬁlter is the
+                                                                                                  resulting in an increase in the model error. Hence, the proposed
+  residual component, given in (10), which has high volatility.
+                                                                                                  model can give more accurate results than Zhang’s and Khashei
+2 The low-volatility component with k = 3 is modeled using an
+                                                                                                  and Bijari’s models. This fact has been veriﬁed using simulated and
+  ARIMA model and the predictions are obtained as in (6).
+                                                                                                  experimental data sets.
+3 The high-volatility component with k ! =3 is modeled using an
+  ANN and the predictions are obtained as in (7).
+4 The predictions obtained from steps 2 and 3 are added to obtain                                 Results and discussion
+  the ﬁnal predictions as in (8):
+                                                                                                     The proposed method, along with the four modeling tech-
+             1    
+                  t
+     ytr =               yi                                                              (9)      niques discussed in “ARIMA- and ANN-based modeling techniques”
+             m                                                                                    section, was applied to simulated data and also to time series
+                 i=t−m+1
+                                                                                                  data of various kinds. A detailed description of the results is pre-
+     yres = yt − ytr                                                                   (10)       sented in this section. Before any further discussion of the results,
+                                                       C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38                                                31
+
+Table 1                                                                                  Table 2
+Performance comparison for simulated data.                                               Performance comparison for sunspot data.
+
+                                   One-step-ahead           Three-step-ahead                                           One-step-ahead          Five-step-ahead
+
+                                   MAE        MSE           MAE           MSE                                          MAE        MSE          MAE         MSE (×103 )
+
+ ARIMA                             0.3925     0.1896        0.4474        0.3070             ARIMA                     14.6630    308.1491     22.0840     1.0993
+ ANN                               0.3582     0.1764        0.3857        0.2372             ANN                       14.3513    285.1216     21.7042     0.9384
+ Zhang model                       0.2595     0.0841        0.3487        0.2032             Zhang model               14.2233    298.5670     20.8829     1.0309
+ Khashei and Bijari model          0.2365     0.0701        NA            NA                 Khashei and Bijari        13.4053    269.5369     NA          NA
+                                                                                               model
+ Proposed model                    0.1884     0.0507        0.2951        0.1445
+                                                                                             Proposed model             9.8718    155.5646     17.7869     0.5769
+
+
+however, the performance measures used for comparison of pre-
+diction accuracy will be discussed.                                                      Fig. 5. From Table 1 and the plots in Fig. 4, it can be seen that the
+     The two performance measures considered for accuracy com-                           proposed method gives better performance than all of the other
+parison in this paper are the mean absolute error (MAE) and mean                         models used for comparison.
+squared error (MSE), given in (11) and (12), respectively. The MAE                           In the case of multistep-ahead prediction, the results from
+signiﬁes the average of the absolute errors over a given prediction                      Khashei and Bijari’s model are not given, because they were almost
+horizon, and the MSE signiﬁes the average of the squared errors                          same as those from Zhang’s model. This is because in Khashei
+over the same prediction horizon. The smaller the measure, the                           and Bijari’s model [15], the ANN inputs should be the ARIMA-
+better the model. In both (11) and (12), E{ · } is the expectation oper-                 predicted present value, the past errors, and the past actual data
+ation, ni and nf are the start and end points of the forecast horizon                    values, for one-step-ahead prediction. If this model has to be used
+or prediction interval, yj, actual is the actual value of the time series,               for multistep-ahead prediction, multiple future values have to be
+and yj, predicted is the forecasted time series value at the instant j.                  predicted. Consider a data set having 100 points. For a ﬁve-step-
+     To evaluate the performance of a prediction model, the forecast                     ahead prediction, the 101st to 105th values have to be predicted
+horizon must be sufﬁciently long. If it is too small, the expectation,                   based on only the ﬁrst 100 data points. In this case, if Khashei and
+i.e., the mean in (11) and (12), will not be accurate enough. If the                     Bijari’s model is used, the 101st point can be predicted. To predict
+forecast horizon is very long, the time taken for processing will be                     the 102nd point, the ARIMA-predicted 102nd point and the past
+high. So, the forecast horizon must be chosen appropriately.                             errors are available, but among the past actual values needed by
+                                                                                         the model, the 101st actual value will not be known, so the model is
+Results for simulated data                                                               not suitable for multistep-ahead prediction. One way to overcome
+                                                                                         this problem would be to use the 101st model prediction instead
+    A known data set was generated by adding a linear data process                       of the 101st actual value, but this reduced the model accuracy and
+AR(2,0,0) to a nonlinear data set simulated by an ANN. The nonlin-                       it was observed that the model accuracy was no better than that of
+ear model is represented as Nx,y,z , where x is the number of input                      Zhang’s model. So, for multistep-ahead prediction, the results from
+nodes, y is the size of the hidden layer, and z is the number of output                  this model have not been included, as they do not provide an apt
+nodes. In this paper, z = 1 was chosen. The simulated ANN data cor-                      comparison.
+responded to N2,2,1 . The resultant data were modeled using ARIMA                            From the results in Table 1, it can be veriﬁed that the proposed
+and ANN models, Zhang’s hybrid model [14], Khashei and Bijari’s                          model gives better performance than the other models for the sim-
+hybrid model [15], and the proposed hybrid model.                                        ulated data, i.e., a known time series data set. With this success in
+    For the ARIMA modeling, a suitable model order was found using                       mind, the discussion now progresses towards applying the model
+the R software package, and then this model was ﬁt to the data                           to real time series data sets obtained from various applications. The
+using MATLAB. For the ANN and hybrid modeling, MATLAB was                                time series data considered in this paper are sunspot data, electric-
+used. The total number of data points taken was 100. In the case                         ity price data from the Australian National Electricity Market, and
+of one-step prediction, the forecast horizon was 10. The multistep-                      the close prices of stock from the New York Stock Exchange. Each
+ahead prediction performed on the data was a three-step-ahead                            one of these is discussed in the following sections.
+prediction. For this, the forecast horizon considered was 30. The
+results for the performance measures obtained with this data are                         Results for sunspot data
+shown in Table 1. The actual time series data are shown in Fig. 3,
+the predictions for one-step-ahead forecasting are shown in Fig. 4,                         Sunspot time series data from 1700 to 1987 were considered for
+and the predictions for three-step-ahead forecasting are shown in                        this study; these data were a set of 288 points. For one-step-ahead
+
+
+
+                                  12
+
+                                 11.5
+
+                                  11
+
+                                 10.5
+                         Value
+
+
+
+
+                                  10
+
+                                  9.5
+
+                                   9
+
+                                  8.5
+                                     0       10        20         30         40         50          60            70      80        90       100
+                                                                                    Time Step
+
+                                                                     Fig. 3. Simulated time series data.
+32                                             C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+
+                              Actual Forecast Horizon                                                           ARIMA predictions
+              11                                                                          11
+
+             10.5                                                                        10.5
+     Value
+
+
+
+
+                                                                                 Value
+              10                                                                          10
+
+              9.5                                                                         9.5
+                    0     2        4        6               8          10                       0      2      4       6         8         10
+                                   Time Step                                                                  Time Step
+                                 ANN predictions                                                     Zhang hybrid model predictions
+              11                                                                          11
+
+             10.5                                                                        10.5
+     Value
+
+
+
+
+                                                                                 Value
+              10                                                                          10
+
+              9.5                                                                         9.5
+                    0     2       4       6         8                  10                       0      2       4       6        8         10
+                                  Time Step                                                                    Time Step
+                        Khashei hybrid model predictions                                            Proposed hybrid model predictions
+              11                                                                          11
+
+             10.5                                                                        10.5
+     Value
+
+
+
+
+                                                                                 Value
+              10                                                                          10
+
+              9.5                                                                         9.5
+                    0     2           4       6             8          10               0              2             4       6        8   10
+                                      Time Step                                  Actual                              Time Step
+                                                                                 Predicted
+
+                                            Fig. 4. One-step-ahead predictions for simulated time series data.
+
+
+
+
+                                ARIMA predictions                                                                ANN predictions
+              11                                                                          11
+
+             10.5                                                                        10.5
+
+              10                                                                          10
+     Value
+
+
+
+
+                                                                                 Value
+
+
+
+
+              9.5                                                                         9.5
+
+               9                                                                           9
+
+              8.5                                                                         8.5
+                    0            10                 20                 30                       0               10               20       30
+                                      Time Step                                                                      Time Step
+
+                        Zhang hybrid model predictions                                              Proposed hybrid model predictions
+              11                                                                          11
+
+             10.5                                                                        10.5
+
+              10                                                                          10
+     Value
+
+
+
+
+                                                                                 Value
+
+
+
+
+              9.5                                                                         9.5
+
+               9                                                                           9
+
+              8.5                                                                         8.5
+                    0            10                 20                 30                       0               10               20       30
+                                      Time Step                                                                      Time Step
+                                                                                 Actual
+                                                                                 Predicted
+
+                                       Fig. 5. Three-step-ahead predictions for simulated data using various models.
+                                                                 C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38                                               33
+
+
+                                       200
+
+
+                                       150
+
+
+
+
+                               Value
+                                       100
+
+
+                                       50
+
+
+                                        0
+                                             0              50                100                150                 200                 250                300
+                                                                                              Time Step
+
+                                                                               Fig. 6. Sunspot time series data.
+
+
+
+                                             Actual forecast horizon                                                              ARIMA predictions
+                  200                                                                                      200
+
+                  150                                                                                      150
+          Value
+
+
+
+
+                                                                                                   Value
+                  100                                                                                      100
+
+                  50                                                                                       50
+
+                   0                                                                                        0
+                        0               5          10      15                20          25                      0         5    10      15        20                   25
+                                                   Time Step                                                                    Time Step
+                                                 ANN predictions                                                       Zhang hybrid model predictions
+                  200                                                                                      200
+
+                  150                                                                                      150
+          Value
+
+
+
+
+                                                                                                   Value
+
+                  100                                                                                      100
+
+                  50                                                                                       50
+
+                   0                                                                                        0
+                        0               5     10      15       20                        25                      0         5   10      15       20                     25
+                                              Time Step                                                                         Time Step
+                                    Khashei hybrid model predictions                                                 Proposed hybrid model predictions
+                  200                                                                                      200
+
+                  150                                                                                      150
+          Value
+
+
+
+
+                                                                                                   Value
+
+
+
+
+                  100                                                                                      100
+
+                  50                                                                                       50
+
+                   0                                                                                        0
+                        0               5          10     15                 20          25                      0         5           10     15                  20   25
+                                                   Time Step                                       Actual                              Time Step
+                                                                                                   Predicted
+
+                                                        Fig. 7. One-step-ahead predictions for sunspot data using various models.
+
+
+
+
+prediction, the forecast horizon was chosen as 25 data points. The                                MSE = E{|yactual − ypredicted |2 }
+multistep prediction performed in this case was ﬁve-step-ahead                                                         ⎛                                      ⎞
+prediction. The forecast horizon considered was 50. The prediction
+                                                                                                                1          
+                                                                                                                           nf
+performance results for all the models are tabulated in Table 2 for                                    =               ⎝          |yj, actual − yj, predicted |2 ⎠          (12)
+                                                                                                           nf − ni + 1
+both of these cases. The original time series data are shown in Fig. 6.                                                    j=ni
+The predictions for the one-step-ahead forecast are shown in Fig. 7,
+and those for the ﬁve-step-ahead forecast are shown in Fig. 8. From
+the table and the ﬁgures shown, it can be seen that the proposed                                      In the proposed method, when the MA ﬁlter was used, the length
+method outperforms all of the other models used for comparison                                    was ﬁxed at 37. The given time series data had a kurtosis value
+in terms of MSE and MAE.                                                                          of 3.6, indicating that it was highly volatile. After using the ﬁl-
+                                                                                                  ter, the smoothed component, which we call the trend component,
+                                                                                                  had a kurtosis of 3, which indicated that it had low volatility and
+MAE = E{|yactual − ypredicted |}
+                                                                                                  the ARIMA method was suitable for modeling. The residual com-
+                    ⎛                                         ⎞                                   ponent obtained from the ﬁlter had a kurtosis of 3.2, indicating
+           1                
+                            nf
+
+  =               ⎝                |yj, actual − yj, predicted |⎠                      (11)
+                                                                                                  that it was a highly volatile component and the ANN method was
+      nf − ni + 1                                                                                 suitable. Thus the proposed model was applied as per the discus-
+                            j=ni
+                                                                                                  sion in “Proposed hybrid ARIMA–ANN model” section. Multistep
+34                                                         C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+
+                                               ARIMA predictions                                                                  ANN predictions
+                   200                                                                                  200
+
+
+                   150                                                                                  150
+           Value
+
+
+
+
+                                                                                                Value
+                   100                                                                                  100
+
+
+                   50                                                                                   50
+
+
+                    0                                                                                    0
+                         0            10          20     30             40           50                       0        10           20     30             40        50
+                                                  Time Step                                                                         Time Step
+
+                                     Zhang hybrid model predictions                                                  Proposed hybrid model predictions
+                   200                                                                                  200
+
+
+                   150                                                                                  150
+           Value
+
+
+
+
+                                                                                                Value
+                   100                                                                                  100
+
+
+                   50                                                                                   50
+
+
+                    0                                                                                    0
+                         0            10          20     30             40           50                0               10           20     30             40        50
+                                                  Time Step                                     Actual                              Time Step
+                                                                                                Predicted
+
+                                                     Fig. 8. Five-step-ahead predictions for sunspot data using various models.
+
+
+Table 3
+Performance comparison for electricity price data.
+
+                                                           One-step-ahead                                                             24-step-ahead (1 day ahead)
+
+                                                           MAE                                  MSE                                   MAE                            MSE
+
+ ARIMA                                                     4.8233                               36.4544                               8.6682                         121.5435
+ ANN                                                       3.7374                               22.4304                               8.4138                         109.8774
+ Zhang model                                               3.9204                               27.0377                               7.9437                         107.3933
+ Khashei and Bijari model                                  3.8346                               26.1396                               NA                             NA
+
+ Proposed model                                            3.2342                               18.2793                               5.3219                         53.0071
+
+
+
+forecasting generally has less accuracy than one-step-ahead fore-                              month of May in 2013. The data were available for every half-an-
+casting. As seen from the results tabulated in Table 2, this can be                            hour. This was converted ﬁrst to one-hour data, so that there were
+observed to be true in this case.                                                              24 data points for 1 day. So, for 1 month, 744 data points represent-
+                                                                                               ing hourly electricity price data were taken as the given time series
+Results for electricity price data                                                             data set for forecasting. In one-step-ahead forecasting, the fore-
+                                                                                               cast horizon considered was 24 data points. Also, 24-step-ahead (1
+  The electricity price data studied here were data for New South                              day ahead) forecasting was performed, where the forecast horizon
+Wales from the Australian National Electricity Market [32] for the                             was taken as 7 days, which means 168 data points. The prediction
+
+
+                                     250
+
+
+                                     200
+                             Value
+
+
+
+
+                                     150
+
+
+                                     100
+
+
+                                      50
+                                           0        100          200           300           400              500           600         700         800
+                                                                                          Time Step
+
+                                                                       Fig. 9. Electricity price time series data.
+                                           C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38                                  35
+
+
+                        Actual forecast horizon                                                             ARIMA predictions
+        120                                                                           120
+Value   110                                                                           110
+
+
+
+
+                                                                              Value
+        100                                                                           100
+
+         90                                                                            90
+
+         80                                                                            80
+              0     5           10      15             20          25                       0      5      10      15        20       25
+                                Time Step                                                                 Time Step
+                              ANN predictions                                                    Zhang hybrid model predictions
+        120                                                                           120
+
+        110                                                                           110
+Value
+
+
+
+
+                                                                              Value
+        100                                                                           100
+
+         90                                                                            90
+
+         80                                                                            80
+              0     5       10      15       20                    25                       0      5      10      15       20        25
+                            Time Step                                                                      Time Step
+                  Khashei hybrid model predictions                                              Proposed hybrid model predictions
+        120                                                                           120
+
+        110                                                                           110
+Value
+
+
+
+
+                                                                              Value
+        100                                                                           100
+
+         90                                                                            90
+
+         80                                                                            80
+              0     5           10     15              20          25                       0      5           10     15        20   25
+                                Time Step                                    Actual                            Time Step
+                                                                             Predicted
+
+                                Fig. 10. One-step-ahead predictions for electricity price data using various models.
+
+
+
+
+                             ARIMA predictions                                                              ANN predictions
+        150                                                                           150
+
+        140                                                                           140
+
+        130                                                                           130
+
+        120                                                                           120
+Value
+
+
+
+
+                                                                             Value
+
+
+
+
+        110                                                                           110
+
+        100                                                                           100
+
+        90                                                                            90
+
+        80                                                                            80
+              0         50         100             150            200                       0        50           100         150    200
+                                Time Step                                                                      Time Step
+
+                  Zhang hybrid model predictions                                                Proposed hybrid model predictions
+        150                                                                           160
+
+        140
+                                                                                      140
+        130
+
+        120                                                                           120
+Value
+
+
+
+
+                                                                             Value
+
+
+
+
+        110                                                                           100
+        100
+                                                                                      80
+        90
+
+        80                                                                            60
+              0         50         100             150            200                       0        50           100         150    200
+                                Time Step                                                                      Time Step
+                                                                             Actual
+                                                                             Predicted
+
+                                Fig. 11. Five-step-ahead predictions for electricity price data using various models.
+36                                                            C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+                                    1150
+
+                                    1100
+
+                                    1050
+
+
+
+                            Value
+                                    1000
+
+                                     950
+
+                                     900
+
+                                     850
+                                           0         20        40        60         80        100         120        140        160        180         200
+                                                                                            Time Step
+
+                                                                       Fig. 12. L&T stock market time series data.
+
+
+
+
+                                               Actual forecast horizon                                                         ARIMA predictions
+                 1100                                                                                  1100
+
+                 1050                                                                                  1050
+         Value
+
+
+
+
+                                                                                               Value
+                 1000                                                                                  1000
+
+                 950                                                                                   950
+
+                 900                                                                                   900
+                        0                      5        10         15                  20                     0            5      10         15                     20
+                                                     Time Step                                                                Time Step
+                                                   ANN predictions                                                   Zhang hybrid model predictions
+                 1100                                                                                  1100
+
+                 1050                                                                                  1050
+         Value
+
+
+
+
+                                                                                               Value
+
+
+
+                 1000                                                                                  1000
+
+                 950                                                                                   950
+
+                 900                                                                                   900
+                        0                      5   10        15                        20                     0            5     10        15                       20
+                                              Time Step                                                                      Time Step
+                                    Khashei hybrid model predictions                                              Proposed hybrid model predictions
+                 1100                                                                                  1100
+
+                 1050                                                                                  1050
+         Value
+
+
+
+
+                                                                                               Value
+
+
+
+
+                 1000                                                                                  1000
+
+                 950                                                                                   950
+
+                 900                                                                                   900
+                        0                      5        10              15             20                     0            5         10                 15          20
+                                                     Time Step                                   Actual                           Time Step
+                                                                                                 Predicted
+
+                                                       Fig. 13. One-step-ahead predictions for ﬁnancial data using various models.
+
+
+
+
+performance results for all of the models for both one-step-ahead                              for the proposed method the ARIMA model was ARIMA(1,1,1). This
+and one-day-ahead forecasts are shown in Table 3. The original data                            was because when the trend component was separated, the ARIMA
+set is shown in Fig. 9. The one-step-ahead predictions are shown                               model ﬁt to the data was entirely different from the ARIMA model
+in Fig. 10, and the 1-day-ahead predictions in Fig. 11. From the                               ﬁt directly to the data. From the results, it can be concluded that
+table and the ﬁgures, it can be seen that the proposed method out-                             the proposed method outperforms the other models discussed in
+performs the others for both one-step-ahead and multistep-ahead                                this paper.
+forecasting.
+   When the proposed prediction model was used on the data, the
+data had a kurtosis of 28.4, indicating that the data were very highly                         Table 4
+volatile in nature. When these data were passed through an MA                                  Performance comparison for L&T stock time series data.
+ﬁlter of length 25, the trend component had a kurtosis of 3 and
+                                                                                                                                 One-step-ahead              Three-step-ahead
+the residual component had a kurtosis of 18.2. An ARIMA model
+was ﬁt to the trend component and an ANN was ﬁt to the resid-                                                                    MAE             MSE         MAE         MSE
+
+ual component. Note that when an ARIMA model is ﬁt according                                      ARIMA                          17.4141         629.7310    26.8604     1.5685
+to either Zhang’s or Khashei and Bijari’s model, the order of the                                 ANN                            14.8967         428.7039    22.8979     1.0514
+                                                                                                  Zhang model                    14.7062         389.8686    18.9346     0.9732
+model is same. But in the proposed method, the order of the ARIMA
+                                                                                                  Khashei and Bijari model       14.8407         401.2017    NA          NA
+model is different. For example, in this case, for Zhang’s and Khashei
+and Bijari’s models, the ARIMA model used was ARIMA(1,0,1), but                                   Proposed model                 12.8226         261.6390    15.9454     0.7422
+                                                  C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38                                               37
+
+
+                                    ARIMA predictions                                                              ANN predictions
+                  1100                                                                     1100
+
+
+                  1050                                                                     1050
+          Value
+
+
+
+
+                                                                                   Value
+                  1000                                                                     1000
+
+
+                  950                                                                      950
+
+
+                  900                                                                      900
+                         0    5         10     15              20          25                     0       5          10     15           20         25
+                                        Time Step                                                                    Time Step
+
+                             Zhang hybrid model predictions                                           Proposed hybrid model predictions
+                  1100                                                                     1100
+
+
+                  1050                                                                     1050
+          Value
+
+
+
+
+                                                                                   Value
+                  1000                                                                     1000
+
+
+                  950                                                                      950
+
+
+                  900                                                                      900
+                         0    5         10     15              20          25              0              5          10     15           20         25
+                                        Time Step                                   Actual                           Time Step
+                                                                                    Predicted
+
+                                           Fig. 14. Five-step-ahead predictions for ﬁnancial data using various models.
+
+
+
+
+Results for stock market data                                                      highly outlier-prone, the proposed model outperformed the other
+                                                                                   models, as seen from all of the results.
+    The close prices of the Larsen and Turbo (L&T) company stock
+for 200 trading days before May 31, 2013 were chosen as the time                   Conclusion
+series data for study. The data set was taken from [33]. For one-
+step-ahead prediction, the forecast horizon was chosen as 20 data                      Time series data originating from various applications, in gen-
+points. Three-step-ahead forecasting was also performed, for which                 eral, comprise both linear and nonlinear variations. Linear ARIMA
+the forecast horizon was taken as 21 data points. The ﬁve mod-                     models and nonlinear ANN models cannot individually model such
+els discussed in this paper were applied to these time series data,                data accurately. Hybrid models which combine the strengths of
+and the prediction performance results are tabulated in Table 4.                   ARIMA and ANN models are better than the individual types of
+The original data are shown in Fig. 12. The one-step-ahead predic-                 models, as they are capable of exploiting the advantages of both
+tions are shown in Fig. 13, and the three-step-ahead predictions                   types of models simultaneously. In the present study, a new hybrid
+in Fig. 14. From the table and the results, it can be seen that the                ARIMA–ANN-based prediction model has been developed based on
+proposed method outperforms the other models. In the case of one-                  the statistical properties of ARIMA sequences. The model uses an
+step-ahead prediction, the performance of Zhang’s and Khashei and                  MA ﬁlter to decompose the given time series into two data sets.
+Bijari’s models showed a very small improvement, whereas the                       Then ARIMA and ANN models are applied suitably to these decom-
+proposed model showed signiﬁcant improvement compared with                         positions. The forecasts from the hybrid model are obtained by
+Zhang’s model. Also, in this case, the accuracy of Zhang’s model was               adding the forecasts from the two individual models. This hybrid
+better than that of Khashei and Bijari’s model for one-step-ahead                  model is capable of both one-step-ahead and multistep-ahead pre-
+prediction. But the accuracy of the proposed method was much                       diction. The model was applied to simulated time series data and
+better than that of the others in terms of both MSE and MAE, as can                to three available data sets of different kinds, namely sunspot data,
+be seen from the table.                                                            electricity price data, and ﬁnancial data. For both one-step-ahead
+    The MA ﬁlter length in the proposed method was 90. The given                   and multistep-ahead prediction, the proposed hybrid model has
+time series data had a kurtosis of 2.04. The trend component of                    higher prediction accuracy in terms of MAE and MSE than several
+the MA ﬁlter had a kurtosis of 3, and the kurtosis of the residual                 other models, such as ARIMA and ANN models and some existing
+component was 2. It can be seen that the original data had a kurtosis              hybrid ARIMA–ANN models. Thus the hybrid model proposed in the
+less than 3, so it was considered as highly volatile. Whenever the                 present paper becomes a simple and accurate prediction model in
+kurtosis is not 3, the data are highly volatile. If the kurtosis is greater        many applications.
+than 3, the data are both highly outlier-prone and highly volatile. If
+the kurtosis is less than 3, the data are still highly volatile but less
+                                                                                   References
+outlier-prone [34]. The data set considered in this section was less
+outlier-prone, whereas the sunspot and electricity price data were                   [1] E. Gonzalez-Romera, M. Jaramillo-Moran, D. Carmona-Fernandez, Monthly
+highly outlier-prone. Irrespective of whether or not the data were                       electric energy demand forecasting based on trend extraction, IEEE Trans.
+38                                                          C.N. Babu, B.E. Reddy / Applied Soft Computing 23 (2014) 27–38
+
+
+     Power Syst. 21 (4) (2006) 1946–1953, http://dx.doi.org/10.1109/TPWRS.                    [17] D. mer Faruk, A hybrid neural network and ARIMA model for water qual-
+     2006.883666.                                                                                  ity time series prediction, Eng. Appl. Artif. Intell. 23 (4) (2010) 586–594,
+ [2] J. Contreras, R. Espinola, F. Nogales, A. Conejo, ARIMA models to predict                     http://dx.doi.org/10.1016/j.engappai.2009.09.015 http://www.sciencedirect.
+     next-day electricity prices, IEEE Trans. Power Syst. 18 (3) (2003) 1014–1020,                 com/science/article/pii/S0952197609001390
+     http://dx.doi.org/10.1109/TPWRS.2002.804943.                                             [18] Y. Sai, Z. Yuan, K. Gao, Mining stock market tendency by RS-based support
+ [3] K. Suresh, S. Krishna Priya, Forecasting sugarcane yield of Tamilnadu                         vector machines, in: Proceedings of the 2007 IEEE International Conference on
+     using ARIMA models, Sugar Tech. 13 (1) (2011) 23–26, http://dx.doi.org/10.                    Granular Computing, GRC ‘07, IEEE Computer Society, Washington, DC, USA,
+     1007/s12355-011-0071-7.                                                                       2007, p. 659, http://dx.doi.org/10.1109/GRC.2007.99.
+ [4] J.-J. Wang, J.-Z. Wang, Z.-G. Zhang, S.-P. Guo, Stock index forecasting based            [19] M.R. Hassan, A combination of hidden Markov Model and fuzzy model for
+     on a hybrid model, Omega 40 (6) (2012) 758–766, http://dx.doi.org/10.1016/j.                  stock market forecasting, Neurocomputing 72 (16-18) (2009) 3439–3446,
+     omega.2011.07.008.                                                                            http://dx.doi.org/10.1016/j.neucom.2008.09.029.
+ [5] E. Cadenas, W. Rivera, Wind speed forecasting in three different regions of              [20] M. Olsson, L. Soder, Modeling real-time balancing power market prices using
+     Mexico, using a hybrid ARIMA–ANN model, Renew. Energy 35 (12) (2010)                          combined SARIMA and Markov processes, IEEE Trans. Power Syst. 23 (2) (2008)
+     2732–2738, http://dx.doi.org/10.1016/j.renene.2010.04.022.                                    443–450, http://dx.doi.org/10.1109/TPWRS.2008.920046.
+ [6] C. Babu, B. Reddy, Predictive data mining on average global temperature using            [21] J. Ilow, Forecasting network trafﬁc using FARIMA models with heavy
+     variants of ARIMA models, in: 2012 International Conference on Advances                       tailed innovations, in: 2000 IEEE International Conference on Acoustics,
+     in Engineering, Science and Management (ICAESM), 2012, pp. 256–260                            Speech, and Signal Processing, ICASSP ‘00, vol. 6, 2000, pp. 3814–3817,
+     http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=6215607                               http://dx.doi.org/10.1109/ICASSP.2000.860234.
+ [7] U. Orhan, Real-time CHF detection from ECG signals using a novel discretization          [22] W. Liu, B. Morley, Volatility forecasting in the Hang Seng Index using
+     method, Comput. Biol. Med. 43 (10) (2013) 1556–1562, http://dx.doi.org/10.                    the GARCH approach, Asia-Paciﬁc Financial Markets 16 (1) (2009) 51–63,
+     1016/j.compbiomed.2013.07.015               http://www.sciencedirect.com/science/             http://dx.doi.org/10.1007/s10690-009-9086-4.
+     article/pii/S0010482513001893                                                            [23] S.Y. Sohn, M. Lim, Hierarchical forecasting based on AR-GARCH
+ [8] R.F.A. Lapedes, Nonlinear signal processing using neural networks: Prediction                 model in a coherent structure, Eur. J. Operat. Res. 176 (2) (2007)
+     and system Modeling, Tech. Rep. Technical Report LAUR-87-2662, Los Alamos                     1033–1040.
+     National Laboratory, Los Alamos, NM, 1987.                                               [24] G.M. Ferenstein, Elzbieta, Modelling stock returns with AR-GARCH processes,
+ [9] D. Singhal, K. Swarup, Electricity price forecasting using artiﬁcial neural                   SORT 28 (1) (2004) 55–68.
+     networks, Int. J. Elec. Power Energy Syst. 33 (3) (2011) 550–555, http://dx.doi.         [25] A. Conejo, M. Plazas, R. Espinola, A. Molina, Day-ahead electricity price forecast-
+     org/10.1016/j.ijepes.2010.12.009.                                                             ing using the wavelet transform and ARIMA models, IEEE Trans. Power Syst. 20
+[10] W.-S. Chen, Y.-K. Du, Using neural networks and data mining techniques for                    (2) (2005) 1035–1042, doi:10.1109/TPWRS.2005.846054.
+     the ﬁnancial distress prediction model, Expert Syst. Appl. 36 (2 Pt 2) (2009)            [26] C. Chen, J. Hu, Q. Meng, Y. Zhang, Short-time trafﬁc ﬂow prediction with ARIMA-
+     4075–4086, http://dx.doi.org/10.1016/j.eswa.2008.03.020.                                      GARCH model, in: 2011 IEEE Proceedings on Intelligence Vehicles Symposium
+[11] C.H.F. Toro, S.G. Meire, J.F. Glvez, F. Fdez-Riverola, A hybrid artiﬁcial intelligence        IV, 2011, pp. 607–612, http://dx.doi.org/10.1109/IVS.2011.5940418.
+     model for river ﬂow forecasting, Appl. Soft Comput. 13 (8) (2013) 3449–3458,             [27] A. Jain, A.M. Kumar, Hybrid neural network models for hydrologic time series
+     http://dx.doi.org/10.1016/j.asoc.2013.04.014.                                                 forecasting, Appl. Soft Comput. 7 (2) (2007) 585–592.
+[12] B.R. Chang, H.F. Tsai, Novel hybrid approach to data-packet-ﬂow prediction for           [28] G.E.P. Box, G. Jenkins, Time Series Analysis, Forecasting and Control, Holden-
+     improving network trafﬁc analysis, Appl. Soft Comput. 9 (3) (2009) 1177–1183,                 Day Incorporated, 1990.
+     http://dx.doi.org/10.1016/j.asoc.2009.03.003.                                            [29] Gaussian maximum likelihood estimation for ARMA models. I. Time series, J.
+[13] J. Reyes, A. Morales-Esteban, F. Martnez-lvarez, Neural networks to pre-                      Time Series Anal. 27(6) (2006) 857–875.
+     dict earthquakes in Chile, Appl. Soft Comput. 13 (2) (2013) 1314–1328,                   [30] S.O. Haykin, Neural Networks and Learning Machines, 3rd edition, Prentice Hall,
+     http://dx.doi.org/10.1016/j.asoc.2012.10.014.                                                 2008.
+[14] G. Zhang, Time series forecasting using a hybrid ARIMA and neu-                          [31] M.H. Hayes, Statistical Digital Signal Processing and Modeling, John Wiley &
+     ral network model, Neurocomputing 50 (0) (2003) 159–175,                                      Sons, 1996.
+     http://dx.doi.org/10.1016/S0925-2312(01)00702-0.                                         [32] Australian Energy Market Operator (AEMO): Price and Demand Data Sets. Avail-
+[15] M. Khashei, M. Bijari, A novel hybridization of artiﬁcial neural networks and                 able at: http://www.aemo.com.au/data/price demand.html
+     ARIMA models for time series forecasting, Appl. Soft Comput. 11 (2) (2011)               [33] The NSE India Data. Available at: http://www.nseindia.com/products/content/
+     2664–2675, http://dx.doi.org/10.1016/j.asoc.2010.10.015.                                      equities/equities/eq security.htm
+[16] H.H. Arash Miranian, Majid Abdollahzade, Day-ahead electricity price analysis            [34] L.T. DeCarlo, On the meaning and use of kurtosis, Psychol. Methods 2 (3) (1997)
+     and forecasting by singular spectrum analysis, IET Gener. Transm. Dis. 7 (4)                  292–307.
+     (2013) 337 L 346, http://dx.doi.org/10.1049/iet-gtd.2012.0263.
+

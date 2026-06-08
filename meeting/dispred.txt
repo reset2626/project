@@ -1,0 +1,907 @@
+DistPred: A Distribution-Free Probabilistic Inference
+Method for Regression and Forecasting
+Daojun Liang
+School of Information Science
+and Engineering, Shandong University
+liangdaojun@mail.sdu.edu.cn
+Haixia Zhang
+School of Control Science
+and Engineering, Shandong University
+haixia.zhang@sdu.edu.cn
+Dongfeng Yuan
+School of Qilu Transportation,
+Shandong University
+dfyuan@sdu.edu.cn
+Abstract
+Traditional regression and prediction tasks often only provide deterministic point
+estimates. To estimate the distribution or uncertainty of the response variable,
+traditional methods either assume that the posterior distribution of samples follows
+a Gaussian process or require thousands of forward passes for sample generation.
+We propose a novel approach called DistPred for regression and forecasting tasks,
+which overcomes the limitations of existing methods while remaining simple
+and powerful. Specifically, we transform proper scoring rules that measure the
+discrepancy between the predicted distribution and the target distribution into a
+differentiable discrete form and use it as a loss function to train the model end-
+to-end. This allows the model to sample numerous samples in a single forward
+pass to estimate the potential distribution of the response variable. We have
+compared our method with several existing approaches on multiple datasets and
+achieved state-of-the-art performance. Additionally, our method significantly
+improves computational efficiency. For example, compared to state-of-the-art
+models, DistPred has a 180x faster inference speed. Experimental results can be
+reproduced through this Repository.
+1 Introduction
+Traditional deterministic point estimates are no longer sufficient to meet the needs of AI safety and
+uncertainty quantification. For example, we may want to obtain confidence intervals for predicted
+points to make important decisions, such as deciding whether to travel based on weather forecasts or
+how to invest based on stock predictions. Moreover, this is particularly important in high-security AI
+application areas such as autonomous driving, risk estimation, and decision-making.
+In this paper, we consider the underlying distribution behind predicting the response variable because
+it reflects the confidence intervals at all levels. For example, based on this distribution, we can
+calculate confidence intervals, coverage rate, and uncertainty quantification at any level, as shown in
+Fig. 1. Currently, predicting the distribution of the response variable poses a challenge because at a
+specific moment, the response variable can only take on a single deterministic value. This point can
+be viewed as a ‘representative’ sample from its underlying distribution, but it fails to represent the
+overall state of the underlying distribution.
+Preprint. Under review.
+arXiv:2406.11397v2  [cs.LG]  7 Jan 2025
+
+(a) PMF of Response Variable 𝑦
+Point Estimators
+(b) CDF of Response Variable 𝑦 (c) Confidence Curve of 𝑦
+95% CI
+95% CI
+75% CI
+25% CI
+95% CI
+Figure 1: DistPred can provide K predicted values ˆy of the response variable y given the predictor
+variable x in a single forward process, denoted as E( ˆY |x), where ˆY represents a maximum likelihood
+sample of y. Based on this sampling, the probability mass function (PMF) Pθ ( ˆy|x), cumulative
+distribution function (CDF) Fθ ( ˆy|x), and confidence curveCCθ ( ˆy|x) for the response variable y can
+be computed, thereby yielding comprehensive statistical insights into y. For instance, this includes
+confidence intervals (CI) at any desired level, as well as p-values.
+Currently, several methods are employed to predict the underlying distribution of the response vari-
+able in regression and forecasting tasks. The most straightforward approach is to assume that the
+response variable follows a prior distribution and represents a specific statistic from that distribution.
+Specifically, several methods (Bishop, 1994; Greene, 2003; Salinas et al., 2020; He et al., 2020)
+transform distribution prediction and uncertainty quantification into predicting statistical variables
+such as mean and variance by assuming that the response variable follows a known continuous distri-
+bution. For instance, mixture density networks (Bishop, 1994) superimpose a specific distribution,
+typically Gaussian, weighted by designated parameters to fit the prior distribution. Heteroscedasticity
+regression (Greene, 2003) quantifies uncertainty by modeling the variability of residuals as a function
+of independent variables. These methods only predict statistical variables, which reduces the infer-
+ence cost, but strong assumptions often fail to capture the true data distribution, resulting in inferior
+performance.
+Conformal prediction offers an alternative approach for distribution prediction (V ovk et al., 2017,
+2018; Romano et al., 2019; Xu and Xie, 2021, 2023). The authors defined the random prediction
+system in (V ovk et al., 2017, 2018) and proposed a nonparametric prediction distribution method based
+on conformal assumptions. The authors integrated conformal prediction with quantile regression
+in (Romano et al., 2019; Xu and Xie, 2021, 2023) to construct prediction intervals for the response
+variable by training multiple bootstrap estimators. However, the application of conformal prediction
+to distribution prediction can be constrained by its reliance on the exchangeability assumption
+of residuals and the challenges in managing temporal dependencies (autocorrelation), potentially
+resulting in less reliable prediction intervals in non-i.i.d. data settings.
+Uncertainty quantification is a method that indirectly reflects the potential distribution of the response
+variable, which can be classified into two primary categories: epistemic uncertainty and aleatoric
+uncertainty Der Kiureghian and Ditlevsen (2009). Epistemic uncertainty refers to the uncertainty
+within the model itself. In contrast, aleatoric uncertainty pertains to the inherent randomness in the
+observations. Quantitative analysis involves generating numerous samples (e.g., using MCMC) by
+perturbing the explanatory variables or models, thereby approximating the underlying distribution. For
+instance, bayesian neural networks (BNNs) (Blundell et al., 2015; Immer et al., 2021; Daxberger et al.,
+2021) simulate this uncertainty by assuming that their parameters follow a predefined distribution,
+thereby capturing the model’s uncertainty given the data. Similarly, ensemble-based methods have
+been proposed to combine multiple deep models with random outputs to capture prediction uncertainty.
+MC Dropout (Gal and Ghahramani, 2016) shows that enabling dropout during each testing process
+yields results akin to model ensembling. Additionally, models based on GANs and diffusion have
+been introduced for conditional density estimation and prediction uncertainty quantification (Zhou
+et al., 2021b; Liu et al., 2021; Han et al., 2022). These models utilize noise during the generation or
+diffusion process to obtain different predicted values for estimating the uncertainty of the response
+variable.
+The common characteristic of these methods mentioned above is the requirement ofK forward passes
+to sample K representative samples. For example, Bayesian framework-based methods require K
+learnable parameter samples to be inferred in order to obtain K representative samples; ensemble
+2
+
+methods require K models to jointly infer; MC Dropout requires K forward passes with random
+dropout activations; generative models require K forward or diffusion processes. However, the
+excessive forward passes result in significant computational overhead and slow speed, a drawback
+that becomes increasingly apparent for AI applications with high real-time requirements.
+To address this issue, we propose a novel method called DistPred, which is a distribution-free
+probabilistic inference method for regression and forecasting tasks. DistPred is a simple and powerful
+method that can estimate the distribution of the response variable in a single forward pass. Specifically,
+we contemplate employing all predictive quantiles to specify the potential cumulative density function
+(CDF) of the predictor variable, and we show that the full quantiles’ prediction can be translated
+into calculating the minimum expected score of the response variable and the predictive ensemble
+variables. Based on this, we transform proper scoring rules that measure the discrepancy between
+the predicted distribution and the target distribution into a differentiable discrete form and use it as
+a loss function to train the model end-to-end. This allows the model to sample numerous samples
+in a single forward pass to estimate the potential distribution of the response variable. DistPred
+is orthogonal to other methods, enabling its combination with alternative approaches to enhance
+estimation performance. Further, we show that DistPred can provide comprehensive statistical
+insights into the response variable, including confidence intervals at any desired level, p-values, and
+other statistical information, as shown in Fig. 1. Experimental results show that DistPred outperforms
+existing methods in terms of both accuracy and computational efficiency. Specifically, DistPred has a
+180x faster inference speed than state-of-the-art models.
+𝑥 Learner 𝑀𝜃(𝑥) Distribution 𝑃𝜃( ෠𝑌|𝑥) 𝑦Discrete Form 𝑆(𝔼𝜃 ෠𝑌 𝑥 , 𝑦)
+Backpropagation of Gradients
+Scoring Rule 𝑆(𝐹( ො𝑦), 𝑦)
+TargetMeasure the CDF of 𝑦Minimum expected score of ෠𝑌Sample Model 𝑀 with 𝜃
+Figure 2: The workflow of DistPred. An ensemble of predictive variables ˆY is inferred in a forward
+pass and S(E( ˆY |x),y) is utilized to train the learner end-to-end.
+2 Method
+Assume that the dataset D = {xi,yi}N
+i=1 consists of N sample-label pairs. The subscript i will
+be omitted if it does not cause ambiguity in the context. Our objective is to utilize a machine
+learning model M with parameters θ to predict the underlying distribution P(y|x) from D, aiming to
+acquire comprehensive statistical insights such as obtaining confidence intervals (CI) and quantifying
+uncertainty at any desired level.
+Direct prediction of distribution Pθ ( ˆy|x) is not feasible because:
+1. Without distributional assumptions, we cannot give a valid representation of the PDF or
+CDF for the response variable.
+2. We have only a deterministic target point, without access to its distribution information,
+which limits our ability to guide the model’s learning process.
+To address the aforementioned issues, we contemplate employing full predictive quantiles
+ˆq1, ˆq2, · · ·, ˆqK at levels α1, α2, · · ·, αK, (K → ∞), to specify the potential CDF Fθ ( ˆy) of the response
+variable ˆy. This is because if we know the cumulative distribution function of a random variable, we
+can find any quantile by
+qα = inf{y ∈ R : F(y) ≥ α}. (1)
+Conversely, if we have a complete set of quantiles, we can approximate or reconstruct the cumulative
+distribution function of the random variable
+F(y) = sup{α ∈ [0,1] : qα ≤ y}. (2)
+Full quantiles provide discrete ‘snapshots’ of the distribution, while the CDF is a continuous, smooth
+version of these snapshots, offering a complete description of the cumulative probability from the
+minimum to the maximum value.
+3
+
+2.1 Property of Full Quantiles
+We contemplate probabilistic predictions pertaining to a continuous quantity, manifested as full
+predictive quantiles ˆq1, · · ·, ˆqK, (K → ∞). For P ∈ P, let ˆq1, · · ·, ˆqK denote the true P-quantiles at
+levels α1, · · ·, αK ∈ (0,1). Then, the expected score S(q1, · · ·,qK;P) can be defined as
+S( ˆq1, · · ·, ˆqK;P) =
+Z
+S( ˆq1, · · ·, ˆqK;y)dP(y). (3)
+The function S in Eq. 3 satisfies the scoring rule, which offers a concise measure for assessing
+probabilistic forecasts by assigning numerical scores according to the forecast distribution and
+predicted outcomes (Gneiting and Raftery, 2007; Jordan et al., 2017). Specifically, let Ω denote
+the set of possible values of the quantity of interest, and let P denote a convex class of probability
+distributions on Ω, the scoring rule is a function
+S : Ω × P → R ∪ {∞} (4)
+that assigns numerical values to pairs of forecasts P ∈ P and observations y ∈ Ω. We identify
+probabilistic forecasts P with the associated CDF F or PDF f , and consider scoring rules to be
+negatively oriented, where a lower score signifies a more accurate forecast. A proper scoring rule is
+optimized when the forecast aligns with the true distribution of the observation, i.e., if
+Ey∼Q[S(Q,y)] ≤ Ey∼Q[S(P,y)] (5)
+for all P,Q ∈ P. A scoring rule is termed strictly proper when equality is achieved only when P = Q.
+Proper scoring rules are essential for comparative evaluation, especially in ranking forecasts.
+Based on this definition, we can get the scoring rule S is proper when S(q1, · · ·,qK;P) ≥
+S( ˆq1, · · ·, ˆqK;P). Further, assuming that sk is a non-decreasing probability measure of P, then
+the scoring rule
+S( ˆq1, · · ·, ˆqK;P) =
+K
+∑
+k=1
+(αksk( ˆqk) + (sk(y) − sk( ˆqk)I{y ≤ ˆqk})) (6)
+is proper for predicting the quantiles at levels α1, · · ·, αK when K → ∞ (Gneiting and Raftery, 2007;
+Schervish et al., 2012). I{y ≤ ˆqk} denotes the indicator function which is 1 if y ≤ ˆqk and 0 otherwise.
+2.2 Predicting CDF by Full Quantiles
+Eq. 6 shows that full predictive quantiles are proper. Consequently, we can formulate scoring rules
+for the predictive distribution based on the scoring rules for the quantiles. Specifically, let Sα denote
+a proper scoring rule for the quantile at level α, then the scoring rule
+S(F,y) =
+Z 1
+0
+Sα (F −1(α);y)dα =
+Z ∞
+−∞
+S(F( ˆy), I{y ≤ ˆy})d ˆy (7)
+is proper. Here, we establish a relationship between the full quantiles of the response variable and its
+CDF. However, the CDF here is in continuous form and cannot be directly observed. Therefore, we
+need to convert it into a discrete form, as the number of quantiles K is always finite in practice. It is
+worth noting that Eq. 7 corresponds to the continuous ranked probability score (CRPS) in which S is
+the quadratic or Brier score, defined as
+C(F,y) =
+Z ∞
+−∞
+(F( ˆy) − I{y ≤ ˆy})2 d ˆy. (8)
+When the first moment of F is finite, the CRPS can be written as
+C(F,y) = EF [| ˆY − y|] − 1
+2 EFF [| ˆY − ˆY ′|], (9)
+where ˆY and ˆY ′ denote independent predictive ensemble variables with distribution F.
+Eq. 9 incentivizes forecasters to accurately report their perception of the true distribution in this
+scenario. Therefore, it provides attractive measures and utility functions that can be tailored to a
+4
+
+regression or forecast problem. To estimate θ, we need to measure the goodness-of-fit by the mean
+score
+CN(θ ) = 1
+N
+N
+∑
+i=1
+C(Fθ ( ˆyi),yi). (10)
+Let θ ∗ denote the true parameter value, then asymptotic arguments indicate thatargminθCN(θ ) → θ ∗
+as N → ∞. As shown in Fig. 2, the workflow suggests a general approach to transforming proper
+scoring rules into loss functions for training models, which implicitly minimizes the discrepancy
+between predictive and true distributions.
+2.3 End-to-End Ensemble Inference
+⋯
+ො𝑦1 ො𝑦𝐾ො𝑦2
+𝑥
+Learner 𝑀𝜃
+Figure 3: DistPred’s architec-
+ture. A model M with pa-
+rameters θ takes one input
+variable x and outputs an en-
+semble of K response variable
+ˆy1, · · ·, ˆyK.
+Based on the analysis provided above, it is evident that predicting
+the full quantiles is equivalent to minimizing Eq. 9 w.r.t E( ˆY |y).
+Hence, as illustrated in the architecture depicted in Fig. 3, we can
+develop a model M with parameters θ that infers an ensemble of
+predictive variables ˆY = { ˆy1, · · ·, ˆyK} in a forward pass and utilize
+Eq. 10 to train it end-to-end. This allows the model to sample
+numerous samples in a single forward pass to estimate the empirical
+CDF ˆF by the predictive ensemble variables
+C( ˆF,y) = 1
+K
+K
+∑
+k=1
+| ˆyk − y| − 1
+2K2
+K
+∑
+k=1
+K
+∑
+j=1
+| ˆyk − ˆy j|. (11)
+It’s worth noting that Eq. 11 is a differentiable discrete form w.r.t
+ˆY and ˆY ′ that strictly satisfies proper scoring rules. However, im-
+plementations of Eq. 11 exhibit inefficiency due to their storage
+complexity of O(K2). This can be enhanced by using algebraically
+equivalent representations based on the generalized quantile function
+(Laio and Tamea, 2007) and the sorted predictive ensemble variables− →yk ,
+C( ˆF,y) = 1
+2K2
+K
+∑
+k=1
+(− →yk − y)(kI{y ≤ − →yk } −k + 1
+2 ). (12)
+Since a sorting operation is involved, the storage complexity of Eq. 12 is O(KlogK ). However, since
+Eq. 12 renders the objective C( ˆF,y) non-differentiable, we employ probability-weighted moment
+estimation form to approximate it, as
+C( ˆF,y) = 1
+K
+K
+∑
+k=1
+| ˆyk − y| + 1
+K
+K
+∑
+k=1
+ˆyk − 2
+K(K − 1)
+K
+∑
+k=1
+ˆyk(k − 1). (13)
+Actually, according to the definition of L-Moments, we can prove that the last term of Eq. 11 can be
+decomposed into the 1-th and 0-st order L-moments of Eq. 13, i.e., Eq. 13 is an unbiased estimate
+of Eq. 11 when it has a finite first L-moment. To conserve memory, we suggest utilizing Eq. 13,
+which has a storage complexity of O(K), as the loss function, since predicting ensemble variables in
+long-term forecasting tasks may lead to out-of-memory issues on GPUs.
+2.4 Incorporate Alternative Methodologies
+DistPred is orthogonal to other methods, enabling its combination with alternative approaches to
+enhance estimation performance. Here, with a focus on computational efficiency and memory
+conservation, we opt to integrate MC Dropout with DistPred, thereby denoting the amalgamation as
+DistPred+MCD. In our experiments, we observed that using DistPred+MCD can further enhance
+uncertainty quantification performance, albeit with a marginal increase in computational effort.
+3 Experiments
+In this paper, our focus centers on regression (proposed by Hernández-Lobato and Adams (2015))
+and prediction (proposed by Zhou et al. (2021a)) tasks, where we validate the application of the
+proposed DistPred method to these specific endeavors.
+5
+
+8 Gussions Full Circle
+ Inverse Sinusoidal MDN
+ Linear Regression
+Log-Log Cubic Regression
+ Log-Log Linear Regression
+ Quadratic Regression
+ Sinusoidal Regression MDN
+Figure 4: Scatter plot of DistPred’s regression results on 8 toy examples.
+3.1 PICP and QICE Metrics
+The metric utilized in BNNs to assess uncertainty estimates, namely the negative log-likelihood
+(NLL), is computed based on Gaussian prior. This assumption implies that they consider both the
+conditional distribution p(y|x = x′) for all x′ are Gaussian. However, this assumption is very difficult
+to verify for real-world datasets. We follow (Han et al., 2022) and use the following two metrics,
+both of which are designed to empirically evaluate the degree of similarity between learned and true
+conditional distributions:
+• PICP (Prediction Interval Coverage Probability) (Yao et al., 2019) is a metric that measures
+the proportion of true labels that fall within the prediction interval.
+• QICE (Quantile Interval Calibration Error) (Han et al., 2022) is a metric that measures the
+average difference between the predicted and true quantiles at a given level α.
+The PICP is calculated as
+PICP := 1
+N
+N
+∑
+n=1
+I{ ˆyn ≥ qα/2} ·I{ ˆyn ≤ q1−α/2}, (14)
+where qα/2 and q1−α/2 represent the low and high percentiles, respectively, that we have selected
+for the predicted ˆy outputs given the same x input. This metric evaluates the proportion of accurate
+observations that lie within the percentile range of the generated ˆy samples corresponding to each x
+input. Within this study, we opt for the 2.5th and 97.5th percentiles, signifying that an optimal PICP
+value for the model should ideally reach 95%.
+However, a caveat of the PICP metric becomes apparent in the measurement of distribution differences.
+Drawing from this reasoning, Han et al. (2022) introduces a novel empirical metric called QICE. This
+metric can be perceived as an enhanced version of PICP, offering finer granularity and addressing the
+issue of uncovered quantile ranges. To calculate QICE, the initial step involves generating an adequate
+number of samples for each ˆy value. These samples are then divided into M bins of approximately
+equal sizes. Subsequently, the quantile values are determined at each boundary within these bins. The
+definition of QICE entails computing the mean absolute error (MAE) between the proportion of true
+data encompassed by each quantile interval and the optimal proportion, which is 1/M for all intervals:
+QICE := 1
+M
+M
+∑
+m=1
+|rm − 1
+M |, (15)
+where rm = 1
+N
+N
+∑
+n=1
+I{ ˆyn ≥ qα/2} ·I{ ˆyn ≤ q1−α/2}.
+6
+
+3
+.222
+.423
+.531
+.113
+.30
+.970 .472
+.015
+.310
+.512
+.952
+.163
+.391
+1 .420 .80 .521
+.794
+.370
+.28BostonC oncreteE nergyK in8nmN avalP owerP roteinW ineY achtY ear0123456QICED
+atasets 
+DistPred DistPred+MCD
+Figure 5: DistPred and DistPred+MCD on UCI datasets.
+In this paper, we followed (Han et al., 2022) and set M = 10 for all experiments.
+3.2 Toy Examples
+To demonstrate the effectiveness of DistPred, we initially conducted experiments on8 toy examples
+as done in (Han et al., 2022). These examples are specifically crafted with distinct statistical
+characteristics in their data generating functions: some have a uni-modal symmetric distribution for
+their error term (linear regression, quadratic regression, sinusoidal regression), while others exhibit
+heteroscedasticity (log-log linear regression, log-log cubic regression) or multi-modality (inverse
+sinusoidal regression, 8 Gaussians, full circle).
+The research demonstrates that a trained DistPred model has the capability to produce samples that
+closely resemble the true response variable for novel covariates. Additionally, it can quantitatively
+match the true distribution based on certain summary statistics. The study visualizes scatter plots
+comparing real and generated data for all eight tasks in Fig. 4. In cases where the tasks involve
+unimodal conditional distributions, the interest region fills the region between the2.5th and 97.5th
+percentiles of the generated ˆy values.
+We note that within every task, the generated samples seamlessly integrate with the authentic test
+instances, indicating the potential of DistPred to reconstruct the inherent data generation process.
+This experiment visually demonstrates that DistPred effectively reconstructs the sample potential
+distribution of the target response variable. This indicates that the advantages of DistPred mentioned
+earlier can be fully harnessed in distribution prediction.
+1 01 001 0002 0003 0004 00001234567QICE(
+a) Number of Samples 
+boston              concrete              wine              Yacht1
+1 01 001 0000123456QICE(
+b) Number of Ensembles
+Figure 6: Ablation studies of the number of samples in DistPred (a) and the number of ensembles in
+DistPred+MCD (b).
+7
+
+Table 1: Comparison of model training and inference times (minutes) on UCI regression datasets
+when K = 1000.
+Models DistPred DistPred+MCD PBP MC Dropout CARD
+Training 0.035 ± 6E-3 0.035 ± 6E-3 0.04 ± 8E-3 0.031 ± 0.01 8.14 ± 0.05
+Inference 0.026 ± 4E-3 0.027 ± 5E-3 5.23 ± 0.10 4.62 ± 0.06 8.31 ± 0.17
+8
+4.398 5.118 6.368 8.012
+1.352 2.82 4.452 5.145 9.276 0.286 1.786 1.875
+2.245 3.965 3.445
+5.99C
+QRE nbPIS PCID istPred828
+48
+68
+8PICP(
+a) ETTC
+QRE nbPIS PCID istPred1820222426PICP(
+b) TrafficC
+QRE nbPIS PCID istPred586
+06
+2PICP(
+c) ElectricityC
+QRE nbPIS PCID istPred505
+25
+45
+6PICP(
+d) Weather
+Figure 7: Comparison DistPred (ours) with conformal prediction methods. All results are averaged
+across all prediction lengths.
+3.3 UCI Regression Tasks
+For experiments conducted on real-world datasets, we utilize the same 10 UCI regression bench-
+mark datasets (Asuncion and Newman, 2007) and follow the experimental protocol introduced by
+Hernández-Lobato and Adams (2015), which has also been followed by Gal and Ghahramani (2016)
+and Lakshminarayanan et al. (2017), as well as by Han et al. (2022). The dataset information can be
+found in Table 7 located in Appendix A.
+We compare DistPred with other state-of-the-art methods, including PBP (Hernández-Lobato and
+Adams, 2015), MC Dropout (Gal and Ghahramani, 2016), DeepEnsemble (Lakshminarayanan et al.,
+2017), and another deep generative model that estimates a conditional distribution sampler, GCDS
+(Zhou et al., 2021b), as well as the diffusion model, CARD (Han et al., 2022). The multiple train-test
+splits are applied with a 90%/10% ratio, following the same methodology as Hernández-Lobato and
+Adams (2015) and Han et al. (2022) (20 folds for all datasets except 5 for Protein and 1 for Year). The
+reported metrics are presented as the mean and standard deviation across all splits. As pointed out by
+Han et al. (2022), we compare the QICE of different methods on various UCI datasets. Additional
+information regarding the experimental setup for these models is available in Appendix A.2. The
+experimental results, along with corresponding metrics, are presented in Table 2. The frequency with
+which each model achieves the best corresponding metric is reported in the penultimate row, while
+the frequency with which it achieves the top two positions is reported in the last row.
+The results demonstrate that DistPred outperforms existing methods, often by a considerable margin.
+It is worth noting that these impressive results are achieved in a single forward pass of the DistPred
+method. Crucially, as shown in Fig. 5, the performance of uncertain quantization can be further
+enhanced by leveraging DistPred+MCD, a hybrid approach that combines DistPred and MC Dropout.
+Table 2: QICE ↓ (in %) of UCI regression tasks.
+Dataset PBP MC Dropout Deep Ensembles GCDS CARD DistPred DistPred-MCD
+Boston 3.50±0.88 3 .82±0.82 3 .37±0.00 11.73±1.05 3 .45±0.83 3 .22±0.86 222...999555±±±000...777888Concrete 2.52±0.60 4 .17±1.06 2 .68±0.64 10 .49±1.01 2 .30±0.66 2.42±0.43 222...111666±±±000...444333Energy 6.54±0.90 5 .22±1.02 3 .62±0.58 7.41±2.19 4 .91±0.94 3 .73±0.71 333...333999±±±111...000999Kin8nm 1.31±0.25 1 .50±0.32 1 .17±0.22 7 .73±0.80 000...999222±±±000...222555 1 .11±0.28 1.00±0.24Naval 4 .06±1.25 12.50±1.95 6 .64±0.60 5 .76±2.25 000...888000±±±000...222111 3 .30±0.91 1.42±0.47Power 0 .82±0.19 1.32±0.37 1 .09±0.26 1 .77±0.33 0 .92±0.21 0.97±0.30 0 00...888000±±±000...222333Protein 1.69±0.09 2 .82±0.41 2 .17±0.16 2 .33±0.18 0 .71±0.11 000...444777±±±000...111111 0 .52±0.14Wine 2 .22±0.64 2.79±0.56 2 .37±0.63 3 .13±0.79 3 .39±0.69 2 .01±0.51 111...777999±±±000...444555Yacht 6 .93±1.74 10.33±1.34 7 .22±1.41 5 .01±1.02 8.03±1.17 5 .31±0.96 444...333777±±±111...111555Year 2 .96±NA 2 .43±NA 2 .56±NA 1 .61±NA 0 .53±NA 0.58±NA 000...222888±±±NA
+# Top 1 0 0 0 0 2 1 7 77
+# Top 2 2 0 2 1 6 9 10
+8
+
+Table 3: Multivariate time series forecasting results on six benchmark datasets.
+Model DistPred iTransformer PatchTST SCINet TimesNet DLinear FEDformer Autoformer InformerInput Length 96 96 336 168 96 336 96 96 96OutputCRPS QICE PICP MSE MAEMSE MAEMSE MAEMSE MAEMSE MAEMSE MAEMSE MAEMSE MAEMSE MAE
+ETT
+96 0.248 9.53 48.500.288 0.3340.2970.3490.302 0.3480.707 0.6210.340 0.3740.333 0.3870.358 0.3970.346 0.3883.755 1.525192 0.277 9.22 51.060.348 0.3710.3800.4000.388 0.4000.860 0.6890.402 0.4140.477 0.4760.429 0.4390.456 0.4525.602 1.931336 0.298 8.91 53.280.392 0.4020.4280.4320.426 0.4331.000 0.7440.452 0.4520.594 0.5410.496 0.4870.482 0.4864.721 1.835720 0.322 8.23 57.11 0.4370.4360.4270.4450.4310.4461.249 0.8380.462 0.4680.831 0.6570.463 0.4740.515 0.5113.647 1.625Avg0.286 8.97 52.450.366 0.3860.3830.4070.387 0.4070.954 0.7230.414 0.4270.559 0.5150.437 0.4490.450 0.4594.431 1.729
+Traffic
+96 0.193 12.75 34.850.391 0.2510.3950.2680.544 0.3590.788 0.4990.593 0.3210.650 0.3960.587 0.3660.613 0.3880.719 0.391192 0.197 12.81 34.060.416 0.2690.4170.2760.540 0.3540.530 0.5050.617 0.3360.598 0.3700.604 0.3730.616 0.3820.696 0.379336 0.202 12.90 34.030.427 0.2750.4330.2830.551 0.3580.558 0.5080.629 0.3360.605 0.3730.621 0.3830.622 0.3370.777 0.420720 0.218 - - 0.467 0.2970.4670.3020.586 0.3750.841 0.5230.640 0.3500.645 0.3940.626 0.3820.660 0.4080.864 0.472Avg0.203 - - 0.425 0.2730.4280.2820.555 0.3620.804 0.5090.620 0.3360.625 0.3830.610 0.3760.628 0.3790.764 0.416
+Electricity
+96 0.167 12.16 34.110.138 0.2310.1480.2400.195 0.2850.247 0.3450.168 0.2720.197 0.2820.193 0.3080.201 0.3170.274 0.368192 0.178 11.62 38.850.155 0.2460.1620.2530.199 0.2890.257 0.3550.184 0.2890.196 0.2850.201 0.3150.222 0.3340.296 0.386336 0.188 11.14 41.270.169 0.2640.1780.2690.215 0.3050.269 0.3690.198 0.3000.209 0.3010.214 0.3290.231 0.3380.300 0.394720 0.209 10.79 42.830.207 0.2980.2250.3170.256 0.3370.299 0.3900.220 0.3200.245 0.3330.246 0.3550.254 0.3610.373 0.439Avg0.186 11.45 39.270.167 0.2600.1780.2700.216 0.3040.268 0.3650.192 0.2950.212 0.3000.214 0.3270.227 0.3380.311 0.397
+Weather
+96 0.145 12.05 29.960.152 0.1920.1740.2140.177 0.2180.221 0.3060.172 0.2200.196 0.2550.217 0.2960.266 0.3360.300 0.384192 0.185 10.607 39.850.210 0.2470.2210.2540.225 0.2590.261 0.3400.219 0.2610.237 0.2960.276 0.3360.307 0.3670.598 0.544336 0.216 9.857 44.840.263 0.2860.2780.2960.278 0.2970.309 0.3780.280 0.3060.283 0.3350.339 0.3800.359 0.3950.578 0.523720 0.263 9.31 47.83 0.362 0.3490.358 0.3490.3540.3480.377 0.4270.365 0.3590.3450.3810.403 0.4280.419 0.4281.059 0.741Avg0.202 10.46 40.620.247 0.2690.2580.2790.259 0.2810.292 0.3630.259 0.2870.265 0.3170.309 0.3600.338 0.3820.634 0.548
+Solar
+96 0.152 6.36 65.75 0.2050.2270.2030.2370.234 0.2860.237 0.3440.250 0.2920.290 0.3780.242 0.3420.884 0.7110.236 0.259192 0.165 8.39 53.34 0.2360.2510.2330.2610.267 0.3100.280 0.3800.296 0.3180.320 0.3980.285 0.3800.834 0.6920.2170.269336 0.171 7.82 55.37 0.2560.2640.2480.2730.290 0.3150.304 0.3890.319 0.3300.353 0.4150.282 0.3760.941 0.7230.249 0.283720 0.187 8.79 55.15 0.273 0.2780.2490.2750.289 0.3170.308 0.3880.338 0.3370.356 0.4130.357 0.4270.882 0.7170.2410.317Avg0.169 7.84 57.40 0.2430.2550.2330.2620.270 0.3070.282 0.3750.301 0.3190.330 0.4010.291 0.3810.885 0.7110.2350.280
+PEMS
+12 0.120 9.01 52.990.064 0.1660.071 0.1740.099 0.2160.0660.1720.085 0.1920.122 0.2430.126 0.2510.272 0.3850.126 0.23324 0.141 9.05 52.01 0.0870.1920.093 0.2010.142 0.2590.0850.1980.118 0.2230.201 0.3170.149 0.2750.334 0.4400.139 0.25036 0.170 8.41 57.390.124 0.2330.1250.2360.211 0.3190.127 0.2380.155 0.2600.333 0.4250.227 0.3481.032 0.7820.186 0.28948 0.181 9.37 49.550.140 0.2450.1600.2700.269 0.3700.178 0.2870.228 0.3170.457 0.5150.348 0.4341.031 0.7960.233 0.323Avg0.153 8.96 52.990.104 0.2090.1130.2210.180 0.2910.114 0.2240.147 0.2480.278 0.3750.213 0.3270.667 0.6010.171 0.274# Top 1- - - 22 28 5 1 0 1 1 0 0 0 1 0 0 0 0 0 2 0
+The implementation of DistPred on UCI regression tasks follows a straightforward approach: We
+employ a basic multilayer perceptron (MLP) as the foundational framework, complemented by Eq. 13
+serving as the loss function for end-to-end training. Due to the fact that DistPred necessitates solely a
+single forward inference, its inference speed is notably rapid. Table 1 presents a comparison of the
+training and inference speeds of mainstream models. It should be noted that, for a fair comparison,
+the implementations of various models are constructed on the same backbone and utilize the same
+equipment. It is evident that DistPred is approximately achieves at least 180x faster inference speed
+compared to state-of-the-art models. The inference speed of DistPred is slower than its training speed
+because it involves calculating distribution statistical metrics like QICE and PICP.
+3.4 Ablation Study of The Number of Samples and Ensembles
+We investigate the influence of the number of samples generated by DistPred, as well as the number
+of ensembles of DistPred+MCD, on their respective performances. In Fig. 6(a), we increase the
+number of samples of DistPred from 10 to 4000 to observe the changes in its QICE. In Fig. 6(b),
+we increase the number of ensembles of DistPred+MCD from 1 (DistPred) to 1000 to observe the
+changes in its QICE. It can be found that with an increase in the number of output samples and
+ensembles, the model’s performance shows a gradual improvement.
+3.5 Time Series Distribution Forecasting
+We extend time series forecasting (Zhou et al., 2021a; Wu et al., 2021; Zhou et al., 2022; Liu et al.,
+2023) from point estimation to the task of distribution prediction to infer about more statistical
+information about a certain moment.
+Baselines: We employ recent 10 SOTA methods for comparisons, including iTransformer Liu et al.
+(2023), PatchTST Nie et al. (2022), SCINet Liu et al. (2022a), TimesNet Wu et al. (2022), DLinear
+Zeng et al. (2023), FEDformer Zhou et al. (2022), Autoformer Wu et al. (2021), Informer Zhou et al.
+(2021a), LogTrans Li et al. (2019) and Reformer Kitaev et al. (2020). DistPred employs the same
+network architecture as iTransformer. We use the same experimental setup as (Zhou et al., 2021a)
+and (Liu et al., 2022a) and follow the same experimental protocol as (Zhou et al., 2021a). Univariate
+results can be found in Appendix E.
+Datasets and Setting: The detailed information pertaining to the datasets can be located in Appendix
+A. The models Liang et al. (2024) used in the experiments are evaluated over a wide range of
+prediction lengths to compare performance on different future horizons: 96, 192, 336, and 720. The
+experimental settings are the same for both multivariate and univariate tasks. We use the average of
+the MSE and MAE ( MSE +MAE
+2 ) to evaluate the overall performance of the model. It is noteworthy
+9
+
+Table 4: Stability experiments of loss function (Eq. 13).
+1% 25% 50% 75% 100%
+Train Loss 0.21 ±0.04 0.174 ±0.03 0.165 ±0.01 0.162 ±0.01 0.16 ±0.007
+Valid Loss 0.17 ±0.05 0.155 ±0.04 0.151 ±0.02 0.15 ±0.02 0.15 ±0.01
+Table 5: KL-divergence, skewness, and kurtosis of the predictive response variable to the standard
+Gaussian on the ETTm2 datasets under input-96-predict-96 with K = 100.
+Variates 1 2 3 4 5 6 7
+KL-Div 0.11 0.1 inf 0.13 0.03 inf 0.05
+Skewness -0.42 0.41 -0.47 0.16 -0.03 -0.26 -0.72
+Kurtosis 0.77 0.09 1.93 0.31 0.85 1.95 1.77
+that DistPred provides an ensemble ˆY of response variable. Consequently, we employ the mean value
+of ˆY as the point estimate at that moment.
+Main Results: The results for multivariate TS forecasting are outlined in Table 3, with the optimal
+results highlighted in bold and the second-best results emphasized with underlined. It can be found
+that, despite not utilizing MSE and MAE, DistPred achieves state-of-the-art performance across all
+datasets and prediction length configurations. iTransformer and PatchTST stand out as the latest
+models acknowledged for their exceptional average performance. Compared with them, the proposed
+DistPred demonstrates an average performance increase of3.5% and 16.5%, respectively, achieving a
+substantial performance improvement. We provide metrics, e.g., CRPS, QICE, PICP, for comparison
+by the future research community. Note that for long time series, computing these metrics on the
+entire testset can be very time-consuming and may lead to out-of-memory issues. Therefore, we
+propose calculating these metrics for each batch and then averaging the results.
+3.6 Comparison with Conformal Prediction
+Since conformal prediction offers an alternative approach for distribution prediction, we compare
+DistPred with conformal prediction methods on the time series forecasting tasks, including CQR
+(Romano et al., 2019), EnbPI (Xu and Xie, 2021), SPCI (Xu and Xie, 2023). Since PICP is the
+primary metric used by these methods, we adhere to their convention in this work. As shown in
+Fig. 7, DistPred achieves better performance than conformal prediction methods on all datasets and
+prediction lengths, with an average PICP improvement of 4.5%. This further underscores the high
+competitiveness of DistPred.
+3.7 Stability of The Loss Function
+We included detailed discussions and experiments on the convergence and stability of the proposed
+method. As shown in Table 4, the experiments show that the training and valid loss converge smoothly
+across multiple runs, with no evidence of instability.
+3.8 Visualization of The Predictive Distribution
+We conducted thorough statistical analyses, including QQ-plots, histograms, and metrics like KL-
+divergence, skewness, and kurtosis, to validate the empirical distribution of the predictive response
+variable. KL-divergence, skewness, and kurtosis of the predictive response variable are shown in
+Table 5, and QQ-plots and histograms are shown in Fig. 8. These statistical analyses shows that the
+empirical distribution exhibits notable characteristics, such as skewness and heavy tails, etc., which
+are typical of many real-world datasets.
+Furthermore, the predictive distribution of DistPred is visualized in Fig. 9. It can be observed that
+DistPred provides an ensemble of predictions (only the top 10 are presented in the left subplot).
+Given all predictive ensemble values, the model can estimate the distribution of the response variable.
+Consequently, we can calculate confidence intervals at different levels, as shown in the right subplot
+of Fig. 9.
+10
+
+0 204060801001
+.82
+.02
+.22
+.42
+.02 .12 .22 .3(
+a) Normal Q-Q Plot of Predictionsmu = 2.15049  sigma = 0.05875E
+xpected Normal ValueP
+redictions 
+Expected Value Reference Line Lower Percentiles Upper Percentiles(
+b Histograms Plot of Predictionsmu = 2.15049  sigma = 0.058751
+.82 .02 .22 .42 .60100200300400CountsP
+redictionsC
+umulative Percent
+Figure 8: QQ-plots and histograms of response variable.
+(a) Ensemble Predictions
+Value (Norm) 
+Time
+Input Output
+(b) Confidence interval
+Value (Norm)
+Time
+Input Output
+Figure 9: Visualization of the prediction results and the confidence intervals with setting input-
+96-predict-96 on the Ettm2 dataset. (a) The left subplot shows the ensemble of predictions with
+K = 100. By utilizing subgraph (a), we can directly obtain the confidence intervals for subgraph (b),
+e.g, confidence intervals at 99%, 99.5% and 99.9% levels.
+4 Related Work
+In supervised learning contexts, the endeavor to characterize the conditional distribution p(y|x)
+beyond merely the conditional mean E[y|x] via deep neural networks has been a focal point of
+existing research efforts. These endeavors primarily concentrate on quantifying uncertainty, with
+several approaches having been proposed.
+In regression and forecasting tasks, predicting the underlying distribution of the response variable is
+pivotal. Traditional approaches (Bishop, 1994; Greene, 2003; Salinas et al., 2020; He et al., 2020)
+often rely on the assumption that the response variable conforms to a prior distribution, with the goal
+of estimating specific statistics derived from this distribution. Commonly, these methods transform
+the challenge of distribution prediction and uncertainty quantification into the prediction of statistical
+parameters such as the mean and variance, under the presumption of a known continuous distribution.
+For example, MDNs (Bishop, 1994) impose a predefined distribution—typically Gaussian—weighted
+by certain parameters to approximate the final distribution. Similarly, heteroscedastic regression
+(Greene, 2003) predicts uncertainty by modeling the variability of residuals as a function of inde-
+pendent variables. DeepAR (Salinas et al., 2020), another notable approach, assumes a Gaussian
+distribution for the response variable, thereby leveraging the GaussianNLLLoss (Nix and Weigend,
+1994) to directly optimize its mean and variance. While these methods offer computational efficiency
+by simplifying predictions to statistical parameters, their reliance on strong distributional assumptions
+often limits their ability to capture the true underlying distribution, potentially leading to suboptimal
+performance.
+11
+
+Conformal prediction presents an alternative framework for distribution prediction, diverging from
+traditional parametric approaches. In their study, the authors in (V ovk et al., 2017, 2018) introduced a
+random prediction system and proposed a nonparametric prediction method grounded in conformal
+assumptions. By integrating conformal prediction with quantile regression in (Romano et al., 2019; Xu
+and Xie, 2021, 2023), they developed a method for constructing prediction intervals for the response
+variable. However, the practical application of conformal prediction is not without limitations. Its
+effectiveness is often constrained by the assumption of exchangeability of residuals, which may
+not hold in all contexts, particularly in the presence of temporal dependencies. This limitation can
+lead to less reliable prediction intervals when applied to non-independent and identically distributed
+(non-i.i.d.) data, thereby challenging its robustness in real-world scenarios where data often exhibit
+complex dependencies.
+Uncertainty quantification is a method that indirectly reflects the potential distribution of the re-
+sponse variable. BNNs represent one such approach, aiming to capture such uncertainty by positing
+distributions over network parameters, thereby encapsulating the model’s plausibility given the
+available data (Blundell et al., 2015; Hernández-Lobato and Adams, 2015; Gal and Ghahramani,
+2016; Kingma et al., 2015; Tomczak et al., 2021). Another avenue is represented by Kendall and Gal
+(2017), which not only addresses uncertainties in model parameters but also incorporates an additive
+noise term into the outputs to encompass uncertainties. In parallel, ensemble-based methodologies
+(Lakshminarayanan et al., 2017; Liu et al., 2022b) have emerged to address predictive uncertainty.
+These methods involve amalgamating multiple neural networks with stochastic outputs. Furthermore,
+the neural processes’ family (Garnelo et al., 2018b,a; Kim et al., 2019; Gordon et al., 2020) has
+introduced a suite of models tailored to capturing predictive uncertainty in a manner that extends
+beyond the distribution of available data, particularly tailored for few-shot learning.
+The aforementioned models have predominantly operated under the assumption of a parametric form
+in p(y|x), typically adopting a Gaussian distribution or a mixture of Gaussians. They optimize network
+parameters by minimizing the negative log-likelihood of a Gaussian objective function. In contrast,
+deep generative models are renowned for their capacity to model implicit distributions without relying
+on parametric distributional assumptions. However, only a sparse number of works have ventured into
+leveraging this capability to address regression tasks. GAN-based models, as introduced by Zhou et al.
+(2021b) and Liu et al. (2021), have emerged as one such endeavor, focusing on conditional density
+estimation and predictive uncertainty quantification. Additionally, Han et al. (2022) have proposed a
+diffusion-based model tailored for conditional density estimation. Nevertheless, it is imperative to
+note that these models entail protracted training processes and computationally demanding inference
+procedures.
+5 Conclusion
+In this paper, we propose a novel method named DistPred, which is a distribution-free probabilistic
+inference approach for regression and forecasting tasks. We transform proper scoring rules that mea-
+sure the discrepancy between the predicted distribution and the target distribution into a differentiable
+discrete form and use it as a loss function to train the model end-to-end. This allows the model
+to sample numerous samples in a single forward pass to estimate the potential distribution of the
+response variable. Experimental results demonstrate that DistPred outperforms existing methods,
+often by a considerable margin. We also extend time series forecasting from point estimation to
+distribution prediction and achieve state-of-the-art performance on multivariate and univariate time
+series forecasting tasks. In the future, we plan to extend DistPred to other tasks, such as classification
+and reinforcement learning.
+12
+
+References
+Arthur Asuncion and David Newman. Uci machine learning repository, 2007.
+Christopher M Bishop. Mixture density networks. Technical report, 1994.
+Charles Blundell, Julien Cornebise, Koray Kavukcuoglu, and Daan Wierstra. Weight uncertainty in
+neural network. In Francis Bach and David Blei, editors, Proceedings of the 32nd International
+Conference on Machine Learning, volume 37 of Proceedings of Machine Learning Research, pages
+1613–1622, Lille, France, 07–09 Jul 2015.
+Erik Daxberger, Agustinus Kristiadi, Alexander Immer, Runa Eschenhagen, Matthias Bauer, and
+Philipp Hennig. Laplace redux-effortless bayesian deep learning. Advances in Neural Information
+Processing Systems, 34:20089–20103, 2021.
+Armen Der Kiureghian and Ove Ditlevsen. Aleatory or epistemic? does it matter? Structural safety,
+31(2):105–112, 2009.
+Yarin Gal and Zoubin Ghahramani. Dropout as a bayesian approximation: Representing model uncer-
+tainty in deep learning. In Maria Florina Balcan and Kilian Q. Weinberger, editors, Proceedings of
+The 33rd International Conference on Machine Learning, volume 48 of Proceedings of Machine
+Learning Research, pages 1050–1059, New York, New York, USA, 20–22 Jun 2016.
+Marta Garnelo, Dan Rosenbaum, Chris J. Maddison, Tiago Ramalho, David Saxton, Murray Shana-
+han, Yee Whye Teh, Danilo J. Rezende, and S. M. Ali Eslami. Conditional neural processes. In
+Proceedings of the 35th International Conference on Machine Learning, 2018a.
+Marta Garnelo, Jonathan Schwarz, Dan Rosenbaum, Fabio Viola, Danilo J. Rezende, S.M. Ali Eslami,
+and Yee Whye Teh. Neural processes. In ICML 2018 workshop on Theoretical Foundations and
+Applications of Deep Generative Models, 2018b.
+Tilmann Gneiting and Adrian E Raftery. Strictly proper scoring rules, prediction, and estimation.
+Journal of the American statistical Association, 102(477):359–378, 2007.
+Jonathan Gordon, Wessel P. Bruinsma, Andrew Y . K. Foong, James Requeima, Yann Dubois,
+and Richard E. Turner. Convolutional conditional neural processes. In Proceedings of the 8th
+International Conference on Learning Representations, 2020.
+WH Greene. Econometric analysis. Prentice Hall google schola, 3:116–125, 2003.
+Xizewen Han, Huangjie Zheng, and Mingyuan Zhou. Card: Classification and regression diffusion
+models. Advances in Neural Information Processing Systems, 35:18100–18115, 2022.
+Bobby He, Balaji Lakshminarayanan, and Yee Whye Teh. Bayesian deep ensembles via the neural
+tangent kernel. In H. Larochelle, M. Ranzato, R. Hadsell, M.F. Balcan, and H. Lin, editors,
+Advances in Neural Information Processing Systems, volume 33, pages 1010–1022. Curran As-
+sociates, Inc., 2020. URL https://proceedings.neurips.cc/paper_files/paper/2020/
+file/0b1ec366924b26fc98fa7b71a9c249cf-Paper.pdf.
+José Miguel Hernández-Lobato and Ryan Adams. Probabilistic backpropagation for scalable learning
+of bayesian neural networks. In International conference on machine learning, pages 1861–1869.
+PMLR, 2015.
+Alexander Immer, Maciej Korzepa, and Matthias Bauer. Improving predictions of bayesian neural
+nets via local linearization. In International conference on artificial intelligence and statistics,
+pages 703–711. PMLR, 2021.
+Alexander Jordan, Fabian Krüger, and Sebastian Lerch. Evaluating probabilistic forecasts with
+scoringrules. arXiv preprint arXiv:1709.04743, 2017.
+Alex Kendall and Yarin Gal. What uncertainties do we need in Bayesian deep learning for computer
+vision? In Proceedings of the 31st Conference on Neural Information Processing Systems, 2017.
+13
+
+Hyunjik Kim, Andriy Mnih, Jonathan Schwarz, Marta Garnelo, Ali Eslami, Dan Rosenbaum, Oriol
+Vinyals, and Yee Whye Teh. Attentive neural processes. In Proceedings of the 7th International
+Conference on Learning Representations, 2019.
+Diederik P Kingma and Jimmy Ba. Adam: A method for stochastic optimization. In International
+Conference on Learning Representations (ICLR), Santiago de Cuba, 2015.
+Durk P. Kingma, Tim Salimans, and Max Welling. Variational dropout and the local reparameteri-
+zation trick. In Proceedings of the 29th Conference on Neural Information Processing Systems,
+2015.
+Nikita Kitaev, Lukasz Kaiser, and Anselm Levskaya. Reformer: The efficient transformer. In 8th
+International Conference on Learning Representations (ICLR), Ababa, Ethiopia, 2020.
+Guokun Lai, Wei-Cheng Chang, Yiming Yang, and Hanxiao Liu. Modeling long- and short-term
+temporal patterns with deep neural networks. In The 41st international ACM SIGIR conference on
+research & development in information retrieval (SIGIR), pages 95–104, Ann Arbor, MI, USA,
+2018.
+Francesco Laio and Stefania Tamea. Verification tools for probabilistic forecasts of continuous
+hydrological variables. Hydrology and Earth System Sciences, 11(4):1267–1277, 2007.
+Balaji Lakshminarayanan, Alexander Pritzel, and Charles Blundell. Simple and scalable predictive
+uncertainty estimation using deep ensembles. Advances in neural information processing systems,
+30, 2017.
+Shiyang Li, Xiaoyong Jin, Yao Xuan, Xiyou Zhou, Wenhu Chen, Yu-Xiang Wang, and Xifeng
+Yan. Enhancing the locality and breaking the memory bottleneck of transformer on time series
+forecasting. In Advances in 33rd Neural Information Processing Systems (NeurIPS), volume 32,
+pages 5243–5253, Vancouver, Canada, 2019.
+Daojun Liang, Haixia Zhang, Dongfeng Yuan, Bingzheng Zhang, and Minggao Zhang. Minus-
+former: Improving time series forecasting by progressively learning residuals. arXiv preprint
+arXiv:2402.02332, 2024.
+Minhao Liu, Ailing Zeng, Muxi Chen, Zhijian Xu, Qiuxia Lai, Lingna Ma, and Qiang Xu. Scinet:
+Time series modeling and forecasting with sample convolution and interaction. In Advances in
+Neural Information Processing Systems, pages 5816–5828, 2022a.
+Shiao Liu, Xingyu Zhou, Yuling Jiao, and Jian Huang. Wasserstein generative learning of conditional
+distribution. arXiv preprint arXiv:2112.10039, 2021.
+Shiwei Liu, Tianlong Chen, Zahra Atashgahi, Xiaohan Chen, Ghada Sokar, Elena Mocanu, Mykola
+Pechenizkiy, Zhangyang Wang, and Decebal Constantin Mocanu. Deep ensembling with no
+overhead for either training or testing: The all-round blessings of dynamic sparsity. In Proceedings
+of the 10th International Conference on Learning Representations, 2022b.
+Yong Liu, Tengge Hu, Haoran Zhang, Haixu Wu, Shiyu Wang, Lintao Ma, and Mingsheng Long.
+itransformer: Inverted transformers are effective for time series forecasting. arXiv preprint
+arXiv:2310.06625, 2023.
+Yuqi Nie, Nam H Nguyen, Phanwadee Sinthong, and Jayant Kalagnanam. A time series is worth 64
+words: Long-term forecasting with transformers. In The Eleventh International Conference on
+Learning Representations, 2022.
+D.A. Nix and A.S. Weigend. Estimating the mean and variance of the target probability distribution.
+In Proceedings of 1994 IEEE International Conference on Neural Networks (ICNN’94), volume 1,
+pages 55–60 vol.1, 1994. doi: 10.1109/ICNN.1994.374138.
+Yaniv Romano, Evan Patterson, and Emmanuel Candes. Conformalized quantile regression.Advances
+in neural information processing systems, 32, 2019.
+David Salinas, Valentin Flunkert, Jan Gasthaus, and Tim Januschowski. Deepar: Probabilistic
+forecasting with autoregressive recurrent networks. International journal of forecasting, 36(3):
+1181–1191, 2020.
+14
+
+Mark J Schervish, Joseph B Kadane, and Teddy Seidenfeld. Characterization of proper and strictly
+proper scoring rules for quantiles. Preprint, Carnegie Mellon University, March, 18, 2012.
+Marcin B. Tomczak, Siddharth Swaroop, Andrew Y . K. Foong, and Richard E. Turner. Collapsed
+variational bounds for Bayesian neural networks. In Proceedings of the 35th Conference on Neural
+Information Processing Systems, 2021.
+Vladimir V ovk, Jieli Shen, Valery Manokhin, and Min-ge Xie. Nonparametric predictive distributions
+based on conformal prediction. In Conformal and probabilistic prediction and applications, pages
+82–102. PMLR, 2017.
+Vladimir V ovk, Ilia Nouretdinov, Valery Manokhin, and Alexander Gammerman. Cross-conformal
+predictive distributions. In conformal and probabilistic prediction and applications, pages 37–51.
+PMLR, 2018.
+Haixu Wu, Jiehui Xu, Jianmin Wang, and Mingsheng Long. Autoformer: Decomposition transform-
+ers with auto-correlation for long-term series forecasting. In Advances in Neural Information
+Processing Systems (NeurIPS), volume 34, pages 22419–22430, Virtual Conference, 2021.
+Haixu Wu, Tengge Hu, Yong Liu, Hang Zhou, Jianmin Wang, and Mingsheng Long. Timesnet:
+Temporal 2d-variation modeling for general time series analysis. In The Eleventh International
+Conference on Learning Representations, 2022.
+Chen Xu and Yao Xie. Conformal prediction interval for dynamic time-series. In International
+Conference on Machine Learning, pages 11559–11569. PMLR, 2021.
+Chen Xu and Yao Xie. Sequential predictive conformal inference for time series. In International
+Conference on Machine Learning, pages 38707–38727. PMLR, 2023.
+Jiayu Yao, Weiwei Pan, Soumya Ghosh, and Finale Doshi-Velez. Quality of uncertainty quantification
+for bayesian neural network inference. arXiv preprint arXiv:1906.09686, 2019.
+Ailing Zeng, Muxi Chen, Lei Zhang, and Qiang Xu. Are transformers effective for time series
+forecasting? In Proceedings of the AAAI conference on artificial intelligence, volume 37, pages
+11121–11128, 2023.
+Haoyi Zhou, Shanghang Zhang, Jieqi Peng, Shuai Zhang, Jianxin Li, Hui Xiong, and Wancai Zhang.
+Informer: Beyond efficient transformer for long sequence time-series forecasting. In Proceedings
+of the 35th AAAI Conference on Artificial Intelligence (AAAI), volume 35, pages 11106–11115,
+Virtual Conference, 2021a.
+Tian Zhou, Ziqing Ma, Qingsong Wen, Xue Wang, Liang Sun, and Rong Jin. FEDformer: Fre-
+quency enhanced decomposed transformer for long-term series forecasting. In Proceedings of the
+39th International Conference on Machine Learning (ICML), volume 162, pages 27268–27286,
+Baltimore, Maryland, 2022.
+Xingyu Zhou, Yuling Jiao, Jin Liu, and Jian Huang. A deep generative approach to conditional
+sampling. Journal of the American Statistical Association, pages 1–28, 2021b.
+15
+
+Table 6: Details of the seven TS datasets.
+Dataset length features frequency
+ETTh1 17,420 7 1h
+ETTh2 17,420 7 1h
+ETTm1 69,680 7 15m
+ETTm2 69,680 7 15m
+Electricity 26,304 321 1h
+Exchange 7,588 8 1d
+Traffic 17,544 862 1h
+Weather 52,696 21 10m
+Solar 52,560 137 10m
+PEMS 26,208 358 5m
+Illness 966 7 7d
+Table 7: Dataset size (N observations, P features) of UCI regression tasks.
+Dataset Boston Concrete Energy Kin8nm Naval Power Protein Wine Yacht Year
+(N,P) (506,13) ( 1030,8) ( 768,8) ( 8192,8) ( 11,934,16) ( 9568,4) ( 45,730,9) ( 1599,11) ( 308,6) ( 515,345,90)
+A Dataset and Implementation
+A.1 Commonly Used TS Datasets
+The information of the experiment datasets used in this paper are summarized as follows: (1)
+Electricity Transformer Temperature (ETT) dataset Zhou et al. (2021a), which contains the data
+collected from two electricity transformers in two separated counties in China, including the load
+and the oil temperature recorded every 15 minutes (ETTm) or 1 hour (ETTh) between July 2016 and
+July 2018. (2) Electricity (ECL) dataset 1 collects the hourly electricity consumption of 321 clients
+(each column) from 2012 to 2014. (3) Exchange Lai et al. (2018) records the current exchange of 8
+different countries from 1990 to 2016. (4) Traffic dataset 2 records the occupation rate of freeway
+system across State of California measured by 861 sensors. (5) Weather dataset 3 records every 10
+minutes for 21 meteorological indicators in Germany throughout 2020. (6) Solar-Energy Lai et al.
+(2018) documents the solar power generation of 137 photovoltaic (PV) facilities in the year 2006,
+with data collected at 10-minute intervals. (7) The PEMS dataset Liu et al. (2022a) comprises publicly
+available traffic network data from California, collected within 5-minute intervals and encompassing
+358 attributes. (8) Illness (ILI) dataset 4 describes the influenza-like illness patients in the United
+States between 2002 and 2021, which records the ratio of patients seen with illness and the total
+number of the patients. The detailed statistics information of the datasets is shown in Table 6, and the
+dataset information in terms of their size and number of features is summarized in Table 7.
+A.2 Implementation Details
+The model undergoes training utilizing the ADAM optimizer Kingma and Ba (2015) and minimizing
+the Mean Squared Error (MSE) loss function. The training process is halted prematurely, typically
+within 10 epochs. The DistPred architecture solely comprises the embedding layer and backbone
+architecture, devoid of any additional introduced hyperparameters. During model validation, two
+evaluation metrics are employed: CRPS, QICE, PICP, MSE and MAE. Given the potential competitive
+relationship between the two indicators, MSE and MAE, we use the average of the two (MSE +MAE
+2 )
+to evaluate the overall performance of the model.
+1https://archive.ics.uci.edu/ml/datasets/ElectricityLoadDiagrams20112014
+2http://pems.dot.ca.gov
+3https://www.bgc-jena.mpg.de/wetter
+4https://gis.cdc.gov/grasp/fluview/fluportaldashboard.html
+16
+
+1
+.361 .4086
+.60
+.5020 .4680 .4781.131 .051 .470 .840 .650 .882.34
+.87
+.12
+.31 .11 .2InformerA utoformerF EDformerP atchTSTi TransformerD istPred0246Size 
+Minutes/Epoch    Params (x 10M)    Memory (GB)
+Figure 10: QQ-plots and histograms of response variable.
+Table 8: Comparison of DistPred trained with Gaussia distribution.
+Ettm2 Traffic Exchange Weather
+CRPS MSE MAECRPS MSE MAECRPS MSE MAECRPS MSE MAE
+DistPred0.189 0.12 0.256 0.161 0.137 0.2160.343 0.426 0.4560.023 0.002 0.028DistPred-G4391.80 7.61 1.732329.05 276.51 6.35177.92 16.52 1.72229.58 2.27 0.17
+B Comparisons of Model Efficiency in Time Series Forecasting
+We evaluate the inference time and size of DistPred (mean only) in comparison to other Transformer-
+based models, as shown in Fig. 10. It can be observed that DistPred’s runtime, model size, and
+memory usage do not significantly increase compared to other models.
+C Distribution Free v.s. Distribution Related
+If we assume that the response variable follows a continuous distribution, as done in (Salinas et al.,
+2020) where ˆy is assumed to be followed Gaussian distribution, we can provide an analytical formula
+for the Gaussian likelihood. Specifically, if ˆy ∼ N (µ, σ ), then we can parametrize the Gaussian
+likelihood using its mean and standard deviation,
+LG( ˆy|µ, σ ) = (2πσ 2)− 1
+2 exp(−( ˆy − µ)2/(2σ 2)). (16)
+Then, we can train DistPred utilizing Eq. 16 as the loss function. As shown in Table 8, DistPred
+exclusively provides the mean and variance of the response variable.
+D DistPred for Time Series with Missing Values
+The proposed DistPred is equipped to handle time series with missing values scenarios, as both
+imputation and forecasting are done in a similar manner. Our experiments have demonstrated that
+DistPred remains SOTA even when a substantial portion of the data is missing. Specifically, in cases
+where 80% of the PhysioNet2012 data points were absent, the model still maintained competitive
+performance, as shown in Table 9.
+E Univariate Time Series Forecasting
+The full results for univariate TS forecasting are presented in Table 10. As other models, e.g.,
+iTransformer Liu et al. (2023) and PatchTST Nie et al. (2022)do not offer performance information
+for all prediction lengths, we compare our method with those that provide comprehensive performance
+Table 9: Comparison of DistPred with other SOTA models when time series with missing values.
+Model M-RNN GP-V AE BRITS USGAN CSDI TimesNet Transformer SAITS DistPredMSE 0.864±0.002 0.433±0.011 0.325±0.002 0.306±0.001 0.260±0.05 0.272±0.006 0.225±0.002 0.218±0.0020.204±0.002MAE 0.674±0.001 0.4±0.007 0.246±0.001 0.25±0.001 0.211±0.003 0.266±0.007 0.209±0.002 0.202±0.0020.196±0.002
+17
+
+Table 10: Univariate time series forecasting results on benchmark datasets.
+Model DistPred-96 FEDformer-96 Autoformer-96 Informer-96 LogTrans-96 Reformer-96
+LengthCRPS QICE PICP MSE MAEMSE MAEMSE MAE MSE MAE MSE MAE MSE MAE
+ETTh1
+96 0.134 6.341 96.9360.057 0.1820.079 0.2150.071 0.206 0.193 0.3770.283 0.4680.532 0.569192 0.152 3.766 97.4790.073 0.2070.1040.2450.114 0.2620.217 0.3950.234 0.4090.568 0.575336 0.162 3.762 98.0710.080 0.2210.119 0.2700.107 0.258 0.202 0.3810.386 0.5460.635 0.589720 0.164 4.176 88.4370.082 0.2260.142 0.2990.126 0.283 0.183 0.3550.475 0.6280.762 0.666Avg 0.153 4.505 95.2350.073 0.2090.111 0.2570.105 0.252 0.199 0.3770.345 0.5130.624 0.600
+ETTh2
+96 0.203 7.511 81.780 0.1290.2760.128 0.2710.153 0.3060.213 0.3730.217 0.3791.411 0.838192 0.240 4.164 80.8550.176 0.3270.1850.33 0.204 0.3510.227 0.3870.281 0.4295.658 1.671336 0.281 5.482 87.817 0.2340.3480.2310.3780.246 0.3890.242 0.4010.293 0.4374.777 1.582720 0.274 5.820 89.181 0.2190.3790.278 0.42 0.268 0.4090.291 0.4390.218 0.3872.042 1.039Avg 0.250 5.744 84.9080.190 0.3410.2060.3500.218 0.3640.243 0.4000.252 0.4083.472 1.283
+ETTm1
+96 0.095 6.492 88.9920.029 0.1260.0330.1400.056 0.1830.109 0.2770.049 0.1710.296 0.355192 0.117 4.496 92.6190.044 0.1580.0580.1860.081 0.2160.151 0.3100.157 0.3170.429 0.474336 0.137 5.488 92.2640.058 0.1860.084 0.2310.076 0.218 0.427 0.5910.289 0.4590.585 0.583720 0.163 3.541 95.7130.080 0.2180.1020.2500.110 0.2670.438 0.5860.430 0.5790.782 0.73Avg 0.128 5.004 92.3970.053 0.1720.0690.2020.081 0.2210.281 0.4410.231 0.3820.523 0.536
+ETTm2
+96 0.133 9.595 69.279 0.0640.1800.0630.1890.065 0.189 0.08 0.217 0.075 0.2080.077 0.214192 0.173 7.392 75.6040.099 0.2330.1100.2520.118 0.2560.112 0.2590.129 0.2750.138 0.290336 0.203 8.833 82.7110.133 0.2770.1470.3010.154 0.3050.166 0.3140.154 0.3020.160 0.313720 0.248 5.720 90.470 0.185 0.3330.219 0.3680.182 0.3350.228 0.3800.160 0.3220.168 0.334Avg 0.189 7.885 79.5160.120 0.2560.135 0.2780.130 0.271 0.147 0.2930.130 0.277 0.136 0.288
+Traffic
+96 0.155 4.245 25.0120.132 0.2090.1700.2630.246 0.3460.257 0.3530.226 0.3170.313 0.383192 0.158 3.596 25.4580.136 0.2130.1730.2650.266 0.37 0.299 0.3760.314 0.4080.386 0.453336 0.171 3.458 25.1460.134 0.2130.1780.2660.263 0.3710.312 0.3870.387 0.4530.423 0.468720 0.135 3.434 24.9260.146 0.2280.1870.2860.269 0.3720.366 0.4360.437 0.4910.378 0.433Avg 0.161 3.683 25.1360.137 0.2160.1770.2200.261 0.3650.309 0.3880.341 0.4170.375 0.434
+Electricity
+96 0.266 5.619 51.9490.257 0.3660.262 0.3780.341 0.4380.258 0.367 0.288 0.3930.275 0.379192 0.276 5.018 65.7850.284 0.3760.316 0.4100.345 0.4280.285 0.388 0.432 0.4830.304 0.402336 0.317 4.947 62.019 0.400 0.4390.3610.4450.406 0.4700.336 0.4230.430 0.483 0.37 0.448720 0.335 5.191 67.7050.409 0.4600.4480.5010.565 0.5810.607 0.5990.491 0.531 0.46 0.511Avg 0.299 5.191 61.8650.337 0.4100.3470.4340.414 0.4790.372 0.4440.410 0.4730.352 0.435
+Weather
+96 0.019 10.732 61.8240.0012 0.0240.00350.0460.0110 0.0810.004 0.0440.0046 0.0520.012 0.087192 0.022 10.463 55.5810.0013 0.0270.0054 0.0590.0075 0.0670.002 0.040 0.006 0.0600.0098 0.044336 0.023 10.271 59.0750.0021 0.0240.008 0.0720.0063 0.0620.004 0.049 0.006 0.0540.013 0.100720 0.027 10.515 47.4920.0023 0.0330.015 0.0910.0085 0.0700.003 0.042 0.007 0.0590.011 0.083Avg 0.023 10.495 55.9930.0023 0.0280.008 0.0670.0083 0.07000.00330.04380.0059 0.05630.0115 0.0785
+Exchange
+96 0.182 6.99 94.6780.110 0.2410.1310.2840.241 0.3871.327 0.9440.237 0.3770.298 0.444192 0.263 10.391 82.4840.204 0.3380.2770.4200.300 0.3691.258 0.9240.738 0.6190.777 0.719336 0.376 10.778 87.8610.401 0.4820.4260.5110.509 0.5242.179 1.2962.018 1.07001.833 1.128720 0.552 9.526 81.0320.991 0.7631.1620.8321.260 0.867 1.28 0.953 2.405 1.1751.203 0.956Avg 0.343 9.421 86.5140.426 0.4560.4990.5120.578 0.5371.511 1.0291.350 0.8101.028 0.812
+1stCount - - - 34 37 3 1 0 0 1 1 2 1 0 0
+analysis, including FEDformer Zhou et al. (2022), Autoformer Wu et al. (2021), Informer Zhou et al.
+(2021a), LogTrans Li et al. (2019) and Reformer Kitaev et al. (2020). This reaffirms the effectiveness
+of DistPred.
+18
