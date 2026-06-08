@@ -1,0 +1,665 @@
+IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT, VOL. 73, 2024                                                                                     3509009
+
+
+
+
+       A Novel Robust Dual Unscented Particle Filter
+       Method for Remaining Useful Life Prediction
+                   of Rolling Bearings
+                 Lingli Cui (               ) , Member, IEEE, Wenjie Li (     ) , Dongdong Liu (                                         ) ,
+                                              and Huaqing Wang (       ) , Member, IEEE
+
+
+   Abstract— It is still challenging to accurately predict the                     DB               Dynamic Bayesian.
+remaining useful life (RUL) of bearings with fluctuating degra-                    RB-APMs          Regression-based adaptive predictive models.
+dation processes. To address this issue, this article proposes a                   RMSE             Root mean square error.
+novel robust dual unscented particle filter (DUPF) method for                      CRA              Cumulative relative accuracy.
+RUL prediction. First, a dual-stream unscented particle filter
+model is constructed to leverage the hidden degradation infor-                     NSF              National Science Foundation.
+mation at different time scales with different prediction models,                  I/UCR            Industry/University Cooperative Research.
+which enhances model’s capability to track various fluctuating                     IMSs             Intelligent Maintenance Systems.
+degradation trends. Second, a comprehensive fusion strategy is
+designed to adaptively optimize the weights of double streams,
+in which the maximum failure probability of dynamic Bayesian
+(DB) is quantitatively evaluated to improve the reliability of                                              I. I NTRODUCTION
+the prediction results. The proposed method is tested using two
+datasets and compared with several state-of-the-art methods. The
+results show that the proposed method can improve prediction
+accuracy and is robust to fluctuations in degradation processes.
+                                                                                 R     OLLING bearings are essential components of various
+                                                                                       rotating machinery, and they are widely applied in
+                                                                                 various fields such as aerospace, transportation, and manufac-
+    Index Terms— Degradation process, dual unscented particle
+                                                                                 turing [1]. PHM of bearings plays a crucial role in enhancing
+filter (DUPF), remaining useful life, rolling bearings.                          the maintainability, reliability, and productivity of mechanical
+                                                                                 equipment [2], [3]. Due to the complex and tough working
+                                                                                 conditions, unexpected failures may occur without predictive
+                         N OMENCLATURE                                           maintenance, resulting in massive unplanned maintenance
+ RUL         Remaining useful life.                                              expenditures [4]. Therefore, it is of great significance to
+ HI          Health indicator.                                                   monitor the health condition and predict the RUL of bearings.
+ CM          Condition monitoring.                                                  Generally, the RUL prediction methods for bearings could
+ TVKF        Time-varying Kalman filter.                                         be roughly divided into data-driven methods and model-based
+ PHM         Prognostics and health management.                                  methods [5], [6]. Different from data-driven methods, model-
+ DUPF        Dual unscented particle filter.                                     based methods not only have the merits of incorporating both
+ UKF         Unscented Kalman filter.                                            empirical knowledge and real-time observation information,
+ TSP         Time to start prediction.                                           but also do not require amounts of qualified data for training,
+ DT          Degradation threshold.                                              which makes them widely applied in RUL prediction and
+ TSD         Time to start degradation.                                          health management [7]. The model-based prediction methods
+ HM          Hybrid model.                                                       are dedicated to building a physical or mathematical model
+ FT          Failure threshold.                                                  to describe the degradation behaviors of bearings, and then
+ EM          Exponential model.                                                  update the model parameters based on the CM data in real-
+                                                                                 time. For model-based methods, the prediction accuracy relies
+  Manuscript received 8 November 2023; accepted 15 December 2023. Date
+of publication 9 January 2024; date of current version 26 January 2024. This     on whether the assumed model can track the CM data [8], and
+work was supported in part by the National Natural Science Foundation of         the majority of the research works focus on the construction of
+China under Grant 52075008, Grant 52305086, and Grant 52075030; and              a prediction model, such as the Paris-Erdogan model [9], [10],
+in part by the Beijing Municipal Natural Natural Science Foundation under
+Grant L221007. The Associate Editor coordinating the review process was          EM [11], [12], polynomial model [13], [14], etc. However,
+Dr. Weiguo Huang. (Corresponding authors: Dongdong Liu; Huaqing Wang.)           in the process of bearing performance deterioration, different
+  Lingli Cui, Wenjie Li, and Dongdong Liu are with the Key Laboratory            time scales reflect different degradation information. Long-
+of Advanced Manufacturing Technology, Beijing University of Technol-
+ogy, Chao Yang, Beijing 100124, China (e-mail: acuilingli@163.com;               time scales can characterize the overall deterioration trend,
+liwenjiesy@163.com; liudd@bjut.edu.cn).                                          while short-time scales have the capacity to mine the latest
+  Huaqing Wang is with the College of Mechanical and Electrical Engineer-        health status of bearings. In this way, the selection of reference
+ing, Beijing University of Chemical Technology, Chao Yang, Beijing 100029,
+China (e-mail: hqwang@mail.buct.edu.cn).                                         data will become a decisive factor, but there are few studies
+  Digital Object Identifier 10.1109/TIM.2024.3351254                             to research the RUL from this perspective. Therefore, the
+                       1557-9662 © 2024 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+                                     See https://www.ieee.org/publications/rights/index.html for more information.
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+3509009                                                                    IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT, VOL. 73, 2024
+
+
+
+model-based methods can be further grouped into long-term                        of overall degradation trajectories. Especially, when bearings
+trend prediction methods and short-term state prediction meth-                   experience peeling faults, their vibration amplitudes often
+ods from different time scales in this article.                                  exhibit a fluctuating degradation trend, making it even more
+   The long-term trend prediction methods are realized                           complicated to accurately estimate the lifetime of bearings.
+by tracking the degradation trends hidden in CM data.                            Therefore, it is a challenging task to exploit the complementary
+Cui et al. [15] proposed a TVKF method that could adaptively                     advantages of the abovementioned methods while avoiding
+switch the prediction model according to the degradation                         their weaknesses. To address the above issues, this article
+stage and achieve satisfactory prediction results based on all                   proposes a novel robust DUPF to predict the RUL of bearings.
+degradation data. Orchard and Vachtsevanos [16] constructed                      The main contributions of this article are summarized as
+a nonlinear state-space model based on the PF algorithm                          follows:
+to predict the evolution tendency of UH-60 planetary gear                           1) A dual-stream unscented particle filter model is pro-
+disk with a long-term prediction method and acquired good                              posed to fully utilize the hidden degradation information.
+results. Kong and Li [17] presented a multistep ahead pre-                             Specifically, a flexible polynomial model is constructed
+diction method with limited data, which aims to predict                                to characterize the local fluctuating behaviors, and an
+future degradation trends when the bearing is detected to                              EM is utilized to mine the whole degradation trajectory,
+start deteriorating. Cai et al. [18] proposed a similarity-based                       which enhances the tracking capabilities of the predic-
+particle filter method for RUL prediction by measuring the                             tion model.
+similarity between the monitoring data of the test bearing                          2) A comprehensive fusion strategy is designed to achieve
+and run-to-failure profiles. These methods can capture the                             the adaptive weight optimization of double streams,
+overall tendency information of the degradation process, which                         in which the maximum probability of DB is adopted
+performs well in reducing the influence of noise and local                             as the basis for weight optimization, and the accuracy
+fluctuations. Although the long-term trend prediction methods                          of prediction results can be effectively improved.
+have good excellent prediction performance, the accuracy of                         The performance of the proposed method is validated by
+prediction results may be low as they fail to represent the latest               analyzing the two lifecycle datasets with fluctuating processes
+health states in the fluctuating degradation process.                            and comparing them with several peer prediction methods.
+   In order to characterize the latest health states of bearings,                The prediction results demonstrate that the proposed method
+some scholars predicted the RUL by analyzing the latest health                   is robust to the fluctuations of the degradation process.
+status from a short-term scale. Yan et al. [19] employed an                         The remainder of the article is organized as follows. Sec-
+adaptive regression model to predict the degradation trajectory                  ond II introduces the theory of the UPF. Section III details
+and estimate the RUL of bearings with a sliding window.                          the proposed RUL prediction method. In Section IV, the
+Wang et al. [20] proposed a predictive sliding local out-                        laboratory datasets are utilized to validate the effectiveness
+lier correction method to eliminate the random fluctuations                      of the proposed method. Finally, conclusions are drawn in
+and improve the prediction accuracy with a suitable sliding                      Section V.
+window. Ahmad et al. [21] proposed a hybrid prognostic
+technology for RUL prediction, which efficiently utilized the                            II. U NSCENTED PARTICLE F ILTER A LGORITHM
+latest HI values with a moving window and enabled the
+proposed method to adaptively track the bearing degradation                        PF is an approximate Bayesian filtering algorithm based
+process adaptively. The short-term state prediction methods                      on Monte Carlo simulation. Due to its superiority in dealing
+tend to intercept the latest CM data to predict the RUL of                       with nonlinear and non-Gaussian problems, PF technology has
+bearings, which have a strong representation ability for the                     been widely used in various fields. Generally, PF describes the
+latest health states and degradation trends, but the limitation                  system degradation law by constructing a state-space model,
+lies in their inability to yield the overall evolution trends.                   which can be represented by a state transition function and
+Additionally, the degradation processes of bearings may be                       measurement function, as follows:
+interfered by various factors, such as the sudden changes                                                   xk = f k (xk−1 , vk−1 )                         (1)
+of the working conditions, the improper installation of the
+                                                                                                            yk = h k (xk , wk )                             (2)
+sensors, and the extension of the peeling faults, leading to
+the occurrence of fluctuating degradation phenomena, which                       where xk is the health state of the system at time k. f k is
+poses a huge challenge to accurately predict the RUL of                          a system state transfer function. vk is the system noise. yk
+bearings [22], [23]. Some techniques have been adopted to                        is the measurement value of the system at time k. h k is
+process the fluctuating degradation processes of bearings [19],                  measurement function. wk and vk represent the system noise
+[21], but the smooth correction of local fluctuations makes it                   and measurement noise, respectively.
+difficult to fully utilize the rich fault information hidden in the                 The core idea of PF is to approximate the probability density
+fluctuating degradation process.                                                 distribution of the system with updated particles, which can
+   As mentioned above, the long-term prediction methods                          achieve the optimal estimation of the system state. Specifically,
+perform well in tracking the degradation trends, but they are                    the system state posterior distribution can be expressed as
+limited in representing the latest health states of bearings,                                                          N
+while the short-term prediction methods contribute to mining
+                                                                                                                       X
+                                                                                                      p(xk |y1:k ) ≈         ωki δ xk − xki
+                                                                                                                                              
+                                                                                                                                                            (3)
+the latest degradation states with a deficient tracking capability                                                     i=1
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+CUI et al.: NOVEL ROBUST DUPF METHOD FOR RUL PREDICTION OF ROLLING BEARINGS                                                                             3509009
+
+
+
+where p is the probability distribution function. δ is the
+Dirichlet function. ωki represents the weight of the ith particle
+at time k.
+   However, PF often suffers from particle degradation prob-
+lems in traditional frameworks. The weights of particles may
+be negligible after several iterations, and continuing iterations
+will cause the wastage of the computing resources and the
+divergencies of the estimation results. Then, the UPF is
+designed to alleviate the particle degradation problem, which
+has advantages in leveraging the latest observation information
+and improving the estimation accuracy with the Unscented                         Fig. 1.   Detection of the TSP based on similarity.
+Transform. The core of UPF is to construct the important
+sampling distribution of PF by UKF [24]. The process of UPF
+is as follows:                                                                   the latest health states, respectively. Therefore, a novel robust
+                                                                                 DUPF RUL prediction method for bearings is proposed in
+   1) Initialization stage. When k = 0, M particle set x0i , i =
+                                                                                 this section. The constructed double streams model takes
+       1, 2, . . . M are generated from prior distribution p(x0 ),
+                                                                                 both long-term and short-term health states into account to
+       and each particle is assigned a weight of 1/M. When
+                                                                                 predict the RUL of bearings when the prediction procedure
+       k > 0, then the particle set at the next moment can be
+                                                                                 is triggered. Then, a comprehensive fusion strategy is further
+       iteratively obtained.
+                                                                                 developed, which adaptively optimizes the model weight,
+   2) Importance sampling stage. The UKF algorithm is
+                                                                                 and realizes the effective prediction of bearing lifetime and
+       applied to calculate the mean x̄ ik−1 and covariance Pk−1      i
+                                                                    i            corresponding failure probability.
+       of each particle, and the sampling update particle x̂ k can
+       be calculated with the Gaussian distribution N (x̄ ik , Pki ).
+   3) Particle updated stage. The weight of the sampling                         A. Detection of TSP
+       particle is updated with the latest measured value, and                      In RUL prediction, the first step is to monitor the time when
+       all updated weights are finally normalized as (5)                         the bearings start to enter the degradation stage. In order to
+                                  
+                       p yk |x̂ ik p x̂ ik |xk−1
+                                             i
+                                                                                accurately monitor this moment, the detection method based
+          ωk = ωk−1
+            i       i
+                                                , i = 1, 2, . . . , M           on similarity is employed to monitor the TSP point, in which
+                        q x̂ ik |x0:k−1
+                                  i
+                                        , y1:k                                   the relative vibration level is applied to measure the difference
+                                                                      (4)        between the current stage and the healthy stage, specifically,
+                 ωi                                                              as shown in Fig. 1.
+          ωki = P Mk−1 i .                                                (5)
+                                                                                    First, a fixed window of length M = 100 is set to intercept
+                 i=1 ωk
+                                                                                 the HIs in a healthy stage as the basic reference dataset, which
+  4) Resampling stage. Sorting the particles according to                        can be expressed as X = {z 1 , . . . , z M }. Then, a sliding window
+     their weights ωki , and the particles with small weights                    with the same length is applied to capture the latest monitored
+     will be discarded while the particles with large weights                    HIs Y = {z k−M+1 , . . . , z k }, and the degree of deviation
+     are copied. This procedure can map the processed par-                       from the health state can be measured by calculating their
+     ticles into m particles with a weight of 1/M.                               similarities. Here, the Euclidean distance is applied to evaluate
+  5) State estimation stage. A weighted summation is per-                        the similarity of two datasets, as shown in the following
+     formed on the particles to output the state estimate and                    equation:
+     covariance matrix                                                                                           v
+                        Xm                                                                                       u M
+                                                                                                                 uX
+                 x̂ k =    ωki xki                         (6)                                    Dist(X, Y ) = t (X i − Y i )2 .                  (8)
+                             i=1                                                                                          i=1
+                            M
+                            X                                 T                    As a result, the similarity curve over time can be obtained.
+                                   ωki xki − x̂ ik xki − x̂ ik .
+                                                 
+                     Pk =                                                 (7)
+                                                                                 When the similarity at a certain moment exceeds the pre-
+                             i=1
+                                                                                 defined DT, the bearing can be considered to have entered
+   The UPF not only alleviates the particle degradation prob-                    the degradation stage. As the sliding window at current
+lem in traditional PF framework, but also effectively utilizes                   moment not only contains abundant degradation information
+the latest observation information, which makes it widely                        from healthy stage to degradation stage, but also exhibits
+applied in health state estimation and RUL prediction of                         a predictive trend. In order to take full advantage of the
+bearings.                                                                        degradation data, the moment corresponding to the front edge
+                                                                                 of the sliding window is set to the TSD point of the bearing.
+     III. RUL P REDICTION M ETHOD BASED ON DUPF                                     In order to effectively utilize the degradation data, it is nec-
+   During the bearing performance degradation process, the                       essary to estimate the health state of the current period when
+vibration amplitudes always exhibit a trend of fluctuating                       the bearing enters the degradation stage. Since transitional
+increase. The long-term scale and short-term scale of the                        data of the current window exhibits a predictive degradation
+degradation process reflect the overall trend information and                    trend, only the state model with sufficient flexibility can fully
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+3509009                                                                    IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT, VOL. 73, 2024
+
+
+
+excavate the degradation information from the healthy stage                      estimated with the UPF. Thus, the future degradation statues
+to the degradation stage. Therefore, a hybrid model of UPF                       Opt yt + j can be predicted effectively
+                                                                                       0
+(HM-UPF) incorporating exponential and polynomial models
+is constructed as the state model of UPF to estimate the health                                                xk = aebt + vk .                            (11)
+state of bearings, which further provides data prerequisites for                    In order to acquire the probability information of bearing
+RUL prediction. As shown below                                                   long-term degradation process, a DB is adopted to analyze
+                                                                                 the failure probability at each future prediction moment [27],
+                   xk = aebt + ct 2 + dt + e + vk                         (9)    as follows:
+                                                                                                                                                      
+where a, b, c, d, e are unknown parameters of the HM, which                                       p Ft0 + j = p Ft0 + j | Ht0 :t0 + j−1 p Ht0 :t0 + j−1
+can be estimated adaptively by nonlinear least square.                                                                                                   (12)
+     The time to start predicting the RUL of bearings is defined                                                                         !
+                                                                                                                       FT − Opt  yt0 + j
+as the TSP point, which is important for fault diagnosis and                                                  
+                                                                                     p Ft0 + j | Ht0 :t0 + j−1 = Q        √                              (13)
+RUL prediction [25], [26]. First, a sliding window is set to                                                             σ j +1
+intercept the L HIs that have just entered the degradation                                                     
+                                                                                             p Ht0 :t0 + j−1 = 1 − p Ft0 +1 | Ht0
+                                                                                                                                         
+stage, and the HM-UPF is used to estimate the health state                                                                                 
+                                                                                                                × 1 − p Ft0 +2 | Ht0 :t0 +1
+x̂ TSD+L . Then, the window will move forward to estimate the
+                                                                                                                . . . × 1 − p Ft0 + j−1 | Ht0 :t0 + j−2
+                                                                                                                                                       
+health status at the next moment, and the estimated health
+status of the current window will be applied as a state basis                                                                                            (14)
+for RUL prediction of bearings. However, the length of state
+                                                                                 where p(Ft0 + j | Ht0 :t0 + j−1 ) is the failure probability that the
+data strongly affects the prediction accuracy of the results.
+                                                                                 bearing will not fail until time t0 + j. p(Ht0 :t0 + j−1 ) is the
+When the length of the estimated state data is short, the violent
+                                                                                 probability that the bearing remains healthy from t0 to t0 +
+fluctuations of the prediction results and the failures of the
+                                                                                  j − 1. p(Ft0 + j ) is the failure probability at time t0 + j. And
+prediction models are often encountered, while excessive state
+                                                                                 function Q is the standard Gaussian distribution function. The
+data may result in the wastage of data resources and a decline
+                                                                                 specific derivation process can be found in [28].
+in the model’s predictive ability for the nonlinear degradation
+                                                                                    Therefore, the failure probability sequences LT pt0 + j acquired
+process. Therefore, the minimum state length L min needs to
+                                                                                 from the long-term trend prediction stream can be estimated,
+be defined to avoid the above situation. The experiment has
+                                                                                 and the time corresponding to the maximum failure probability
+proved that the overall prediction accuracy is more satisfactory
+                                                                                 is taken as the predicted failure time of the bearing losing its
+when the window length is half of the sliding window, i.e.,
+                                                                                 working capabilities.
+L min = M/2. Thus, the time can be considered as the TSP
+                                                                                    During the process of fault expansion, the relationship
+point when the length of the state dataset is greater than L min .
+                                                                                 between the fault dimension and HI is not a simple linear
+     Once the TSP point is monitored, the FT of bearings can
+                                                                                 relationship, but a complex nonlinear mapping relationship
+be evaluated with the mean µ and the variance σ of the HIs
+z 1 , z 2 , . . . , z TSP−1 in healthy state                                     [29]. For example, the fatigue spalling process of the bearing
+                                                                                 may contain one or several fluctuations, and each fluctuation
+                             FT = µ + λ σ                               (10)     may contain fault information that directly leads to bearing
+                                                                                 failure [30], [31]. However, it is extremely difficult to model
+where the λ is determined by working conditions.                                 such a complex degradation process because of the uncertainty
+  Therefore, the TSP point and FT can be detected adaptively                     in the time, duration, and amplitude of each fluctuation.
+according to the overall health status degradation process of                    In order to maximize the utilization of the hidden fault infor-
+bearings, which provides a prerequisite for accurate prediction                  mation in the fluctuation process, an HM-UPF consisting of
+of bearing lifetime.                                                             exponential and polynomials models is constructed to predict
+                                                                                 short-term fluctuation state, i.e., short-term fluctuation state
+                                                                                 prediction stream. In which, the EM performs well in tracking
+B. RUL Prediction Based on DUPF                                                  local degradation trends, and the polynomials can respond to
+   In the overall performance degradation process, the HI                        a sudden change of local fluctuation in time, thereby the latest
+exhibits an overall upward trend, which is suitable for RUL                      local degradation information can be effectively utilized.
+prediction. Therefore, one of the research hotspots of RUL                          The short-term prediction is triggered along with the long-
+prediction is to explore the long-term trend information of                      term prediction. First, a sliding window of length N is set
+the degradation process, i.e., the long-term degradation trend                   to intercept the latest HIs, then the HM is adopted as the
+prediction stream.                                                               state model of UPF to predict the future status of the bearing,
+   The EM can be applied as the state model of UPF due to the                    and the failure probability SF pi of short-term fluctuation state
+high stability, i.e., EM-UPF, as shown in (11), and the health                   prediction stream can be estimated by DB mentioned above.
+status and future degradation trajectory can be effectively                      However, when bearings experience fluctuating degradation
+predicted according to the overall evolution trends of bearings.                 behaviors, the short-term prediction models are prone to failure
+In the process of long-term degradation trend prediction, all                    due to the limited reference status data. The failure probability
+state acquired by HM-UPF are applied to depict the overall                       predicted by a failure model is significantly lower than the
+tendency of the bearing, and the parameters of the EM can be                     normal value, so the corresponding RUL prediction result
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+CUI et al.: NOVEL ROBUST DUPF METHOD FOR RUL PREDICTION OF ROLLING BEARINGS                                                                             3509009
+
+
+
+fails to provide a practical reference value. The experiments
+have shown that the failure probability effectively predicted by
+the proposed model typically falls between 0.05 to 1, so the
+minimum failure probability pmin is set as 0.01 to effectively
+identify the failure of the prediction models. Furthermore,
+a remedial technique is designed to handle model failure
+situations. In which, the HM will be replaced with a more
+stable EM for prediction if the estimated failure probability
+of HM is less than pmin . Especially, the refailure of the EM
+means the bearing owns the extremely complex degradation
+process, and the local prediction method cannot provide an
+effective prediction reference value. Therefore, the long-term
+prediction result will be taken as the final RUL prediction
+result to cope with this situation.
+   In this way, the failure probability sequences of two streams
+can be estimated respectively. In order to obtain the final
+RUL information, the predicted failure time LTtk at current
+monitoring time is located by maximum failure probability
+LT pk . The RUL of the bearing is defined as the time interval
+between the failure moment and the current moment tk . Thus,
+the estimated long-term degradation trend prediction RULLTk
+can be expressed as (15). And the short-term fluctuating state
+prediction result RULSFk can be estimated in the same way
+
+                         RULLTk = LTtk − tk .                           (15)
+
+   Although the RUL and its failure probability of two streams                   Fig. 2.   Flowchart of proposed method.
+can be estimated respectively at a certain moment, the diffi-
+culty that urgently needs to be addressed is how to fully fuse
+the prediction results of double streams. Therefore, a compre-
+hensive fusion strategy is developed, in which, the max failure
+probability of each stream is adopted as the basis for weight
+optimization
+                                 pi
+                     ωi = Pn              ,   i = 1, 2.                 (16)
+                                j=1 p j
+
+where pi and ωi are the max failure probability and prediction
+weight corresponding to the result of stream i, respectively.
+  The final RUL can be estimated with the prediction results
+of two streams as follows:                                                       Fig. 3.   Rolling bearing testbed.
+
+                 RULk = ω1 RULLTk + ω2 RULSFk .                         (17)
+
+   Therefore, the proposed method fully considers the                            A. Experiment Introduction
+long-term degradation trend and the short-term fluctuation
+state with a double streams model, and the final RUL can be                         The first bearing dataset is provided by the Institute of
+efficiently estimated by adopting the designed comprehensive                     Design Science and Fundamentals of Xi’an Jiao Tong Uni-
+fusion strategy. The flowchart of the proposed RUL prediction                    versity, Shanxi Province [32]. The structure of the testbed
+method is shown in Fig. 2.                                                       is shown in Fig. 3. The radial force is generated by the
+                                                                                 hydraulic loading system and exerted on the outer ring, and
+                                                                                 the bearing speed is maintained by a speed controller. The
+        IV. E XPERIMENTAL S TUDY I: V ERIFICATION
+                                                                                 vibration signals of 15 LDK UER204 rolling bearings under
+                    AND D ISCUSSION
+                                                                                 three working conditions were collected in this experiment.
+   In this section, a group of run-to-failure data with a                           The sampling frequency is set to 25.6 kHz, and vibration is
+fluctuating degradation process is applied to validate the effec-                collected for 1.28 s in each minute. Because the load is applied
+tiveness of the proposed method. Furthermore, the superiority                    in the horizontal direction, an accelerometer on the same
+is manifested by the comparison with the other four purely                       axis can capture more degradation information. Therefore,
+model-based methods, where the same parameters are set to                        this article chooses the horizontal vibration signal to test the
+ensure the fairness of the comparison.                                           proposed RUL prediction method.
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+3509009                                                                    IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT, VOL. 73, 2024
+
+
+
+
+                                                                                 Fig. 5.   RUL prediction results of five methods.
+
+
+
+Fig. 4. pdf of RUL at different monitoring moments. (a) t = 2390 min.            to estimate the RUL of the bearing. The prediction results
+(b) t = 2407 min. (c) t = 2465 min. (d) t = 2525 min.                            are displayed in Fig. 5. It can be observed that the proposed
+                                                                                 method converges to the actual RUL at the earliest time
+                                                                                 compared with other methods in early stage. Subsequently,
+B. Analysis of Prediction Results                                                the predicted RUL fluctuates around the actual RUL in mid-
+                                                                                 prediction period, only a few results exceed 30% accuracy
+   The data of bearing 1 in operation condition 3 is adopted                     bound. In the late prediction period, the deviation reduces
+to analyze the performance of the proposed method. The root                      gradually and predicted RUL converges to the actual RUL.
+mean square (rms) is shown in Fig. 1. It can be observed                         Therefore, the proposed method has the strongest robustness
+that the rms of the whole life cycle can be roughly divided                      in the whole degradation process of bearings compared with
+into three stages i.e., the healthy stage, the degradation stage,                other methods.
+and the critical stage, which are displayed by three different                      In order to quantitatively evaluate the prediction results,
+colors. The vibration amplitude in the healthy stage is small,                   this article introduces the RMSE and the CRA to evaluate
+and then the bearing enters the degradation stage with the                       the predictive performance of five methods.
+initiation of crack failure. Finally, with the continuous expan-                    RMSE is a metric that reflects the prediction accuracy
+sion of the fault, the bearing enters the critical stage, and the                between the estimated value and the actual value. The cal-
+amplitude increases sharply in a short time until the bearing                    culation process is as follows:
+fails, which stops the experiment. As a transitional stage of                                          v
+bearing failure, the operation and maintenance of the degra-                                           u
+                                                                                                       u       1
+                                                                                                                       Eol
+                                                                                                                       X             2
+dation stage are of great importance in industrial scenarios.                                 RMSE = t                      lk − lk∗      (18)
+                                                                                                          tEol − tTSP k=TSP
+Therefore, the analysis of this stage is a research focus of
+RUL prediction. The enlarged partial of the degradation stage
+                                                                                 where lk is the predicted RUL at time k, while the lk∗ is the
+is shown in Fig. 1(b). It is worth noting that the “increase-
+                                                                                 actual RUL. tEol is the corresponding time when the FT is
+decrease-increase” trend marked in red cycle indicates the
+                                                                                 reached and tTSP refers to the initial prediction time.
+bearing experiences a fluctuating degradation process, which
+                                                                                    Relative accuracy (RA) refers to the relative prediction error
+increases the difficulty of RUL prediction.
+                                                                                 at a specific time
+   When the bearing reaches the TSP point, the proposed
+DUPF is applied to analyze the long-term and short-term                                              lk − lk∗
+degradation state and the corresponding RUL information.                             RAk = 1 −                ,     k = TSP + 1, TSP + 2, . . . , Eol
+                                                                                                        lk∗
+Then, the DB is utilized to estimate the future failure prob-
+                                                                                                                                                           (19)
+ability and the final RUL of the bearing. Fig. 4 shows the
+failure probability density curves of the proposed method at                        In order to comprehensively measure the overall prediction
+2390, 2407, 2465, and 2524 min, respectively. The red dashed                     effect, the RA at specific time instances is obtained by
+line and the red point represent the predicted RUL and the                       cumulative weighting to obtain the CRA
+actual RUL at same monitoring time. The distance between
+                                                                                                                       Eol
+the predicted RUL and the actual RUL is getting closer and                                                             X
+closer over time, which means the prediction accuracy of the                                               CRA =              ωk RAk                       (20)
+                                                                                                                      k=TSP
+proposed method is gradually improved. At the same time, the
+uncertainty interval of the prediction results become higher and                 where ωk is the normalized weight factor.
+thinner over time, indicating that the proposed method has a                        The prediction performance indicators of the five methods
+promising predictive performance.                                                are shown in Table I, and the corresponding histogram is
+   In order to illustrate the superiority of the proposed method,                displayed in Fig. 6. It can be seen from Table I that the RMSEs
+four popular methods, i.e., RB-APMs [21], TVKF [15], time-                       of four comparison methods are 78.517, 60.228, 75.055, and
+varying particle filter (TVPF) [33], and EM-UPF are applied                      112.615, respectively, while the rms of the proposed method is
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+CUI et al.: NOVEL ROBUST DUPF METHOD FOR RUL PREDICTION OF ROLLING BEARINGS                                                                             3509009
+
+
+
+                                 TABLE I
+          P ERFORMANCE E VALUATION R ESULTS OF F IVE M ETHODS
+
+
+
+
+                                                                                 Fig. 7. Testbed and schematic of sensors installation. (a) Bearing testbed.
+                                                                                 (b) Schematic of sensors installation.
+
+
+
+
+Fig. 6.   Performance comparison of five methods.
+
+
+
+52.109, indicating that the proposed method has the best reli-
+ability among all the compared methods. Besides, the average                     Fig. 8.   Structure schematic of TSP point detection.
+CRA of several comparison methods is 0.551, and the CRA
+of the proposed method is 0.763, so the prediction accuracy
+of the bearing is improved by 21.2% on average, indicating                       three times and the life-cycle experimental data of 12 bearings
+that the proposed method has achieved excellent predictive                       were collected.
+performance. However, compared with other methods, the
+proposed method has a high computational cost in the process                     B. Analysis of Prediction Results
+of RUL prediction, which is mainly subject to the update
+mechanism of the particle swarm and the double streams                              Fig. 8 shows the process for TSP determination. The par-
+prediction process. In the future, the further optimization of the               tially enlarged view of the blue box in Fig. 8(b) shows that,
+proposed method will be developed to improve computational                       although the degradation stage of the bearing shows an overall
+efficiency.                                                                      upward trend, the rising process is accompanied by continuous
+                                                                                 and drastic fluctuations, which is a paramount challenge to
+                                                                                 effectively predict the RUL of this stage. Thus, this group of
+          V. E XPERIMENTAL S TUDY II: V ERIFICATION                              bearing datasets is selected to further verify the effectiveness
+                      AND D ISCUSSION                                            of the proposed method.
+   In order to further verify the stability of the proposed                         The TSP point of the bearing can be monitored in real time
+method in predicting bearing RUL with a fluctuating degra-                       with the proposed method, and the RUL prediction process
+dation process, a group of public bearing datasets acquired                      will be triggered as soon as it is detected that the bearing
+from the NSF I/UCR Center on IMSs is utilized in this                            has entered the degradation stage. In order to verify the
+section [34]. The same comparison approaches mentioned in                        superiority of the proposed method, four methods are applied
+Section IV-B are carried out to show the effectiveness of the                    to predict the RUL of the test bearing. The same HI, TSP,
+proposed method.                                                                 and FT are set for all methods to ensure fair comparisons.
+                                                                                 The prediction results are shown in Fig. 9. The predicted
+                                                                                 results of RB-APM present a drastic fluctuation, leading to
+A. Experiment Introduction                                                       over-estimation and conservative estimation in the middle
+   The testbed and installation diagram of sensors are shown                     prediction period, which implies the generalization ability of
+in Fig. 7(a) and (b). The rotation axis of the test bench                        this method is insufficient when predicting the RUL with a
+is mainly supported by four Rexhord ZA-2115 double-row                           complex degradation process. In the later stage, the estimation
+rolling test bearings. Motive power is provided by an ac motor                   results of the four compared approaches are much larger than
+with the load coupled through a friction belt. Bearing speed                     the actual RUL, which means the RUL of the bearing is
+is maintained at 2000 r/min, and a radial load of 6000 lbs                       over-estimated by the four approaches. Meanwhile, the method
+is loaded to accelerate the deterioration of the bearing. Four                   proposed in this article converges to the actual RUL earlier in
+high-precision quartz sensors are installed on the bearing                       early prediction stage. As the degradation process becomes
+housing and start collecting data at the same time. During                       more complicated, only a small proportion of the results are
+the test, the data were collected every 10 min for 1 s, and the                  outside the 30% prediction accuracy band, indicating that the
+sampling frequency is 20 kHz. The experiment was conducted                       proposed method has achieved satisfactory prediction results.
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+3509009                                                                    IEEE TRANSACTIONS ON INSTRUMENTATION AND MEASUREMENT, VOL. 73, 2024
+
+
+
+                                                                                    1) A dual-stream UPF model is developed to leverage the
+                                                                                        health status from different time scales, which not only
+                                                                                        achieves the full mining of degradation information, but
+                                                                                        also improves the robustness of the model in predicting
+                                                                                        the lifetime of the fluctuating degradation process.
+                                                                                    2) A comprehensive fusion strategy is designed to dynam-
+                                                                                        ically optimize the weights of the dual streams. The
+                                                                                        failure probability obtained by DB also shows the
+                                                                                        satisfactory performance in improving the accuracy of
+                                                                                        prediction results.
+                                                                                    Two experimental datasets are analyzed to validate the
+Fig. 9.    RUL prediction results of five methods.
+                                                                                 effectiveness of the proposed method. The results show that the
+                                                                                 proposed method achieves excellent predictive performance
+                                                                                 with high accuracy and strong robustness. Comparative results
+                                  TABLE II
+                                                                                 with several peer methods indicate that the proposed method is
+           P ERFORMANCE E VALUATION R ESULTS OF F IVE M ETHODS
+                                                                                 an efficient and reliable prediction technique for coping with
+                                                                                 fluctuating degradation processes.
+
+                                                                                                                R EFERENCES
+                                                                                  [1] D. Liu, L. Cui, and W. Cheng, “A review on deep learning in planetary
+                                                                                      gearbox health state recognition: Methods, applications, and dataset pub-
+                                                                                      lication,” Meas. Sci. Technol., vol. 35, no. 1, Jan. 2024, Art. no. 012002.
+                                                                                  [2] Y. Lei, N. Li, L. Guo, N. Li, T. Yan, and J. Lin, “Machinery health prog-
+                                                                                      nostics: A systematic review from data acquisition to RUL prediction,”
+                                                                                      Mech. Syst. Signal Process., vol. 104, pp. 799–834, May 2018.
+                                                                                  [3] G. Wang, D. Liu, and L. Cui, “Auto-embedding transformer for inter-
+                                                                                      pretable few-shot fault diagnosis of rolling bearings,” IEEE Trans. Rel.,
+                                                                                      Nov. 2023, doi: 10.1109/TR.2023.3328597.
+                                                                                  [4] L. Cui, J. Chen, D. Liu, and D. Zhen, “Fault diagnosis of offshore wind
+                                                                                      turbines based on component separable synchroextracting transform,”
+                                                                                      Ocean Eng., vol. 291, Jan. 2024, Art. no. 116275.
+                                                                                  [5] T. Lin, H. Wang, X. Guo, P. Wang, and L. Song, “A novel prediction
+                                                                                      network for remaining useful life of rotating machinery,” Int. J. Adv.
+                                                                                      Manuf. Technol., vol. 124, nos. 11–12, pp. 4009–4018, Jan. 2022.
+                                                                                  [6] K. Sun, D. Liu, and L. Cui, “Rotating machinery fault diagnosis based
+Fig. 10.    Prediction performance comparison of five methods.
+                                                                                      on optimized Hilbert curve images and a novel bi-channel CNN with
+                                                                                      attention mechanism,” Meas. Sci. Technol., vol. 34, no. 12, Sep. 2023,
+                                                                                      Art. no. 125022.
+In conclusion, the proposed method owns the best predictive                       [7] T. W. Mazibuko, L. Tartibu, M. Okwu, and F. Tekweme, “Prediction
+                                                                                      of the remaining useful life of rotating machinery using a hybrid PSO-
+robustness among all the compared methods.                                            ANN model,” in Proc. Int. Conf. Artif. Intell., Big Data, Comput. Data
+   In order to quantitatively evaluate the predictive perfor-                         Commun. Syst. (icABCD), Aug. 2021, pp. 1–6.
+mance of these methods, two metrics of their prediction results                   [8] C. K. R. Lim and D. Mba, “Switching Kalman filter for failure
+                                                                                      prognostic,” Mech. Syst. Signal Process., vols. 52–53, pp. 426–435,
+are summarized in Table II, and a histogram is graphed in                             Feb. 2015.
+Fig. 10 to show the predictive performance of the several                         [9] P. Paris and F. Erdogan, “A critical analysis of crack propagation laws,”
+methods. From Table II the RMSE of the proposed method                                J. Basic Eng., vol. 85, no. 4, pp. 528–533, Dec. 1963.
+                                                                                 [10] Y. Lei, N. Li, S. Gontarz, J. Lin, S. Radkowski, and J. Dybala,
+is 57.607, which is the smallest among the five methods.                              “A model-based method for remaining useful life prediction of machin-
+As an influential indicator for evaluating the results of lifetime                    ery,” IEEE Trans. Rel., vol. 65, no. 3, pp. 1314–1326, Sep. 2016.
+prediction, a larger CRA value implies a higher prediction                       [11] N. Li, Y. Lei, J. Lin, and S. X. Ding, “An improved exponential model
+accuracy. The CRA values of the four comparison methods                               for predicting remaining useful life of rolling element bearings,” IEEE
+                                                                                      Trans. Ind. Electron., vol. 62, no. 12, pp. 7762–7773, Dec. 2015.
+are 0.244, 0.487, 0.499, and 0.257, respectively, while the                      [12] I. Bejaoui, D. Bruneo, and M. G. Xibilia, “A data-driven prognostics
+proposed method has a CRA of 0.756. Therefore, compared to                            technique and RUL prediction of rotating machines using an exponential
+the TVPF, the 25.6% prediction accuracy has been improved                             degradation model,” in Proc. 7th Int. Conf. Control, Decis. Inf. Technol.
+                                                                                      (CoDIT), vol. 1, Jun. 2020, pp. 703–708.
+by the proposed method, which validates that the proposed                        [13] W. Ahmad, S. A. Khan, M. M. M. Islam, and J.-M. Kim, “A reliable
+method possesses superior predictive performance in RUL                               technique for remaining useful life estimation of rolling element bearings
+prediction of bearings with fluctuating degradation processes.                        using dynamic regression models,” Rel. Eng. Syst. Saf., vol. 184,
+                                                                                      pp. 67–76, Apr. 2019.
+                                                                                 [14] Y.-F. Ma, X. Jia, Q. Hu, H. Bai, C. Guo, and S. Wang, “A new state
+                            VI. C ONCLUSION                                           recognition and prognosis method based on a sparse representation
+                                                                                      feature and the hidden semi-Markov model,” IEEE Access, vol. 8,
+   In this article, a novel robust DUPF RUL prediction method                         pp. 119405–119420, 2020.
+is proposed to improve the prediction accuracy of bearings                       [15] L. Cui, X. Wang, H. Wang, and J. Ma, “Research on remaining useful
+                                                                                      life prediction of rolling element bearings based on time-varying Kalman
+with fluctuating degradation processes. The major contribu-                           filter,” IEEE Trans. Instrum. Meas., vol. 69, no. 6, pp. 2858–2867,
+tions can be concluded as follows:                                                    Jun. 2020.
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+CUI et al.: NOVEL ROBUST DUPF METHOD FOR RUL PREDICTION OF ROLLING BEARINGS                                                                                3509009
+
+
+
+[16] M. E. Orchard and G. J. Vachtsevanos, “A particle-filtering approach for                                 Lingli Cui (Member, IEEE) received the B.S.
+     on-line fault diagnosis and failure prognosis,” Trans. Inst. Meas. Control,                              degree in mechanical engineering from Shenyang
+     vol. 31, nos. 3–4, pp. 221–246, Jun. 2009.                                                               Aerospace University, Shenyang, China, in 1998, the
+[17] W. Kong and H. Li, “Remaining useful life prediction of rolling bearing                                  M.S. degree in mechanical engineering and automa-
+     under limited data based on adaptive time-series feature window and                                      tion from the Harbin Institute of Technology, Harbin,
+     multi-step ahead strategy,” Appl. Soft Comput., vol. 129, Nov. 2022,                                     China, in 2001, and the Ph.D. degree in control
+     Art. no. 109630.                                                                                         theory and control engineering from the Institute of
+[18] H. Cai, J. Feng, W. Li, Y.-M. Hsu, and J. Lee, “Similarity-based particle                                Automation, Chinese Academy of Sciences, Beijing,
+     filter for remaining useful life prediction with enhanced performance,”                                  China, in 2004.
+     Appl. Soft Comput., vol. 94, Sep. 2020, Art. no. 106474.                                                   She is currently a Professor of mechanical engi-
+[19] M. Yan, L. Xie, I. Muhammad, X. Yang, and Y. Liu, “An effective                                          neering with the Beijing University of Technology,
+     method for remaining useful life estimation of bearings with elbow             Beijing. Her research interests include fault mechanisms, pattern recognition,
+     point detection and adaptive regression models,” ISA Trans., vol. 128,         intelligent diagnosis, and fault diagnosis.
+     pp. 290–300, Sep. 2022.
+[20] H. Wang, D. Wang, H. Liu, and G. Tang, “A predictive sliding local
+     outlier correction method with adaptive state change rate determining for
+     bearing remaining useful life estimation,” Rel. Eng. Syst. Saf., vol. 225,
+     Sep. 2022, Art. no. 108601.
+[21] W. Ahmad, S. A. Khan, and J. M. Kim, “A hybrid prognostics technique
+     for rolling element bearings using adaptive predictive models,” IEEE
+                                                                                                             Wenjie Li received the B.S. degree in mechanical
+     Trans. Ind. Electron., vol. 65, no. 2, pp. 1577–1584, Feb. 2018.
+                                                                                                             engineering from the Henan University of Science
+[22] T. Williams, X. Ribadeneira, S. Billington, and T. Kurfess, “Rolling                                    and Technology, Luoyang, China, in 2020, and the
+     element bearing diagnostics in run-to-failure lifetime testing,” Mech.                                  M.S. degree in mechanical engineering from the
+     Syst. Signal Process., vol. 15, no. 5, pp. 979–993, Sep. 2001.                                          Beijing University of Technology, Beijing, China,
+[23] L. Cui, X. Zhao, D. Liu, and H. Wang, “A novel spectral                                                 in 2023, where he is currently pursuing the Ph.D.
+     coherence-based weighted envelope spectrum analysis method for                                          degree in mechanical engineering.
+     bearing fault diagnosis,” Struct. Health Monit., Nov. 2023, doi:                                          His research interests include remaining useful life
+     10.1177/14759217231201177.                                                                              prediction and fault diagnosis of rolling bearings.
+[24] Q. Miao, L. Xie, H. Cui, W. Liang, and M. Pecht, “Remaining useful life
+     prediction of lithium-ion battery with unscented particle filter technique,”
+     Microelectron. Rel., vol. 53, no. 6, pp. 805–810, Jun. 2013.
+[25] D. Liu, L. Cui, and H. Wang, “Rotating machinery fault diagnosis
+     under time-varying speeds: A review,” IEEE Sensors J., vol. 23, no. 24,
+     pp. 29969–29990, Dec. 2023.
+[26] L. Cui et al., “A spectral coherence cyclic periodic index optimization-
+     gram for bearing fault diagnosis,” Measurement, vol. 224, Jan. 2024,
+     Art. no. 113898.
+[27] M. Rezamand, M. Kordestani, R. Carriveau, D. S.-K. Ting, and M. Saif,                                   Dongdong Liu received the Ph.D. degree in
+     “An integrated feature-based failure prognosis method for wind tur-                                     mechanical engineering from Beijing Jiaotong Uni-
+     bine bearings,” IEEE/ASME Trans. Mechatronics, vol. 25, no. 3,                                          versity, Beijing, China, in 2021.
+     pp. 1468–1478, Jun. 2020.                                                                                 He is currently a Post-Doctoral Researcher in
+[28] M. Kordestani, A. Zanj, M. E. Orchard, and M. Saif, “A modular fault                                    mechanical engineering with the Beijing University
+     diagnosis and prognosis method for hydro-control valve system based on                                  of Technology, Beijing. He was a Visiting Student
+     redundancy in multisensor data information,” IEEE Trans. Rel., vol. 68,                                 with Case Western Reserve University, Cleveland,
+     no. 1, pp. 330–341, Mar. 2019.                                                                          OH, USA, in 2020. His research interests include
+                                                                                                             machinery fault diagnosis and signal processing.
+[29] Z. Du, D. Liu, and L. Cui, “Multidomain kernel dictionary learning
+     sparse classification method for intelligent machinery fault diagnosis,”
+     IEEE Sensors J., vol. 23, no. 23, pp. 29384–29393, Dec. 2023.
+[30] X. Kong, J. Yang, and L. Li, “Remaining useful life prediction for
+     degrading systems with random shocks considering measurement uncer-
+     tainty,” J. Manuf. Syst., vol. 61, pp. 782–798, Oct. 2021.
+[31] D. Liu, L. Cui, and W. Cheng, “Flexible generalized demodulation for
+     intelligent bearing fault diagnosis under nonstationary conditions,” IEEE
+     Trans. Ind. Informat., vol. 19, no. 3, pp. 2717–2728, Jul. 2022.
+[32] B. Wang, Y. Lei, N. Li, and N. Li, “A hybrid prognostics approach                                       Huaqing Wang (Member, IEEE) received the B.S.
+     for estimating remaining useful life of rolling element bearings,” IEEE                                 and M.S. degrees from the College of Mechanical
+     Trans. Rel., vol. 69, no. 1, pp. 401–412, Mar. 2020.                                                    and Electrical Engineering, Beijing University of
+[33] L. Cui, W. Li, X. Wang, D. Zhao, and H. Wang, “Comprehensive                                            Chemical Technology, Beijing, China, in 1995 and
+     remaining useful life prediction for rolling element bearings based on                                  2002, respectively, and the Ph.D. degree from Mie
+     time-varying particle filtering,” IEEE Trans. Instrum. Meas., vol. 71,                                  University, Tsu, Japan, in 2009.
+     pp. 1–10, 2022.                                                                                           He is currently a Professor with the Beijing
+[34] H. Qiu, J. Lee, J. Lin, and G. Yu, “Wavelet filter-based weak signature                                 University of Chemical Technology. His research
+     detection method and its application on rolling element bearing prog-                                   interests include intelligent diagnostics for plant
+     nostics,” J. Sound Vib., vol. 289, nos. 4–5, pp. 1066–1090, Feb. 2006.                                  machinery and signal processing.
+
+
+
+
+Authorized licensed use limited to: National Yang Ming Chiao Tung University. Downloaded on April 14,2026 at 09:58:14 UTC from IEEE Xplore. Restrictions apply.
+
