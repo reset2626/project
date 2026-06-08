@@ -1,0 +1,233 @@
+NYCU, Manufacturing Data Science                         Instructor: Yu-Hsin Hung
+
+
+
+
+                     製造數據科學 – 作業二
+            Manufacturing Data Science – Assignment 2
+
+                                   授課老師: 洪佑鑫
+
+                             繳交期限：2026-04-16 23:59
+
+
+
+0.1 作業繳交提醒
+
+作業內容須同時包含文字說明與可執行之程式碼，且所有分析結果需完整呈現。本作業僅接受
+Jupyter Notebook（.ipynb）或 R Markdown（.Rmd）格式，內容須包含敘事說明、必要的數學
+公式、完整且可重現的程式碼，以及各題與子題之輸出結果，並且一律須透過 LaTeX 工具鏈匯
+出為 PDF 後繳交（Notebook 須使用 LaTeX 匯出，R Markdown 須 knit 成 PDF）。請自行確
+認 PDF 能正確顯示所有文字、公式與圖表，並將所有必要檔案壓縮為單一 .zip 檔，檔名統一為
+MDS_Assignment1_ID_Name.zip；本作業不接受遲交。
+
+
+1     (40%) 良率分類與分析（Yield Classification and Analysis）
+
+SECOM（Semiconductor Manufacturing）資料集包含半導體製造過程中的感測器量測資料與品質
+檢測結果。資料集來自晶圓製造產線，共包含 1,567 筆觀測值，每一筆資料由 590 個製程感測器
+變數以及一個良／不良（pass/fail）標籤所組成。其中，僅有 104 筆不良品（fail）   ，標記為正類（1：
+bad），其餘大多數樣本為良品，標記為負類（-1：good）。此資料集具有高度類別不平衡的特性。
+
+資料來源：McCann & Johnston (2008)，UCI Machine Learning Repository https://archive.
+ics.uci.edu/dataset/179/secom
+參考教學（非必要）：https://rpubs.com/jeff_datascience/Semiconductor_Manufacturing
+
+
+1.1   (5%) 數據科學分析架構與資料摘要
+
+ 請建構一個完整的數據科學分析架構（data science framework），並對資料集進行基本摘要分析
+（例如樣本數、變數數量、類別分布等）。
+
+
+1.2   (5%) 資料品質檢查與前處理
+
+請說明本資料集可能存在的問題，包括但不限於：
+
+    • 是否存在重複（identical / duplicated）樣本
+
+                                       1
+NYCU, Manufacturing Data Science            Instructor: Yu-Hsin Hung
+
+
+   • 是否存在冗餘欄位（例如常數欄位或近乎無變異的特徵）
+
+   • 是否存在缺失值（missing values）
+
+   • 是否存在異常值（outliers）
+
+並說明你所採用的資料前處理方式與理由。
+
+
+1.3   (5%) CART 分類模型（原始資料）
+
+在完成資料前處理後，使用分類與迴歸樹（CART）對整理後的資料集進行分析。
+
+   • 採用 10-fold cross validation
+
+   • 請回報多種分類績效指標（例如：Accuracy、ROC AUC、F1-score）
+
+   • 請列出你所調整的模型超參數（hyperparameters）
+
+
+1.4   (5%) 類別不平衡問題處理
+
+請提出一種方法來處理資料中的類別不平衡問題，並建立一個新的平衡資料集。（提示：可使用
+undersampling 或 oversampling 方法）
+
+
+1.5   (15%) CART 分類模型（平衡資料）
+
+基於你在 (d) 中建立的平衡資料集，再次使用 CART 進行分析。
+
+   • 採用 10-fold cross validation
+
+   • 回報分類績效指標（Accuracy、ROC AUC、F1-score）
+
+   • 列出調整的超參數
+
+
+1.6   (5%) 結果比較與討論
+
+比較 (c) 與 (e) 的分析結果，並說明：
+
+   • 類別不平衡處理前後的差異
+
+   • 各績效指標的變化
+
+   • 你對結果的觀察與建議
+
+
+
+
+                                   2
+NYCU, Manufacturing Data Science             Instructor: Yu-Hsin Hung
+
+
+1.7   (5%此題為加分題) 隨機森林（Random Forest）分析
+
+分別使用 Random Forest 對「原始前處理資料集」與「平衡資料集」進行分析。
+
+   • 比較兩者的分類結果
+
+   • 說明 Random Forest 在此資料集上的表現與優缺點
+
+   • 提出你的分析觀察與洞見
+
+
+1.8   (5%此題為加分題) 梯度提升決策樹（GBDT）分析
+
+分別使用 Gradient Boosting Decision Tree（GBDT）對「原始前處理資料集」與「平衡資料集」進
+行分析。
+
+   • 比較模型在兩種資料集上的表現
+
+   • 與 CART 與 Random Forest 的結果進行討論
+
+   • 提出你的分析觀察與洞見
+
+
+
+
+                                   3
+ NYCU, Manufacturing Data Science                            Instructor: Yu-Hsin Hung
+
+
+ 2     (60%) 製程效能預測與健康狀態分析（Process Performance Pre-
+       diction and Health Status Analysis）
+
+ 本題使用 PHM Data Challenge 2016 所提供之化學機械研磨（Chemical Mechanical Planarization,
+ CMP）製程資料。CMP 為半導體製造中關鍵的平坦化製程，其材料去除率（Average Removal
+ Rate）會隨著製程參數設定以及設備與耗材（如 polishing pad 與 dresser）的使用與劣化狀態而
+ 產生變化。本資料集包含 CMP 製程中的時間序列感測資料與對應的晶圓平均材料去除率。每一
+ 筆觀測資料由 25 個製程與設備相關變數（例如壓力、轉速、漿液流量與耗材使用量）所組成，
+ 並以晶圓編號（WAFER_ID）與製程階段（STAGE A/B）為單位，對應一個平均材料去除率
+（AVG_REMOVAL_RATE）作為預測目標。
+
+ 資料來源：PHM Society (2016), PHM Data Challenge – CMP Process Dataset
+ https://github.com/akangel0307/PHM-Data-Challenge/tree/master/data/2016%20PHM%20Data%
+ 20Challenge
+
+
+ 2.1   (5%) 製造數據分析架構與資料摘要
+
+ 請建構一個完整的數據科學分析架構（data science framework），並對資料集進行基本摘要分析，
+ 至少包含：
+
+     • 樣本數與變數數量
+
+     • 不同製程階段（STAGE A/B）下不同（CHAMBER）的資料分布
+
+     • 目標變數 AVG_REMOVAL_RATE 的基本統計特性
+
+
+ 2.2   (5%) 資料品質檢查與前處理
+
+ 請說明本資料集中可能存在的資料品質問題，包括但不限於：
+
+     • 是否存在重複（identical / duplicated）樣本
+
+     • 是否存在冗餘欄位（例如常數欄位或近乎無變異的特徵）
+
+     • 是否存在缺失值（missing values）
+
+     • 是否存在異常值（outliers）或量測異常
+
+ 並說明你所採用的資料前處理方法與其合理性。
+
+
+ 2.3   (10%) 探索性分析與製程診斷
+
+                                          ，探討製程變數、耗材使用狀態與材料
+ 請進行探索性資料分析（Exploratory Data Analysis, EDA）
+ 去除率之間的關係。請搭配適當的圖表，並提出至少一項可能的製程退化或設備健康狀態變化之
+ 假設。
+
+                                         4
+NYCU, Manufacturing Data Science       Instructor: Yu-Hsin Hung
+
+
+2.4   (30%) 製程效能預測模型建構
+
+請選擇一種或多種統計或機器學習方法，建立材料去除率（AVG_REMOVAL_RATE）的預測模
+型。請清楚說明：
+
+   • 特徵挑選
+
+   • 特徵工程
+
+   • 模型選擇理由
+
+   • 訓練與驗證方式
+
+
+2.5   (5%) 模型解釋與健康狀態分析
+
+請根據模型結果，分析哪些變數對材料去除率具有顯著影響，並說明這些變數是否能反映設備或
+耗材的健康狀態變化。請嘗試將模型結果連結至實際製程或物理意義。
+
+
+2.6   (5%) 製程控制與決策建議
+
+假設你為製程工程師，請根據分析結果提出具體的製程或設備管理建議，例如耗材更換時機、製
+程參數調整方向或監控指標設計，並說明其對提升製程穩定性與降低製造風險的潛在效益。
+
+
+
+注意事項
+
+   • 請詳實呈現所有分析步驟與推導過程，並清楚說明你的思考邏輯與論證方式。鼓勵提出具
+     有創意與洞見的想法。
+
+   • 若作答內容引用任何外部資料或文獻，請務必提供完整之學術引用資訊（包含作者、年份、
+     期刊或會議名稱等），並依學術規範清楚標示來源。嚴禁抄襲或未標示出處之引用行為。
+
+   • 請注意，若僅將作業題目直接複製貼上至 AI 工具並產生完整答案，將無助於學習與能力培
+     養。本課程鼓勵適當使用 AI 工具作為思考輔助與討論對象。若有使用 AI 協助，歡迎同學
+     簡要說明與 AI 協作的思考過程，或附上相關對話紀錄連結（非強制，但將酌予加分）。
+
+
+
+
+                                   5
+
