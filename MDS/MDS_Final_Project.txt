@@ -1,0 +1,247 @@
+NYCU, Manufacturing Data Science               Instructor: Yu-Hsin Hung
+
+
+
+
+             製造數據科學 – 期末專題報告指引
+    Manufacturing Data Science – Final Project Instruction
+
+                                   授課老師: 洪佑鑫
+
+
+
+期末專題
+
+目標：培養並提升製造數據科學（MDS）的實作與研究能力。
+
+
+   • 系統性整理與分析研究方向
+
+   • 發想並具體化專題題目
+
+   • 實作（與改良）相關方法與模型
+
+   • 設計與規劃實驗流程
+
+   • 分析、診斷並解釋實驗結果
+
+   • 以書面與口頭形式完整呈現研究成果
+
+
+本課程之所學應用於真實世界製造問題，並能夠提供具體且有意義的決策支持。專題主題必須與
+製造系統（Manufacturing Systems）相關。 鼓勵使用開源資料（Open-source Data），並請選
+擇您能夠清楚解釋與詮釋分析結果的資料來源。
+
+
+
+期中提案形式、評分比例、繳交規定
+
+   • 口頭報告：10%
+
+       – 請說明預計進行之專題主題與規劃（問題背景、資料來源、方法與預期成果）。
+       – 內容架構請參閱專題內容架構之形式。
+
+   • 繳交規定
+
+       – 檔名格式：MDS_Midterm_Proposal_ID.pdf
+       – 壓縮檔須包含：口頭報告檔案
+       – 提案不接受遲交。
+
+
+
+
+                                       1
+NYCU, Manufacturing Data Science                             Instructor: Yu-Hsin Hung
+
+
+期末專題形式、評分比例、繳交規定
+   • 海報：20%（同儕互評 5%，老師評分 15%）
+       – 向同學、老師說明已完成之成果與發現，需收集同學回饋與紀錄老師回饋加以修正最終
+         成果。
+       – 預計（但不保證）會有茶食與點心，讓大家感受研討會的氣氛。
+   • 海報與互評繳交規定
+       – 檔名格式：MDS_Final_Poster_ID_Name.pdf,MDS_Final_Poster_Discussion_ID_Name.docx
+       – 海報不接受遲交。
+   • 書面報告：20%
+       – 以嚴謹的研究論文形式呈現已完成之成果與發現。
+       – 全文以英文撰寫（善用 AI 工具，e.g., ChatGPT, Gemini, …）。
+       – 正文至多 8 頁（不含參考文獻），附錄頁數不限。
+       – 報告格式：NeurIPS 2025 LATEX 檔（建議使用 Overleaf 或 Prism 撰寫）。
+   • 書面報告繳交規定
+       – 檔名格式：MDS_Final_Project_ID.zip
+       – 壓縮檔須包含：書面報告 PDF、資料集、程式碼
+       – 專題不接受遲交。
+
+
+建議製造相關開源資料集
+  1. 2016 PHM Data Challenge
+     https://github.com/akangel0307/PHM-Data-Challenge
+  2. UCI SECOM Dataset
+     https://www.kaggle.com/datasets/paresh2047/uci-semcom
+  3. NASA Turbofan Jet Engine Data Set (CMAPSS)
+     https://www.kaggle.com/datasets/behrad3d/nasa-cmaps/data
+  4. WM811k Silicon Wafer Map Dataset
+     https://www.kaggle.com/datasets/muhammedjunayed/wm811k-silicon-wafer-map-dataset-image
+  5. Casting Product Image Data for Quality Inspection
+     https://www.kaggle.com/datasets/ravirajsinh45/real-life-industrial-dataset-of-casting-prod
+  6. Multi-stage Continuous-Flow Manufacturing Process
+     https://www.kaggle.com/datasets/supergus/multistage-continuousflow-manufacturing-process
+  7. Quality Prediction in a Mining Process
+     https://www.kaggle.com/datasets/edumagalhaes/quality-prediction-in-a-mining-process
+  8. Supply Chain Analysis Dataset
+     https://www.kaggle.com/datasets/harshsingh2209/supply-chain-analysis
+
+                                        2
+NYCU, Manufacturing Data Science                                           Instructor: Yu-Hsin Hung
+
+
+專題內容架構
+
+1     Title
+
+Give a title to your project work, e.g., Process Diagnosis and Troubleshooting in the High-Tech In-
+dustry, Demand/Price Forecasting and Capacity Planning in the Petrochemical Industry, Schedul-
+ing Optimization in the Fastener Manufacturer, Queueing System Improvement in McDonald, etc.
+
+
+
+2     Background and Motivation
+
+2.1    Background
+
+Describe the problem background or context. e.g., how/why the process diagnosis problem benefits
+us? how the scheduling optimization change the society?
+
+
+2.2    Motivation
+
+Describe your motivation and why you choose this topic. Why this problem/decision is significant
+to our society or important to us.
+
+
+2.3    Problem Definition
+
+Give one or two sentences to define your problem clearly. e.g., This study uses data science technique
+to identify the key variables and classify the good and defective products through addressing data
+imbalance problem. This study applies genetic algorithm to find the best scheduling under the
+machine capability constraint.
+
+
+
+3     Literature Review / Related Works
+
+3.1    Overview of Related Studies
+
+Briefly review key academic or industry studies related to your topic. Summarize the manufactur-
+ing problem, methodology, data setting, and main findings to demonstrate your understanding of
+existing approaches.
+
+
+3.2    Methodological Comparison
+
+If multiple studies are included, compare their assumptions, methods, and practical applicability.
+Highlight major differences and suitability under different manufacturing contexts.
+
+
+                                                  3
+NYCU, Manufacturing Data Science                                          Instructor: Yu-Hsin Hung
+
+
+3.3   Connection to Your Project
+
+Explain how the literature supports your project. Identify gaps or limitations in prior work and
+clarify how your approach extends or differs from existing methods.
+
+
+
+4     Methodology
+
+Provide a clear research framework to describe your overall analysis flow. The framework may
+include (but is not limited to) data preparation (e.g., missing value imputation, outlier detection,
+data transformation), feature engineering or selection (e.g., principal component analysis, stepwise
+selection, clustering), predictive modeling (e.g., regression, decision trees, neural networks), per-
+formance evaluation, pattern interpretation, and decision optimization (e.g., linear programming),
+followed by managerial insights and conclusions.
+
+Clearly specify the main method(s) you adopt in your study (e.g., decision trees, clustering, neu-
+ral networks, queueing theory, optimization models, etc.). Explain why the selected method is
+appropriate for your problem setting and justify your choice from both theoretical and practical
+perspectives (Method Justification).
+
+
+
+5     Data Collection and Analysis Result (Video demo in the class
+      presentation)
+
+5.1   Data Collection
+
+Describe the data source and how your get this data.
+
+
+5.2   Analysis
+
+Use the method introduced in Section 4 to analyze your work. Show your calculation/procedure
+in details (e.g., Python/package). Please use table or figure to illustrate your numerical result if
+possible (i.e., Visualization).
+
+
+5.3   Interpretation
+
+What’s the result or the best alternative you suggest? What’s the prediction accuracy? How to
+support your decision-making based on the prediction results? What’s the risks you face when your
+prediction is inaccurate? What’s the insight or story behind the pattern you found?
+
+
+
+
+                                                 4
+NYCU, Manufacturing Data Science                                Instructor: Yu-Hsin Hung
+
+
+6    Conclusion
+
+Summarize and guide the future research of your project work.
+
+
+
+專題評分標準
+
+    1. 貢獻與影響力（Contribution / Impact）：研究是否具有實務應用潛力、回應當前重要議
+       題，或對後續研究產生推動作用。
+
+    2. 方法論合理性（Methodology Justification）：是否清楚說明為何選擇該方法與實驗設計，
+       包含理論依據、相關文獻支持，以及與替代方法之比較與說明。
+
+    3. 表達與呈現（Presentation）：研究是否清楚、有條理地呈現，包含論文撰寫品質、圖表設
+       計，以及口頭報告表現。
+
+    4. 嚴謹性與技術品質（Soundness & Technical Quality）：方法設計、實作品質與實驗分析
+       是否達到研究水準，並具可驗證性與再現性。
+
+    5. 創新性（Novelty）：是否提出新的想法、概念或方法，而非僅重複既有研究成果。
+
+
+
+專題注意事項
+
+    • 資料與文獻引用：若使用開源資料、外部圖表、程式碼、模型或任何文獻內容，請務必提供
+      完整且可追溯的引用資訊（作者、年份、期刊/會議或網址連結等），並依學術規範清楚標示
+      來源。嚴禁抄襲、未標示出處或不當挪用他人成果。
+
+    • AI 工具使用規範：本課程鼓勵同學適度使用 AI 工具作為思考輔助（例如：釐清觀念、協助
+      除錯、改善表達、討論方法設計），但不接受將題目或專題需求直接複製貼上並產生整份成
+      品。若有使用 AI 協助，歡迎同學在報告附錄或 README 中簡要說明 AI 的使用範圍與協
+      作方式，或提供相關對話紀錄連結（非強制，但可酌予加分）。
+
+    • 本專題重點在於 「從真實問題出發，轉化為可分析模型，並提供決策洞察」。
+
+
+
+
+              感謝大家修習本課程，祝各位有一個充實且收穫豐富的學期！
+
+
+
+
+                                              5
+

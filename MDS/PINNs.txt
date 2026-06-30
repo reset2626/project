@@ -1,0 +1,562 @@
+Physics-informed Deep Neural Network for Bearing
+       Prognosis with Multi-sensory Signals
+             Xuefeng Chen1*, Meng Ma1, Zhibin Zhao1, Zhi Zhai1, Zhu Mao2
+1
+    School of Mechanical Engineering, Xi’an Jiatong University, Xi’an Shaanxi 710049, China.
+2
+Department of Mechanical and Materials Engineering, Worcester Polytechnic Institute, MA,
+USA.
+*Corresponding author: chenxf@mail.xjtu.edu.cn
+
+Received Month X, XXXX | Accepted Month X, XXXX | Posted Online Month X, XXXX
+
+        Abstract: Prognosis of bearing is critical to improve the safety, reliability and
+        availability of machinery systems, which provides the health condition assessment
+        and determines how long the machine would work before failure occurs by predicting
+        the remaining useful life (RUL). In order to overcome the drawback of pure data-
+        driven methods and predict RUL accurately, a novel physics-informed deep neural
+        network, named degradation consistency recurrent neural network, is proposed for
+        RUL prediction by integrating the natural degradation knowledge of mechanical
+        components. The degradation is monotonic over the whole-life of bearings, which is
+        characterized by temperature signals. To incorporate this knowledge of monotonic
+        degradation, a positive increment recurrence relationship is introduced to keep the
+        monotonicity. Thus, the proposed model is relatively well-understood and capable to
+        keep the learning process consistent with physical degradation. The effectiveness and
+        merit of the RUL prediction using the proposed method are demonstrated through
+        vibration signals collected from a set of run-to-failure tests.
+Keywords: Prognostics and health Management (PHM), Physics-informed neural network
+
+(PiNN), Remaining useful life, Deep learning.
+
+
+
+                                                      fault detection, degradation assessment,
+1. Introduction                                       evolution prediction and remaining useful
+Prognosis and health management (PHM) of              life prediction [1]. Up to now, a lot of efforts
+machine systems plays an important role in            have been made to develop the PHM
+performing the digital transition of industry         techniques, such as development of
+in which combining the digital, physical and          hardware, (i.e., Internet of Things), smart
+human dimensions together. It is a                    sensors, and software including data
+computation-based paradigm that leverages             analytics. PHM mainly contains three
+physical knowledge, monitoring data and               aspects: fault diagnosis, evolution prognosis,
+human experience to achieve the goal of               and decisions for management. Nowadays, a
+large amount of research work focuses on          for RUL prediction. The RUL prediction of
+fault diagnosis and prognosis, which are the      cutting tool using DTL model have higher
+prerequisites of health management [2].           accuracy compared with other methods [8].
+                                                  Ma et al proposed a convolutional neural
+The initial fault detection of mechanical         network for RUL prediction, where time-
+components has been addressed for many            frequency features were adopted to capture
+years and made great success in many fields       long-term dependencies through convolution
+[3]. If an initial fault is detected, it’s more   operation [9].
+challenging to accurately predict how long
+the machine system will work before failure       Since deep learning has made breakthroughs
+occurs, namely remaining useful life (RUL)        in many applications such as image
+prediction. The RUL prediction methods are        recognition, speech recognition, and
+categorized into three classes, namely            language translation [10], it is widely
+model-based methods, data-driven methods,         investigated in prognosis of mechanical
+and hybrid methods [4]. Model-based               components, such as bearings [11] and gears
+approaches usually takes advantage of             [12]. However, it is hardly to apply deep
+physical knowledge to model the                   learning methods to real mechanical systems.
+degradation process for RUL prediction. Li        A primary factor is the block-box nature of
+et al. proposed an improved exponential           deep learning framework which is complex
+model for RUL prediction of rolling element       to understand the learned features. Even
+bearings, where an adaptive predicting time       though the deep learning models may
+was developed based on the 3-sigma interval.      achieve somewhat more accurate prediction
+The simulation and four tests of bearing          but they don’t provide the ability to
+degradation processes were employed to            understand the underlying processes.
+demonstrate its effectiveness [5]. Singleton      Moreover, an interpretable model including
+et al used both time and time-frequency           physical knowledge will stand a better
+domain features to track the degradation          chance of safeguarding against the building
+process of bearing and predicted the RUL          of spurious models from the historical data
+under different operating conditions through      that     may      cause      non-generalizable
+extended Kalman filter [6]. The model-            performance. This is especially critical when
+based approaches require degradation              dealing with predictions of complex systems
+models, which means one has to master the         that the failure would cause significant
+physical knowledge of bearings’ evolution.        accidents. As a first step for moving beyond
+An alternative solution is to predict the RUL     the black-box models of deep learning, the
+from historical data without physical models.     physical knowledge is integrated with deep
+                                                  learning     models      to    improve     the
+Data-driven methods are more widely               interpretability of the models. Motivated by
+investigated compared to model-based              embedding physical knowledge into deep
+methods, because data-driven approaches           neural models, in this study, a degradation-
+only rely on the historical data without fully    knowledge based deep learning models are
+understanding the degradation models [7].         proposed for remaining useful life prediction.
+With accumulation of monitoring data,             Instead of using purely data-driven methods,
+machine learning models including deep            we principally embed well-known physical
+learning architectures are built to predict the   principles into the recurrent neural networks.
+RUL without physical models. For examples,        As stated in [13], the degradation process of
+Sun et al proposed a deep transfer learning       mechanical systems is monotonic, which
+(DTL) network based on sparse autoencoder         means that components can’t heal without
+repairing. Thus, an ideal degradation           respectively. Finally, Section 7 concludes
+indicator should be monotonic over time. In     the study.
+this study, temperature signals collected
+during bearing run-to-failure tests are used
+to describe the degradation process because     2. Literature review
+it has better monotonic characteristic          With the breakthroughs of deep learning
+compared to vibration signals. To ensure        models in many fields, there is growing
+that the learned features of deep models are    interest in the scientific community to take
+consistent with the physical knowledge, i.e.,   advantage of the benefits of deep models for
+the monotonic characteristic of degradation     prognosis of mechanical components [14],
+process, a degradation consistency deep         this is because one can directly build the
+neural network is proposed which preserves      mapping functions with datasets of the
+the monotonicity of degradation. The            whole degradation trajectories, but it
+proposed degradation consistent recurrent       neglects the knowledge information. To
+neural network (DcRNN) is informed by the       overcome the drawback of purely data-
+physical knowledge in the training stage,       driven methods, knowledge-guided data
+which will make it more interpretable. The      science is investigated which aims to
+main contributions of this work are             leverage the wealth of physical information
+summarized as follows:                          to increase the generalization of the data-
+                                                driven models [15]. Karpatne et al proposed
+1) A novel physics-informed deep neural         a physics-guided neural network (PGNN) to
+network, named DcRNN, is proposed for           combine scientific knowledge of physics-
+RUL prediction by integrating the natural       based models with neural network for lake
+degradation knowledge of mechanical             temperature modeling. By leveraging the
+components, which makes the model more          scientific knowledge to guide the modeling
+interpretable and generalizable.                of neural network, it demonstrates that
+2) To incorporate this knowledge of             PGNN has better generalizability and
+monotonic degradation, which is generated       scientific consistency [16]. Raissi et al
+by temperature signals over the whole-life of   introduced a physics-informed neural
+bearings, is introduced to keep the             network to solve supervised learning
+monotonicity of the degradation process.        problems while keeping any given principles
+3) RUL prediction is performed utilizing the    that are governed by nonlinear partial
+proposed DcRNN model on a set of run-to-        differential equations [17]. The effectiveness
+failure bearing tests. By comparing with        is illustrated through some cases in the fields
+other methods, the results demonstrate the      of fluids, quantum mechanics, etc.
+priority of the proposed model.                 Furthermore, the models incorporating
+                                                physical knowledge maybe produce
+The rest of this article is organized as        scientifically interpretable models. There are
+follows. Section 2 presents the literature      various ways of embedding the physical
+review about physics-informed deep neural       knowledge in deep neural networks. Daw et
+network. Section 3 introduces the proposed      al. developed a physics-guided framework
+degradation consistent deep neural network.     of neural network to integrate the models
+Experimental tests of bearing’s run-to-         with uncertainty quantification. The results
+failure tests are presented in Section 4. The   show that the Monte Carlo estimates match
+RUL prediction and results discussion are       the distribution of actual measurements
+presented in Section 5 and Section 6,           correctly [18].        Karniadakis    et     al.
+                                                summarized some prevailing trends in
+            Vibration Signals
+                                                     ht
+
+                                       ht +1
+
+                                                pt
+           Physical knowledge         Physics-consistency RNN                 RUL prediction
+
+
+         Figure 1. DcRNN paradigm aims to infuse degradation knowledge for RUL prediction
+
+
+embedding physics into machine learning                   of hidden state ht from the last step to
+for forward and inverse problems, such as                 current time step t :
+discovering hidden physics [19].
+                                                                               ht = f ( xt , ht −1 )          (1)
+In the area of bearing’s RUL prediction,
+data-driven methods commonly neglect the                  where     t  0,1,..., T  means the time
+degradation knowledge. During the whole                   discretization, h is the hidden states, which
+life of bearings, the degradation process is              represents the latent features learned from
+monotonic, which is usually ignored when                  sequential data, and f        is the activated
+predicting RUL with vibration signals. Thus,
+it is necessary to consider the degradation               function. The hidden states are repeatedly
+properties when constructing the deep                     used as inputs to update the next time states.
+learning models. In this study, the                       However, it is difficult to train such a
+degradation process is embedded into a deep               standard RNN model due to the
+neural network, which is expected to                      accumulation of computed errors in back-
+produce more interpretable models.                        propagation algorithm that results in
+                                                          gradient exploding or vanishing problem. To
+                                                          deal with this problem, long short-term
+3. The proposed DcRNN for RUL                             memory (LSTM) network was developed
+   prediction                                             and has been used in many application areas
+In this study, a novel method, named                      successfully. The architecture of LSTM is
+degradation-consistency RNN, is proposed                  constructed through purpose-built memory
+for prognosis of mechanical components.                   cells, which show advantages in extracting
+The framework of the RUL prediction                       and exploiting long sequential context. A
+procedure with DcRNN is shown in Figure 1.                LSTM is implemented by the following
+                                                          functions:
+3.1 The basic RNN architecture
+Recurrent neural networks have been widely                it =  (Wix xt + Wih ht −1 + Wic ct −1 + bi )
+used for time-series data prediction, speech              ft =  (W fx xt + W fi ht −1 + W fc ct −1 + b f )
+recognition, language translation and many
+other applications by incorporate the                     ct = ft ct −1 + it tanh (Wcx xt + Wch ht −1 + bc ) (2)
+sequential information of time-series signals             ot =  (Wox xt + Woh ht −1 + Wco ct + bo )
+[20]. RNNs model the sequential context
+among the signals by transforming a vector                ht = ot tanh ( ct )
+where  () is an active function, W terms
+                                                       dt
+                                                                                 Physical
+                                                                                knowledge
+                                                                                                          dt = dt −1 + dt              Monotonic
+                                                                                                                                       degradation
+represent weight matrices of a LSTM model
+(e.g. Wih is the input-hidden weight matrix),
+                                                                                             it
+                                                                                                       ct       it gt                f t ct 1
+and b terms are bias vectors. it , f t , ot are                           xt
+
+
+
+
+                                                    Vibration signals
+                                                                                             ft
+the input gate, forget gate, and output gate,                            ht 1
+                                                                                                       ht      ot tanh ct
+                                                                                             gt
+respectively.
+                                                                                             ot        dt = dt −1 + ReLU (W ht + b )
+3.2 Degradation-consistency RNN
+To improve the generalizability and
+scientific interpretability of machine                                  Dense layer     yt            Wy dt , xt       by
+
+learning models, the physical knowledge                                 Loss function   L         arg min Ldata y, y        L physics d , d
+should be considered, which will ensure the
+models that are consistent with known                                   Figure 2. The Proposed DcRNN
+principles. In this study, not only predicted
+                                                                                   framework
+loss in the target space y , but also the
+violations of physical knowledge in the
+                                                  constructed based on the basic LSTM
+model outputs p are leveraged. Both of            architecture by embedding the degradation
+them are used to compute the final loss           knowledge. The monotonic characteristic is
+function:                                         modeled in the proposed DcRNN through
+L    arg min Ldata y, y      Lphysics p, p (3)    building the relationship of monotonic trend.
+                                                  To ensure that the deep learning model is
+where is a trade-off hyper-parameter and          consistent with physical knowledge, the
+controls the weight between physical              monotonic is preserved by introducing
+consistency and empirical loss. In this way,      degradation change. Instead of using
+the weights of deep neural model will be          vibration signals for RUL prediction in an
+searched in the restrictions which keep           end-to-end way, the learned features are
+consistency with physical knowledge.              informed by degradation monotonicity,
+In this study, the degradation information of     which is represented as the physical
+bearings is considered when building the          intermediate variables that increase over
+deep neural model, which tries to keep the        time. However, it is hard to obtain the
+learning process of model consistent with         monotonic index directly because it can’t be
+the physical degradation process. Since the       measured through sensors. As an alternative
+degradation is monotonic, it is assumed to        way, the temperature signals collected in the
+be increased over time, the degradation           bearing’s run-to-failure tests are used as
+trajectory over time is expressed as              degradation       indicator,    because   the
+                  dt = dt −1 + dt         (4)    temperature signals have the better
+where dt  0 is the degradation increment        monotonic characteristic. Vibration signals
+                                                  are commonly used for RUL prediction
+over time due to working under loads. This        because they contain more information and
+means that the degradation process is             are sensitive to initial fault.
+irreversible, thus the learned features of deep   The basic LSTM architecture explicitly
+neural network should be consistent with the      obtains recurrence relationships through
+irreversible evolution of bearing’s health        hidden units, which is not informed by
+condition.                                        physics. The proposed DcRNN embedds the
+The degradation consistency RNN is                degradation knowledge into the LSTM
+structure by a monotonic intermediate
+variable, as shown in Figure 2. This                                                                              Radial load
+
+intermediate unit is employed as the
+physical knowledge that represents the
+degradation process. The monotonicity is
+achieved by adding a positive constant to the
+unit d t 1 . In this way, the degradation                                                                                               Axial load
+
+process is modeled and will only increase
+over time. Forward propagation equations
+that describes the DcRNN are shown as
+following:
+                                                                                              Bearing 1 Bearing 2 Bearing 3 Bearing 4
+       it     Wi xt Wi ht 1 Wi dt 1 bi (5)
+         ft             W fx xt        W fh ht 1    W fd dt 1        b f (6)                  Figure 3. Structure of test rig
+
+    ct            ft ct 1         it                                                          Table 1 Bearings’ parameters
+                                                                          (7)
+              tanh Wcx xt                Wch ht 1   Wcd dt 1         bc             Bearing
+                                                                                               Inner        Outer          Roller
+                                                                                                                                         Roller
+                                                                                              Diameter     Diameter       Diameter
+                                                                                     Type                                               Number
+                   ot          Wot xt         Wh Wd             bo        (8)                  (mm)         (mm)           (mm)
+
+                               ht        ot tanh ct                       (9)        61911       55            80               7.1         16
+
+              t     Re LU W                    Wh ht       bh    b        (10)       N312        60           130               19.1        16
+
+                                    dt      dt 1       t              (11)
+                          yt             Wy dt , xt        by         (12)
+The equations (10) - (12) represent the
+embedding of physical knowledge that                                             4. Experiment setup
+describes degradation process, which is used                                     Bearings’ run-to-failure tests are carried out
+to inform feature learning and preserve                                          on a special design test beds to observe the
+monotonic degradation. This idea is                                              natural degradation process. The test rig is
+motivated by degradation physics of a                                            specially designed for bearing run-to-failure
+bearing’s    evolution.     To    keep     the                                   experiments, which includes a power and
+intermediate unit d t consistent with physical                                   drive system, a hydraulic loading system, a
+                                                                                 lubrication system, a control system and an
+knowledge, a loss function between d t and                                       independent data recording system. The
+actual degradation is defined. However, it is                                    main part of test rig is designed consisting of
+difficult to obtain the actual degradation                                       a support beam structure, where two test
+index, temperature signals are used instead                                      bearings are installed on both ends of the
+to describe the degradation state. The RUL                                       shaft, as shown in Figure 3. During the
+prediction is achieved by a dense layer of                                       experiments, both the radial load and axial
+the concatenation of intermediate variable                                       load were applied to testing bearings. The
+and vibration signals. The final loss function                                   parameters of test and steady bearings are
+with physical consistency is defined as                                          given in Table 1.
+follows.
+L        arg min Ldata y, y                         L physics d , d              To monitor the health condition of bearings,
+                                                                          (13)
+                                                                                 both vibration and temperature signals are
+                                                                                 collected. If the temperature amplitude
+      Figure 6. Bearing’s vibration signals of Test 1
+                                                             Figure 4 Bearing’s vibration signals of Test 2
+
+
+
+
+     Figure 7 Bearing’s temperature signals of Test 1
+                                                            Figure 5 Bearing’s temperature signals of Test 2
+exceeds a certain value, it means a failure
+occurs, thus the experiment should be ended             and 5. The bearing works under the health
+to avoid an accident that may cause damage              state for a long time, then an initial defect
+to the test rig. The vibration signals were             occurs leading it to enter into a degradation
+recorded every five minutes with 32,768                 stage. With the fault development and
+data points, while the sampling frequency of            damage accumulation, the bearing’s
+temperature signals is 1 Hz. This is because            performance deteriorates over time.
+vibration     signals   contain    frequency            Vibration and temperature signals in test II
+characteristics compared with temperature               are shown in Figures 6 and 7. A similar
+signals. The rotating speed and radial load             degradation process is observed from the
+were set to be 2500 r/min and 12kN,                     figures. The amplitude of vibration signals
+respectively.                                           decreased at 343.3 hour in test I and 57.1
+                                                        hour in test II, but it doesn’t mean the
+Two sets of bearing run-to-failure tests were           bearing’s health condition become better.
+analyzed in this study. In the experiments,             This is because a bearing’s degradation is an
+the failure mode of bearing in test I is inner          irreversible process without maintenance.
+race, outer race and rolling element faults,            Thus, the degradation should be monotonic
+while that in Test II is inner race fault. There        over time. When we predict RUL with
+are 4071 and 763 datasets for test I and test           vibration signals, the physical knowledge of
+II, respectively. The vibration and                     monotonic degradation should be embedded
+temperature signals over the whole life of              into the neural network to improve the
+bearings in test I are presented in Figures 4           performance.
+5. RUL prediction
+The proposed model is employed for RUL                 Table 2 The formula of statistical features
+prediction with vibration signals and                Time-domain
+temperature signals. The designed deep                                        Formula
+                                                       features
+learning model has 2 layers with each layer                                    1 n 2
+of 128 hidden units. Both the weights and                 ST1                    vi
+                                                                               n i =1
+biases are initialized randomly. To compare
+                                                                                            2
+the predicted accuracy of different inputs,                                1 n        
+time-domain signals, frequency domain
+                                                         ST2                 i =1 vi 
+                                                                           n          
+features and statistical features of time-                                    1 n
+domain signals are used as inputs of the                 ST3                    vi
+                                                                              n i =1
+DcRNN model. Both time-domain signals                                                              2
+                                                                      1 n          1 n 
+                                                                                v −  i =1 vi 
+and frequency features are viewed as raw
+                                                                          i =1  i
+                                                         ST4
+signals, because frequency features are                               n            n          
+obtained by Fast Fourier Transform (FFT)
+without information loss. The reason for
+selecting frequency features is that the fault
+frequency characteristics are reflected in
+frequency domain. The statistical features,
+defined in Table 2, are also used as inputs of
+the model. To some extent, they are capable
+of reflecting the degradation process, as
+shown in Figures 8 and 9.
+
+The loss values over epochs of training data
+in test I are shown in Figure 10. The loss
+function contains two parts: data loss and
+physical loss function. Both the loss values             Figure 8 Statistical features of Test 1
+are converged to a small value after 500
+epochs, which means the physical
+information is considered during the training
+process. To show the physical consistency in
+the training process, the physical
+degradation and the learned features are
+illustrated in Figure 11. The loss values of
+training data and physical consistency in test
+II are shown in Figures 13 and 14,
+respectively. Compared with physical
+degradation states which are represented by
+temperature signals, the learned features
+have the same trend to physical degradation,
+which means that the proposed model is                   Figure 9 Statistical features of Test 2
+capable of extracting the features that are
+consistent with physical knowledge. The          performance of the proposed DcRNN for
+predicted results of RUL are shown in            RUL prediction quantitively, mean absolute
+Figures 12 and 15. To evaluate the               percentage error (MAPE) and root mean
+ Figure 10 Loss values of training data in Test        Figure 13 Loss values of training data in Test 2
+                      1
+
+
+
+
+                                                          Figure 14. Physical consistency of Test 2
+
+   Figure 11 Physical consistency of Test 1
+
+
+
+
+                                                            Figure 15 RUL prediction of Test 2
+
+      Figure 12 RUL prediction of Test 1
+                                                                               1 n pi − pi
+                                                                      MAPE =    
+                                                                               n i =1 pi
+                                                                                                      (15)
+squared error (RMSE), two commonly used
+metrics for prediction are shown as                    where p and p are predicted and actual
+following:                                             values, n means the number of samples.
+                       1 n
+            RMSE =             ( pi − pi )
+                                            2
+                           i =1
+                                                (14)   The predicted errors are shown in Table 3. It
+                       n
+                                                       is seen that when the frequency features are
+                                                       used as inputs, the predicted errors are the
+                           Table 3 RUL prediction with the proposed method
+         Input features            Predicted errors of Test 1     Predicted errors of Test-2
+                                    RMSE             MAPE          RMSE             MAPE
+     Time-domain signals              75.0             82.6         40.1              49.3
+      Statistical features            63.2             67.6         37.8              48.1
+      Frequency features              27.7             32.1         24.1              27.7
+
+                          Table 4 RUL prediction of traditional deep neural network
+                                     Predicted errors of Test 1       Predicted errors of Test-2
+         Input features
+                                   RMSE            MAPE             RMSE            MAPE
+      Time-domain signals           105.1           119.1            56.5            60.1
+       Statistical features         83.2            89.6             45.8            56.1
+       Frequency features           53.1            56.3             34.8            45.1
+
+smallest compared with other inputs. If the                When raw vibration signals in time domain
+time-domain signals are used as inputs, the                are used for RUL prediction without any
+predicted performance is the worst. Because                feature extraction, the predicted results are
+the fault characteristic frequency is able to              worse than that of statistical features. If the
+be reflected in frequency domain, while for                inputs of the model are frequency features,
+time domain signals, it is hard to recognize               the predicted accuracy is the best, which is
+the characteristic frequency. The predicted                similar to the results of the proposed method.
+results with statistical features are better               This demonstrates that bearing RUL
+compared with raw vibration signals, thus                  prediction with frequency features will have
+the manual designed features are useful                    better performance. The reason is that the
+when used for RUL prediction. It is                        frequency features may reflect the fault
+concluded that transforming time domain                    characteristic frequency compared with
+signals into frequency domain will                         time-domain       features,     though    both
+contribute to improve the performance of                   frequency features and time-domain signals
+RUL prediction. As stated in [21], vibration               are seen as raw signals for RUL prediction.
+signals are indirect measurements that                     By comparing with the proposed method, it
+reflect the degradation process, so when the               is shown that results of proposed DcRNN
+raw signals are used for RUL prediction, the               have higher predicted accuracy, which
+predicted performance is not as good as that               demonstrates the benefits of the proposed
+of frequency features.                                     method that incorporates the physical
+                                                           knowledge. In the training process, the
+                                                           learned features are forced to be consistent
+6. Comparison and Discussion                               with degradation process, which will help to
+To demonstrate the advantages of the                       improve the predicted results.
+proposed model that embeds physical
+knowledge, the conventional LSTM is
+adopted for RUL prediction with vibration                  7. Conclusion
+signals. The conventional LSTM includes                    In this work, a novel physics-informed deep
+two layers, and there are 128 hidden units in              neural network, named DcRNN, is proposed
+each layer. The input features, training and               for RUL prediction of bearings. The
+testing datasets are set the same with those               traditional deep learning models for RUL
+of the proposed LSTM architecture. The                     prediction are purely data-driven methods,
+RUL predicted results are shown in Table 4.                and ignore the physical information. The
+proposed DcRNN is able to learn features                 diagnosis of planetary gear vibration
+that are consistent with scientific principles,          signals[J]. Journal of Sound and Vibration,
+which      moves       toward      constructing          2020.
+                                                   [4]. Chao MA, Kulkarni C, Goebel K, Fink O.
+interpretable and generalizable deep neural              Fusing physics-based and deep learning
+models. To be more specific, the latent                  models       for    prognostics.    Reliability
+variables are consistent with degradation                Engineering & System Safety. 2022, 217,
+state, which is monotonic, temperature                   107961.
+signals are used to represent the degradation      [5]. Li N, Lei Y, Lin J, Ding SX. An improved
+process. Then the latent features and                    exponential model for predicting remaining
+vibration signals are used for RUL                       useful life of rolling element bearings. IEEE
+                                                         Transactions on Industrial Electronics. 2015,
+prediction. Bearing run-to-failure tests are             62, 7762-73.
+carried out to obtain the historical data of the   [6]. Singleton RK, Strangas EG, Aviyente S.
+whole life. RUL prediction is performed                  Extended Kalman filtering for remaining-
+with vibration and temperature signals using             useful-life estimation of bearings. IEEE
+the proposed method. The results show that               Transactions on Industrial Electronics. 2014,
+deep neural models which embed physical                  62, 1781-90.
+knowledge have the potential for accurate          [7]. Wang, W., Y. Lei, T. Yan, N. Li, and A. Nandi.
+                                                         “Residual Convolution Long Short-Term
+RUL prediction. As the future work, the                  Memory Network for Machines Remaining
+models that include more physical                        Useful Life Prediction and Uncertainty
+knowledge should be constructed, such as                 Quantification”. Journal of Dynamics,
+the degradation knowledge of dynamic                     Monitoring and Diagnostics, vol. 1, no. 1,
+models. With more physical knowledge                     Dec. 2021, pp. 2-8,              doi:10.37965/
+incorporating, the deep neural networks will             jdmd.v2i2.43.
+be more generalizable and have better              [8]. Sun C, Ma M, Zhao Z, Tian S, Yan R, Chen X.
+                                                         Deep transfer learning based on sparse
+performance in prediction.                               autoencoder for remaining useful life
+                                                         prediction of tool in manufacturing. IEEE
+                                                         Transactions on Industrial Informatics. 2018,
+8. Acknowledgements                                      15, 2416-25.
+This work was support in part by China             [9]. Ma M, Mao Z. Deep-convolution-based
+Postdoctoral Science Foundation (No.                     LSTM network for remaining useful life
+2021M702634),        National      Science               prediction. IEEE Transactions on Industrial
+                                                         Informatics. 2020, 17, 1658-67.
+Foundation of China (No.52175116).
+                                                   [10]. LeCun Y, Bengio Y, Hinton G. Deep learning.
+                                                         nature. 2015, 521, 436-44.
+                                                   [11]. Wang X, Wang T, Ming A, Zhang W, Li A,
+References                                               Chu F. Generalized Cross-severity Fault
+                                                         Diagnosis of Bearings via a Hierarchical
+[1]. Zio, Enrico. Prognostics and Health                 Cross-category Inference Framework. IEEE
+     Management (PHM): Where are we and                  Transactions on Industrial Informatics. 2021.
+     where do we (need to) go in theory and        [12]. C. Sun, M. Ma, Z. Zhao, and X. Chen,
+     practice. Reliability Engineering & System          “Sparse Deep Stacking Network for Fault
+     Safety. 2022, 218: 108119.                          Diagnosis of Motor,” IEEE Transactions on
+[2]. Lei Y, Li N, Guo L, Li N, Yan T, Lin J.             Industrial Informatics, vol. 14, no. 7, pp.
+     Machinery health prognostics: A systematic          3261-3270, 2018.
+     review from data acquisition to RUL           [13]. Ma M, Chen X, Zhang X, Ding B, Wang S.
+     prediction. Mechanical systems and signal           Locally linear embedding on Grassmann
+     processing. 2018, 104, 799-834.                     manifold for performance degradation
+[3]. Sun R B, Yang Z, Gryllias K, et al.                 assessment of bearings. IEEE Transactions on
+     Cyclostationary modeling for local fault            Reliability. 2017, 66, 467-77.
+[14]. Shao H, Jiang H, Zhang H, Liang T. Electric
+      locomotive bearing fault diagnosis using a
+      novel convolutional deep belief network.
+      IEEE Transactions on Industrial Electronics.
+      2017, 65, 2727-36.
+[15]. Karpatne A, Atluri G, Faghmous JH,
+      Steinbach M, Banerjee A, Ganguly A, et al.
+      Theory-guided data science: A new paradigm
+      for scientific discovery from data. IEEE
+      Transactions on knowledge and data
+      engineering. 2017, 29, 2318-31.
+[16]. Karpatne A, Watkins W, Read J, Kumar V.
+      Physics-guided neural networks (pgnn): An
+      application in lake temperature modeling.
+      arXiv preprint arXiv:171011431. 2017, 2.
+[17]. Raissi M, Perdikaris P, Karniadakis GE.
+      Physics-informed neural networks: A deep
+      learning framework for solving forward and
+      inverse problems involving nonlinear partial
+      differential     equations.     Journal     of
+      Computational Physics. 2019, 378, 686-707.
+[18]. Daw A, Thomas RQ, Carey CC, Read JS,
+      Appling AP, Karpatne A. Physics-guided
+      architecture (pga) of neural networks for
+      quantifying uncertainty in lake temperature
+      modeling. Proceedings of the 2020 siam
+      international conference on data mining.
+      SIAM2020. p. 532-40.
+[19]. Karniadakis GE, Kevrekidis IG, Lu L,
+      Perdikaris P, Wang S, Yang L. Physics-
+      informed machine learning. Nature Reviews
+      Physics. 2021, 3, 422-40.
+[20]. Graves A, Mohamed A-r, Hinton G. Speech
+      recognition with deep recurrent neural
+      networks.         2013 IEEE international
+      conference on acoustics, speech and signal
+      processing. Ieee2013. p. 6645-9.
+[21]. Ma M, Sun C, Chen X. Discriminative deep
+      belief networks with ant colony optimization
+      for health status assessment of machine. IEEE
+      Transactions      on    Instrumentation    and
+      Measurement. 2017, 66, 3115-25.
+
