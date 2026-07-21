@@ -14,10 +14,12 @@ import warnings
 
 import numpy as np
 import pandas as pd
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit
 from statsmodels.tsa.arima.model import ARIMA
 
 
@@ -203,8 +205,14 @@ class EnbPIConfig:
     block_length: int | None = None
     batch_size: int = 1
     beta_grid_size: int = 101
+    # Recenter low/high point forecasts by the mean raw OOB residual.  Interval
+    # quantiles use centered residuals, so the same bias is not counted twice.
+    oob_bias_correction: bool = True
     # None selects (p, 0, q) once by BIC on the causal KF low training series.
-    # The selected order is then re-fitted at every forecast time point.
+    # A base ARIMA is fitted to the chronological KF-low series.  Moving blocks
+    # of its one-step residuals are resampled to construct B pseudo-low series;
+    # each bootstrap fit supplies parameters, while test forecasts condition
+    # those parameters on the genuinely available chronological KF-low history.
     arima_order: tuple[int, int, int] | None = None
     arima_max_p: int = 4
     arima_max_q: int = 4
@@ -212,7 +220,18 @@ class EnbPIConfig:
     ann_max_iter: int = 500
     ann_alpha: float = 1e-4
     ann_learning_rate_init: float = 1e-3
-    ann_early_stopping: bool = True
+    # Both X and the direct high-frequency target H_t are standardized inside
+    # each bootstrap ANN fit. Predictions are inverse-transformed before OOB
+    # residuals are computed, so EnbPI remains on the original component scale.
+    ann_target_standardization: bool = True
+    # sklearn's built-in early_stopping randomly selects its validation set.
+    # Keep it disabled and select max_iter with chronological rolling-origin
+    # validation using only the rows sampled by the current bootstrap model.
+    ann_early_stopping: bool = False
+    ann_rolling_validation: bool = True
+    ann_rolling_splits: int = 3
+    ann_validation_fraction: float = 0.10
+    ann_iteration_candidates: tuple[int, ...] | None = None
     ann_tol: float = 1e-3
     random_state: int = 1234
     process_variance: float = 0.5
@@ -238,6 +257,9 @@ class EnbPIResult:
     beta: Array
     low_beta: Array
     high_beta: Array
+    bias_correction: Array
+    low_bias_correction: Array
+    high_bias_correction: Array
     initial_oob_residuals: Array
     initial_low_oob_residuals: Array
     initial_high_oob_residuals: Array
@@ -249,6 +271,8 @@ class EnbPIResult:
     true_high: Array | None
     data_seed: int | None
     selected_arima_order: tuple[int, int, int]
+    selected_ann_max_iters: Array
+    ann_rolling_validation_mse: Array
     ann_nonconverged_models: int
     elapsed_seconds: float
 
@@ -284,8 +308,19 @@ class EnbPIResult:
             "high_enbpi_mean_width": float(np.mean(self.high_upper - self.high_lower)),
             "high_mean_beta": float(np.mean(self.high_beta)),
             "mean_beta": float(np.mean(self.beta)),
+            "mean_bias_correction": float(np.mean(self.bias_correction)),
+            "low_mean_bias_correction": float(
+                np.mean(self.low_bias_correction)
+            ),
+            "high_mean_bias_correction": float(
+                np.mean(self.high_bias_correction)
+            ),
             "mean_oob_models_per_train_point": float(np.mean(self.oob_counts)),
             "min_oob_models_per_train_point": float(np.min(self.oob_counts)),
+            "ann_selected_max_iter_mean": float(np.mean(self.selected_ann_max_iters)),
+            "ann_rolling_validation_mse": float(
+                np.nanmean(self.ann_rolling_validation_mse)
+            ),
             "ann_nonconverged_models": float(self.ann_nonconverged_models),
             "elapsed_seconds": float(self.elapsed_seconds),
         }
@@ -333,6 +368,9 @@ class EnbPIResult:
                 "high_covered": (self.estimated_high[self.test_times] >= self.high_lower)
                 & (self.estimated_high[self.test_times] <= self.high_upper),
                 "high_beta": self.high_beta,
+                "bias_correction": self.bias_correction,
+                "low_bias_correction": self.low_bias_correction,
+                "high_bias_correction": self.high_bias_correction,
                 "covered": (self.truth >= self.lower) & (self.truth <= self.upper),
                 "width": self.upper - self.lower,
                 "beta": self.beta,
@@ -354,6 +392,9 @@ class EnbPIResult:
                     "coverage_percent": m["coverage_percent"],
                     "mean_width": m["mean_width"],
                     "mean_beta": m["mean_beta"],
+                    "mean_bias_correction": m["mean_bias_correction"],
+                    "ann_selected_max_iter_mean": m["ann_selected_max_iter_mean"],
+                    "ann_rolling_validation_mse": m["ann_rolling_validation_mse"],
                     "ann_nonconverged_models": int(m["ann_nonconverged_models"]),
                     "elapsed_seconds": m["elapsed_seconds"],
                 }
@@ -368,6 +409,7 @@ class EnbPIResult:
                 "coverage_percent": 100.0 * m["low_enbpi_coverage"],
                 "enbpi_mean_width": m["low_enbpi_mean_width"],
                 "mean_beta": m["low_mean_beta"],
+                "mean_bias_correction": m["low_mean_bias_correction"],
             },
             {
                 "component": "high_ann_mse",
@@ -377,6 +419,7 @@ class EnbPIResult:
                 "coverage_percent": 100.0 * m["high_enbpi_coverage"],
                 "enbpi_mean_width": m["high_enbpi_mean_width"],
                 "mean_beta": m["high_mean_beta"],
+                "mean_bias_correction": m["high_mean_bias_correction"],
             },
         ]
         if "low_true_mse" in m:
@@ -389,6 +432,7 @@ class EnbPIResult:
                     "coverage_percent": 100.0 * m["low_true_coverage"],
                     "enbpi_mean_width": m["low_enbpi_mean_width"],
                     "mean_beta": m["low_mean_beta"],
+                    "mean_bias_correction": m["low_mean_bias_correction"],
                 }
             )
         if "high_true_mse" in m:
@@ -401,6 +445,7 @@ class EnbPIResult:
                     "coverage_percent": 100.0 * m["high_true_coverage"],
                     "enbpi_mean_width": m["high_enbpi_mean_width"],
                     "mean_beta": m["high_mean_beta"],
+                    "mean_bias_correction": m["high_mean_bias_correction"],
                 }
             )
         return final, pd.DataFrame(rows)
@@ -412,47 +457,22 @@ class BootstrapHybridModel:
 
     arima_result: object
     arima_order: tuple[int, int, int]
-    bootstrap_low_history: Array
-    original_train_length: int
     ann_model: object
 
     def predict_low(self, low_history: Array) -> float:
-        """Re-fit this bootstrap ARIMA at each step on its expanding history."""
+        """Apply bootstrap parameters to the actual causal history through t-1."""
         available_low = np.asarray(low_history, dtype=float)
-        if len(available_low) < self.original_train_length:
-            raise ValueError("low_history is shorter than the original training series")
-        # Preserve bootstrap-model diversity in the training portion, then append
-        # only low-frequency states revealed (or recursively formed) after train.
-        rolling_history = np.r_[
-            self.bootstrap_low_history,
-            available_low[self.original_train_length :],
-        ]
-        candidate_orders = [self.arima_order]
-        for fallback in ((1, 0, 0), (0, 0, 1), (0, 0, 0)):
-            if fallback not in candidate_orders:
-                candidate_orders.append(fallback)
-        last_error: Exception | None = None
-        for order in candidate_orders:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    fitted = ARIMA(
-                        rolling_history,
-                        order=order,
-                        enforce_stationarity=False,
-                        enforce_invertibility=False,
-                    ).fit()
-                return float(np.asarray(fitted.forecast(1))[0])
-            except Exception as exc:
-                last_error = exc
-        if last_error is not None:
-            raise last_error
-        raise RuntimeError("No ARIMA order was available for rolling prediction")
+        if available_low.ndim != 1 or len(available_low) == 0:
+            raise ValueError("low_history must be a non-empty one-dimensional series")
+        applied = self.arima_result.apply(available_low, refit=False)
+        return float(np.asarray(applied.forecast(1))[0])
 
     def predict_high(self, ann_features: Array) -> float:
         return float(self.ann_model.predict(np.atleast_2d(ann_features))[0])
 
-    def predict_components(self, low_history: Array, ann_features: Array) -> tuple[float, float]:
+    def predict_components(
+        self, low_history: Array, ann_features: Array
+    ) -> tuple[float, float]:
         return self.predict_low(low_history), self.predict_high(ann_features)
 
 
@@ -470,11 +490,15 @@ class KalmanEnbPI:
         self.oob_counts: Array | None = None
         self.ann_nonconverged_models = 0
         self.selected_arima_order: tuple[int, int, int] | None = None
+        self.selected_ann_max_iters: list[int] = []
+        self.ann_rolling_validation_scores: list[float] = []
+        self.base_arima_result: object | None = None
+        self.arima_bootstrap_residuals: Array | None = None
 
-    def _new_ann(self, seed: int):
+    def _new_ann(self, seed: int, *, max_iter: int):
         c = self.config
         # sklearn's MLPRegressor optimizes squared error, i.e. an MSE point loss.
-        return make_pipeline(
+        regressor = make_pipeline(
             StandardScaler(),
             MLPRegressor(
                 hidden_layer_sizes=c.ann_hidden_layers,
@@ -482,14 +506,95 @@ class KalmanEnbPI:
                 solver="adam",
                 alpha=c.ann_alpha,
                 learning_rate_init=c.ann_learning_rate_init,
-                max_iter=c.ann_max_iter,
-                early_stopping=c.ann_early_stopping,
-                validation_fraction=0.1,
+                max_iter=max_iter,
+                # Validation is handled explicitly by chronological rolling
+                # folds below; this must stay False to avoid a random split.
+                early_stopping=False,
                 n_iter_no_change=30,
                 tol=c.ann_tol,
                 random_state=seed,
             ),
         )
+        if not c.ann_target_standardization:
+            return regressor
+        return TransformedTargetRegressor(
+            regressor=regressor,
+            transformer=StandardScaler(),
+        )
+
+    def _ann_iteration_grid(self) -> tuple[int, ...]:
+        c = self.config
+        if c.ann_iteration_candidates is None:
+            candidates = (max(25, c.ann_max_iter // 4), max(50, c.ann_max_iter // 2), c.ann_max_iter)
+        else:
+            candidates = c.ann_iteration_candidates
+        cleaned = tuple(sorted({int(value) for value in candidates if int(value) > 0}))
+        if not cleaned:
+            raise ValueError("ann_iteration_candidates must contain a positive integer")
+        return cleaned
+
+    def _select_ann_max_iter(
+        self,
+        x_train: Array,
+        high_targets: Array,
+        bootstrap_rows: Array,
+        *,
+        seed: int,
+    ) -> tuple[int, float]:
+        """Select ANN iterations with rolling validation inside one bootstrap sample.
+
+        Every validation target is itself a member of this model's bootstrap
+        sample. Therefore the hyperparameter search does not let an OOB target
+        influence a model that is later used to predict that same target.
+        """
+        candidates = self._ann_iteration_grid()
+        c = self.config
+        if not c.ann_rolling_validation or len(candidates) == 1:
+            return candidates[-1], float("nan")
+        if c.ann_rolling_splits < 2:
+            raise ValueError("ann_rolling_splits must be at least 2")
+        if not 0.0 < c.ann_validation_fraction < 0.5:
+            raise ValueError("ann_validation_fraction must lie in (0, 0.5)")
+
+        # Work on the original time indices, not on the random concatenation
+        # order of the resampled blocks. Duplicate training rows retain their
+        # bootstrap multiplicity, while validation is scored once per time.
+        sampled_times = np.unique(np.asarray(bootstrap_rows, dtype=int))
+        test_size = max(1, int(round(len(sampled_times) * c.ann_validation_fraction)))
+        max_splits = (len(sampled_times) - 2) // test_size
+        n_splits = min(c.ann_rolling_splits, max_splits)
+        if n_splits < 2:
+            return candidates[-1], float("nan")
+
+        splitter = TimeSeriesSplit(n_splits=n_splits, test_size=test_size)
+        candidate_scores: list[float] = []
+        for candidate in candidates:
+            fold_scores: list[float] = []
+            for fold, (train_pos, val_pos) in enumerate(splitter.split(sampled_times)):
+                train_times = sampled_times[train_pos]
+                val_times = sampled_times[val_pos]
+                fold_rows = bootstrap_rows[np.isin(bootstrap_rows, train_times)]
+                if len(fold_rows) < 2 or len(val_times) == 0:
+                    continue
+                fold_seed = int(
+                    np.random.SeedSequence([seed, fold]).generate_state(1)[0]
+                )
+                model = self._new_ann(fold_seed, max_iter=candidate)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", ConvergenceWarning)
+                    model.fit(x_train[fold_rows], high_targets[fold_rows])
+                prediction = np.asarray(model.predict(x_train[val_times]), dtype=float)
+                fold_scores.append(
+                    float(np.mean((high_targets[val_times] - prediction) ** 2))
+                )
+            candidate_scores.append(
+                float(np.mean(fold_scores)) if fold_scores else float("inf")
+            )
+
+        best = int(np.argmin(candidate_scores))
+        if not np.isfinite(candidate_scores[best]):
+            return candidates[-1], float("nan")
+        return candidates[best], candidate_scores[best]
 
     @staticmethod
     def _arima_training_predictions(arima_result, low_series: Array, start: int) -> Array:
@@ -525,38 +630,76 @@ class KalmanEnbPI:
             max_p=self.config.arima_max_p,
             max_q=self.config.arima_max_q,
         )
+        # Preserve the genuine chronological low-frequency path in every
+        # bootstrap replicate.  Only the base ARIMA one-step residuals are
+        # resampled; directly concatenating low-level blocks would create fake
+        # jumps and can shift the fitted ARIMA level (especially for prices).
+        self.base_arima_result = ARIMA(
+            low_train,
+            order=self.selected_arima_order,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        ).fit()
+        base_fitted = np.asarray(self.base_arima_result.fittedvalues, dtype=float)
+        if len(base_fitted) != len(low_train):
+            raise RuntimeError("Unexpected base ARIMA fitted-value length")
+        bootstrap_residuals = low_train[target_times] - base_fitted[target_times]
+        if not np.all(np.isfinite(bootstrap_residuals)):
+            raise RuntimeError("Base ARIMA produced non-finite bootstrap residuals")
+        # Centering makes the bootstrap describe innovation uncertainty without
+        # repeatedly adding the base fit's finite-sample mean error.
+        bootstrap_residuals = bootstrap_residuals - np.mean(bootstrap_residuals)
+        self.arima_bootstrap_residuals = bootstrap_residuals.copy()
+
         self.models, self.bootstrap_rows = [], []
+        self.selected_ann_max_iters = []
+        self.ann_rolling_validation_scores = []
         included = np.zeros((self.config.n_bootstrap, n), dtype=bool)
         base_low_training_predictions = np.empty((self.config.n_bootstrap, n), dtype=float)
         base_high_training_predictions = np.empty((self.config.n_bootstrap, n), dtype=float)
 
         for b in range(self.config.n_bootstrap):
             rows = moving_block_bootstrap_indices(n, block_length, rng)
-            # Consecutive blocks preserve local order; concatenating sampled blocks
-            # gives the bootstrap low-frequency series used to fit this ARIMA.
-            boot_low = low_train[target_times[rows]]
+            # The same block indices define ANN training membership/OOB status
+            # and select locally consecutive ARIMA residuals.  Resampled
+            # residuals are placed back on the original time grid, so the ARIMA
+            # sees the real trend/order rather than concatenated level blocks.
+            pseudo_low = base_fitted.copy()
+            first_target = int(target_times[0])
+            pseudo_low[:first_target] = low_train[:first_target]
+            pseudo_low[target_times] = (
+                base_fitted[target_times] + bootstrap_residuals[rows]
+            )
             arima_result = ARIMA(
-                boot_low,
+                pseudo_low,
                 order=self.selected_arima_order,
                 enforce_stationarity=False,
                 enforce_invertibility=False,
             ).fit()
-            ann_model = self._new_ann(int(rng.integers(0, 2**31 - 1)))
+            ann_seed = int(rng.integers(0, 2**31 - 1))
+            high_targets = high_train[target_times]
+            selected_max_iter, rolling_mse = self._select_ann_max_iter(
+                x_train,
+                high_targets,
+                rows,
+                seed=ann_seed,
+            )
+            ann_model = self._new_ann(ann_seed, max_iter=selected_max_iter)
             with warnings.catch_warnings(record=True) as caught:
                 warnings.simplefilter("always", ConvergenceWarning)
-                ann_model.fit(x_train[rows], high_train[target_times[rows]])
+                ann_model.fit(x_train[rows], high_targets[rows])
             self.ann_nonconverged_models += sum(
                 issubclass(item.category, ConvergenceWarning) for item in caught
             )
             hybrid = BootstrapHybridModel(
                 arima_result=arima_result,
                 arima_order=self.selected_arima_order,
-                bootstrap_low_history=np.asarray(boot_low, dtype=float),
-                original_train_length=len(low_train),
                 ann_model=ann_model,
             )
             self.models.append(hybrid)
             self.bootstrap_rows.append(rows)
+            self.selected_ann_max_iters.append(selected_max_iter)
+            self.ann_rolling_validation_scores.append(rolling_mse)
             included[b, np.unique(rows)] = True
 
             low_prediction = self._arima_training_predictions(
@@ -674,18 +817,41 @@ def run_kf_enbpi(
     betas = np.empty(len(y_test))
     low_betas = np.empty(len(y_test))
     high_betas = np.empty(len(y_test))
+    bias_corrections = np.empty(len(y_test))
+    low_bias_corrections = np.empty(len(y_test))
+    high_bias_corrections = np.empty(len(y_test))
+    raw_point = np.empty(len(y_test))
+    raw_low_point = np.empty(len(y_test))
+    raw_high_point = np.empty(len(y_test))
     history = list(y[:train_size])
     for batch_start in range(0, len(y_test), config.batch_size):
         batch_stop = min(batch_start + config.batch_size, len(y_test))
         pseudo_history = list(history)
+
+        # Estimate systematic under/over-prediction from raw OOB residuals.
+        # Component corrections are added before recombination so the corrected
+        # final point remains exactly low + high.
+        if config.oob_bias_correction:
+            low_bias = float(np.mean(low_residual_pool))
+            high_bias = float(np.mean(high_residual_pool))
+        else:
+            low_bias = 0.0
+            high_bias = 0.0
+        final_bias = low_bias + high_bias
+
+        # Once the mean residual has moved the point forecast, remove that mean
+        # before computing EnbPI offsets to avoid applying the same bias twice.
+        centered_residual_pool = residual_pool - final_bias
+        centered_low_residual_pool = low_residual_pool - low_bias
+        centered_high_residual_pool = high_residual_pool - high_bias
         lo_offset, hi_offset, beta = shortest_residual_offsets(
-            residual_pool, config.alpha, config.beta_grid_size
+            centered_residual_pool, config.alpha, config.beta_grid_size
         )
         low_lo_offset, low_hi_offset, low_beta = shortest_residual_offsets(
-            low_residual_pool, config.alpha, config.beta_grid_size
+            centered_low_residual_pool, config.alpha, config.beta_grid_size
         )
         high_lo_offset, high_hi_offset, high_beta = shortest_residual_offsets(
-            high_residual_pool, config.alpha, config.beta_grid_size
+            centered_high_residual_pool, config.alpha, config.beta_grid_size
         )
 
         # Within a no-feedback batch, lagged responses are unknown. Use recursive
@@ -705,31 +871,44 @@ def run_kf_enbpi(
             center, low_center, high_center, low_base, high_base = enbpi.predict_nested_loo(
                 pseudo_low, x_t
             )
-            point[j] = center
-            lower[j] = center + lo_offset
-            upper[j] = center + hi_offset
-            low_point[j] = low_center
-            low_lower[j] = low_center + low_lo_offset
-            low_upper[j] = low_center + low_hi_offset
-            high_point[j] = high_center
-            high_lower[j] = high_center + high_lo_offset
-            high_upper[j] = high_center + high_hi_offset
+            raw_point[j] = center
+            raw_low_point[j] = low_center
+            raw_high_point[j] = high_center
+            low_point[j] = low_center + low_bias
+            high_point[j] = high_center + high_bias
+            point[j] = low_point[j] + high_point[j]
+            lower[j] = point[j] + lo_offset
+            upper[j] = point[j] + hi_offset
+            low_lower[j] = low_point[j] + low_lo_offset
+            low_upper[j] = low_point[j] + low_hi_offset
+            high_lower[j] = high_point[j] + high_lo_offset
+            high_upper[j] = high_point[j] + high_hi_offset
             betas[j] = beta
             low_betas[j] = low_beta
             high_betas[j] = high_beta
-            pseudo_history.append(center)
+            bias_corrections[j] = final_bias
+            low_bias_corrections[j] = low_bias
+            high_bias_corrections[j] = high_bias
+            pseudo_history.append(point[j])
 
         # Responses are revealed together only after all forecasts in the batch.
         batch_truth = y_test[batch_start:batch_stop]
-        batch_points = point[batch_start:batch_stop]
-        # The online residual uses exactly the same nested LOO center used when
-        # the interval was issued; no all-model shortcut is used here.
-        pending_residuals = list(batch_truth - batch_points)
+        # Keep raw model residuals in the pool.  Storing already-corrected errors
+        # would make the estimated correction cancel itself on later steps.
+        pending_residuals = list(
+            batch_truth - raw_point[batch_start:batch_stop]
+        )
         k = len(pending_residuals)
         residual_pool = np.r_[residual_pool[k:], pending_residuals][-pool_size:]
         component_times = test_times[batch_start:batch_stop]
-        pending_low_residuals = estimated_low[component_times] - low_point[batch_start:batch_stop]
-        pending_high_residuals = estimated_high[component_times] - high_point[batch_start:batch_stop]
+        pending_low_residuals = (
+            estimated_low[component_times]
+            - raw_low_point[batch_start:batch_stop]
+        )
+        pending_high_residuals = (
+            estimated_high[component_times]
+            - raw_high_point[batch_start:batch_stop]
+        )
         low_residual_pool = np.r_[low_residual_pool[k:], pending_low_residuals][-pool_size:]
         high_residual_pool = np.r_[high_residual_pool[k:], pending_high_residuals][-pool_size:]
         history.extend(batch_truth.tolist())
@@ -752,6 +931,9 @@ def run_kf_enbpi(
         beta=betas,
         low_beta=low_betas,
         high_beta=high_betas,
+        bias_correction=bias_corrections,
+        low_bias_correction=low_bias_corrections,
+        high_bias_correction=high_bias_corrections,
         initial_oob_residuals=np.array(enbpi.residual_pool, copy=True),
         initial_low_oob_residuals=np.array(enbpi.low_residual_pool, copy=True),
         initial_high_oob_residuals=np.array(enbpi.high_residual_pool, copy=True),
@@ -763,6 +945,10 @@ def run_kf_enbpi(
         true_high=None if true_high is None else np.asarray(true_high),
         data_seed=data_seed,
         selected_arima_order=enbpi.selected_arima_order,
+        selected_ann_max_iters=np.asarray(enbpi.selected_ann_max_iters, dtype=int),
+        ann_rolling_validation_mse=np.asarray(
+            enbpi.ann_rolling_validation_scores, dtype=float
+        ),
         ann_nonconverged_models=enbpi.ann_nonconverged_models,
         elapsed_seconds=perf_counter() - started,
     )
@@ -823,7 +1009,10 @@ def monte_carlo_summary(
         "low_enbpi_coverage", "low_enbpi_mean_width", "low_mean_beta",
         "high_enbpi_coverage", "high_enbpi_mean_width", "high_mean_beta",
         "low_true_coverage", "high_true_coverage",
-        "mean_beta", "ann_nonconverged_models", "elapsed_seconds",
+        "mean_beta", "mean_bias_correction",
+        "low_mean_bias_correction", "high_mean_bias_correction",
+        "ann_selected_max_iter_mean", "ann_rolling_validation_mse",
+        "ann_nonconverged_models", "elapsed_seconds",
     ]
     summary = runs[fields].agg(["mean", "std"]).T.reset_index(names="metric")
     return runs, summary, results
@@ -1011,7 +1200,11 @@ def plot_result(result: EnbPIResult):
     axes[2].legend(loc="best")
 
     axes[3].plot(frame["time"], frame["high_reference"], label="KF high reference")
-    axes[3].plot(frame["time"], frame["high_point"], label="Nested-LOO MSE-ANN high forecast")
+    axes[3].plot(
+        frame["time"],
+        frame["high_point"],
+        label="Nested-LOO MSE-ANN high forecast",
+    )
     axes[3].fill_between(
         frame["time"], frame["high_lower"], frame["high_upper"], alpha=0.22,
         color="tab:orange",
