@@ -1,0 +1,12 @@
+project:
+  name: kf-forecasting
+  random_seed: 42
+
+paths:
+  raw_data: data/raw
+  interim_data: data/interim
+  processed_data: data/processed
+  trained_models: models
+  metrics: results/metrics
+  predictions: results/predictions
+  figures: results/figures
