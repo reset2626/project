@@ -14,7 +14,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from kf_enbpi import EnbPIResult, select_representative_run
+from kf_forecasting.models.kf_enbpi import EnbPIConfig, run_kf_enbpi, select_representative_run
 
 
 Array = np.ndarray
