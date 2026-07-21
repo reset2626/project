@@ -4,7 +4,17 @@
 
 ## 專案結構
 
-- `notebooks/experiments/`：研究與實驗 notebooks
+- `notebooks/experiments/0050/`：台灣 0050 資料實驗
+  - `dispred/`：分布與預測區間方法
+  - `EnbPI/`：EnbPI 方法
+- `notebooks/experiments/m1m3/`：m1m3 模擬資料實驗
+  - `dispred/`：分布與預測區間方法
+  - `EnbPI/`：EnbPI 與 Oracle 比較
+- `notebooks/experiments/m1m9/`：m1m9 模擬資料實驗
+  - `dispred/`：分布與預測區間方法
+  - `EnbPI/`：EnbPI 與 Oracle 比較
+- `notebooks/exploration/`：論文重現與探索性 notebook
+- `notebooks/archive/`：不再使用但暫時保留的舊實驗
 - `src/kf_forecasting/models/`：可重複使用的模型程式
 - `docs/papers/`：論文與相關文字資料
 - `docs/notes/`：研究筆記
