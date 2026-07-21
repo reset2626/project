@@ -7,6 +7,15 @@ name = "kf-forecasting"
 version = "0.1.0"
 description = "Kalman filter and conformal prediction experiments"
 requires-python = ">=3.11"
-
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "scikit-learn",
+    "statsmodels",
+    "scipy",
+    "yfinance",
+    "torch",
+]
 [tool.setuptools.packages.find]
 where = ["src"]
