@@ -205,9 +205,12 @@ class EnbPIConfig:
     block_length: int | None = None
     batch_size: int = 1
     beta_grid_size: int = 101
-    # Recenter low/high point forecasts by the mean raw OOB residual.  Interval
-    # quantiles use centered residuals, so the same bias is not counted twice.
+    # Recenter point forecasts by mean raw OOB residuals. In "component" mode,
+    # low/high are corrected separately before recombination. In "combined"
+    # mode, low/high remain raw and only their combined final forecast receives
+    # the correction estimated from the final residual pool.
     oob_bias_correction: bool = True
+    oob_bias_correction_mode: Literal["component", "combined"] = "combined"
     # None selects (p, 0, q) once by BIC on the causal KF low training series.
     # A base ARIMA is fitted to the chronological KF-low series.  Moving blocks
     # of its one-step residuals are resampled to construct B pseudo-low series;
@@ -290,6 +293,14 @@ class EnbPIResult:
         high_covered = (test_high_reference >= self.high_lower) & (
             test_high_reference <= self.high_upper
         )
+        finite_rolling_scores = self.ann_rolling_validation_mse[
+            np.isfinite(self.ann_rolling_validation_mse)
+        ]
+        mean_rolling_validation_mse = (
+            float(np.mean(finite_rolling_scores))
+            if len(finite_rolling_scores)
+            else float("nan")
+        )
         result = {
             "mse": float(np.mean(error**2)),
             "rmse": float(np.sqrt(np.mean(error**2))),
@@ -318,9 +329,7 @@ class EnbPIResult:
             "mean_oob_models_per_train_point": float(np.mean(self.oob_counts)),
             "min_oob_models_per_train_point": float(np.min(self.oob_counts)),
             "ann_selected_max_iter_mean": float(np.mean(self.selected_ann_max_iters)),
-            "ann_rolling_validation_mse": float(
-                np.nanmean(self.ann_rolling_validation_mse)
-            ),
+            "ann_rolling_validation_mse": mean_rolling_validation_mse,
             "ann_nonconverged_models": float(self.ann_nonconverged_models),
             "elapsed_seconds": float(self.elapsed_seconds),
         }
@@ -393,6 +402,7 @@ class EnbPIResult:
                     "mean_width": m["mean_width"],
                     "mean_beta": m["mean_beta"],
                     "mean_bias_correction": m["mean_bias_correction"],
+                    "bias_correction_mode": self.config.oob_bias_correction_mode,
                     "ann_selected_max_iter_mean": m["ann_selected_max_iter_mean"],
                     "ann_rolling_validation_mse": m["ann_rolling_validation_mse"],
                     "ann_nonconverged_models": int(m["ann_nonconverged_models"]),
@@ -829,15 +839,23 @@ def run_kf_enbpi(
         pseudo_history = list(history)
 
         # Estimate systematic under/over-prediction from raw OOB residuals.
-        # Component corrections are added before recombination so the corrected
-        # final point remains exactly low + high.
-        if config.oob_bias_correction:
+        # "combined" applies one correction only after low/high recombination;
+        # component plots and component intervals then remain uncorrected.
+        correction_mode = config.oob_bias_correction_mode
+        if correction_mode not in ("component", "combined"):
+            raise ValueError(
+                "oob_bias_correction_mode must be 'component' or 'combined'"
+            )
+        if not config.oob_bias_correction:
+            low_bias = high_bias = final_bias = 0.0
+        elif correction_mode == "component":
             low_bias = float(np.mean(low_residual_pool))
             high_bias = float(np.mean(high_residual_pool))
+            final_bias = low_bias + high_bias
         else:
             low_bias = 0.0
             high_bias = 0.0
-        final_bias = low_bias + high_bias
+            final_bias = float(np.mean(residual_pool))
 
         # Once the mean residual has moved the point forecast, remove that mean
         # before computing EnbPI offsets to avoid applying the same bias twice.
@@ -876,7 +894,9 @@ def run_kf_enbpi(
             raw_high_point[j] = high_center
             low_point[j] = low_center + low_bias
             high_point[j] = high_center + high_bias
-            point[j] = low_point[j] + high_point[j]
+            # In combined mode the final correction is intentionally not
+            # allocated back to either component.
+            point[j] = center + final_bias
             lower[j] = point[j] + lo_offset
             upper[j] = point[j] + hi_offset
             low_lower[j] = low_point[j] + low_lo_offset
