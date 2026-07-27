@@ -1048,6 +1048,282 @@ def select_representative_run(
     return int(runs.iloc[position]["run"]), results[position]
 
 
+def monte_carlo_oob_residual_diagnostics(
+    runs: pd.DataFrame, results: list[EnbPIResult]
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Quantify OOB residual slopes and covariance cancellation for every run.
+
+    The final OOB residual satisfies e_Y = e_L + e_H exactly.  A nearly flat
+    final residual-versus-fitted trend can nevertheless arise from cancellation
+    among the four fitted/residual covariance terms.  This routine reports that
+    cancellation separately from cancellation (or amplification) between the
+    component errors themselves.
+    """
+    if len(runs) != len(results) or len(results) == 0:
+        raise ValueError("runs and results must be non-empty and aligned")
+
+    def slope_and_correlation(x: Array, residual: Array) -> tuple[float, float]:
+        x = np.asarray(x, dtype=float)
+        residual = np.asarray(residual, dtype=float)
+        finite = np.isfinite(x) & np.isfinite(residual)
+        x = x[finite]
+        residual = residual[finite]
+        if len(x) < 2 or np.std(x) == 0.0 or np.std(residual) == 0.0:
+            return float("nan"), float("nan")
+        slope = float(np.polyfit(x, residual, deg=1)[0])
+        correlation = float(np.corrcoef(x, residual)[0, 1])
+        return slope, correlation
+
+    diagnostic_rows: list[dict[str, float | int | bool]] = []
+    for position, result in enumerate(results):
+        final_residual = np.asarray(result.initial_oob_residuals, dtype=float)
+        low_residual = np.asarray(result.initial_low_oob_residuals, dtype=float)
+        high_residual = np.asarray(result.initial_high_oob_residuals, dtype=float)
+        n_oob = len(final_residual)
+        if n_oob == 0 or len(low_residual) != n_oob or len(high_residual) != n_oob:
+            raise ValueError("Final, low, and high OOB residual pools must be non-empty and aligned")
+
+        target_start = result.train_size - n_oob
+        if target_start < 0:
+            raise ValueError("OOB residual pool is longer than the training series")
+        target_times = np.arange(target_start, result.train_size, dtype=int)
+        final_target = np.asarray(result.observed, dtype=float)[target_times]
+        low_target = np.asarray(result.estimated_low, dtype=float)[target_times]
+        high_target = np.asarray(result.estimated_high, dtype=float)[target_times]
+        final_fitted = final_target - final_residual
+        low_fitted = low_target - low_residual
+        high_fitted = high_target - high_residual
+
+        final_slope, final_corr = slope_and_correlation(final_fitted, final_residual)
+        low_branch_slope, low_branch_corr = slope_and_correlation(
+            low_fitted, low_residual
+        )
+        high_branch_slope, high_branch_corr = slope_and_correlation(
+            high_fitted, high_residual
+        )
+        final_by_low_slope, final_by_low_corr = slope_and_correlation(
+            low_fitted, final_residual
+        )
+        final_by_high_slope, final_by_high_corr = slope_and_correlation(
+            high_fitted, final_residual
+        )
+
+        cov_low_fit_low_error = float(
+            np.cov(low_fitted, low_residual, ddof=0)[0, 1]
+        )
+        cov_low_fit_high_error = float(
+            np.cov(low_fitted, high_residual, ddof=0)[0, 1]
+        )
+        cov_high_fit_low_error = float(
+            np.cov(high_fitted, low_residual, ddof=0)[0, 1]
+        )
+        cov_high_fit_high_error = float(
+            np.cov(high_fitted, high_residual, ddof=0)[0, 1]
+        )
+        covariance_terms = np.asarray(
+            [
+                cov_low_fit_low_error,
+                cov_low_fit_high_error,
+                cov_high_fit_low_error,
+                cov_high_fit_high_error,
+            ],
+            dtype=float,
+        )
+        fitted_residual_cov_total = float(np.sum(covariance_terms))
+        covariance_abs_sum = float(np.sum(np.abs(covariance_terms)))
+        covariance_cancellation_fraction = (
+            1.0 - abs(fitted_residual_cov_total) / covariance_abs_sum
+            if covariance_abs_sum > 0.0
+            else float("nan")
+        )
+
+        low_error_mse = float(np.mean(low_residual**2))
+        high_error_mse = float(np.mean(high_residual**2))
+        error_cross_term = float(2.0 * np.mean(low_residual * high_residual))
+        combined_oob_mse = float(np.mean(final_residual**2))
+        component_error_corr = (
+            float(np.corrcoef(low_residual, high_residual)[0, 1])
+            if np.std(low_residual) > 0.0 and np.std(high_residual) > 0.0
+            else float("nan")
+        )
+
+        # The simulated high-frequency innovation scale is a function of the
+        # previous low state. Signed errors can therefore have zero conditional
+        # mean while their absolute/squared magnitude changes with |L_{t-1}|.
+        abs_kf_low_lag = np.abs(
+            np.asarray(result.estimated_low, dtype=float)[target_times - 1]
+        )
+        _, high_abs_error_by_abs_kf_low_corr = slope_and_correlation(
+            abs_kf_low_lag, np.abs(high_residual)
+        )
+        _, high_squared_error_by_abs_kf_low_corr = slope_and_correlation(
+            abs_kf_low_lag, high_residual**2
+        )
+        low_state_q25, low_state_q75 = np.quantile(abs_kf_low_lag, [0.25, 0.75])
+        calm_state = abs_kf_low_lag <= low_state_q25
+        extreme_state = abs_kf_low_lag >= low_state_q75
+        calm_high_mse = float(np.mean(high_residual[calm_state] ** 2))
+        extreme_high_mse = float(np.mean(high_residual[extreme_state] ** 2))
+        high_oob_mse_extreme_to_calm_low_state_ratio = (
+            extreme_high_mse / calm_high_mse
+            if calm_high_mse > 0.0
+            else float("nan")
+        )
+
+        true_innovation_squared_by_abs_true_low_corr = float("nan")
+        true_innovation_mse_extreme_to_calm_low_state_ratio = float("nan")
+        if result.true_low is not None and result.true_high is not None:
+            true_low = np.asarray(result.true_low, dtype=float)
+            true_high = np.asarray(result.true_high, dtype=float)
+            h1 = true_high[target_times - 1]
+            if result.model_name.lower() == "m1m9":
+                gate = 1.0 / (
+                    1.0 + np.exp(np.clip(-10.0 * h1, -700.0, 700.0))
+                )
+                high_conditional_mean = 0.8 * h1 - 0.8 * h1 * gate
+            elif result.model_name.lower() == "m1m3":
+                h2 = true_high[target_times - 2]
+                high_conditional_mean = (
+                    (0.5 + 0.9 * np.exp(-(h1**2))) * h1
+                    + (-0.8 - 1.8 * np.exp(-(h1**2))) * h2
+                )
+            else:
+                high_conditional_mean = None
+
+            if high_conditional_mean is not None:
+                true_high_innovation = (
+                    true_high[target_times] - high_conditional_mean
+                )
+                abs_true_low_lag = np.abs(true_low[target_times - 1])
+                (
+                    _,
+                    true_innovation_squared_by_abs_true_low_corr,
+                ) = slope_and_correlation(
+                    abs_true_low_lag, true_high_innovation**2
+                )
+                true_q25, true_q75 = np.quantile(abs_true_low_lag, [0.25, 0.75])
+                true_calm = abs_true_low_lag <= true_q25
+                true_extreme = abs_true_low_lag >= true_q75
+                true_calm_mse = float(
+                    np.mean(true_high_innovation[true_calm] ** 2)
+                )
+                true_extreme_mse = float(
+                    np.mean(true_high_innovation[true_extreme] ** 2)
+                )
+                true_innovation_mse_extreme_to_calm_low_state_ratio = (
+                    true_extreme_mse / true_calm_mse
+                    if true_calm_mse > 0.0
+                    else float("nan")
+                )
+
+        diagnostic_rows.append(
+            {
+                "run": int(runs.iloc[position]["run"]),
+                "data_seed": int(runs.iloc[position]["data_seed"]),
+                "final_mean_residual": float(np.mean(final_residual)),
+                "low_mean_residual": float(np.mean(low_residual)),
+                "high_mean_residual": float(np.mean(high_residual)),
+                "final_fitted_residual_slope": final_slope,
+                "final_fitted_residual_corr": final_corr,
+                "low_branch_residual_slope": low_branch_slope,
+                "low_branch_residual_corr": low_branch_corr,
+                "high_branch_residual_slope": high_branch_slope,
+                "high_branch_residual_corr": high_branch_corr,
+                "final_residual_by_low_slope": final_by_low_slope,
+                "final_residual_by_low_corr": final_by_low_corr,
+                "final_residual_by_high_slope": final_by_high_slope,
+                "final_residual_by_high_corr": final_by_high_corr,
+                "opposite_branch_slope_signs": bool(
+                    np.isfinite(low_branch_slope)
+                    and np.isfinite(high_branch_slope)
+                    and low_branch_slope * high_branch_slope < 0.0
+                ),
+                "opposite_final_component_slope_signs": bool(
+                    np.isfinite(final_by_low_slope)
+                    and np.isfinite(final_by_high_slope)
+                    and final_by_low_slope * final_by_high_slope < 0.0
+                ),
+                "component_error_corr": component_error_corr,
+                "low_error_mse": low_error_mse,
+                "high_error_mse": high_error_mse,
+                "component_error_cross_term": error_cross_term,
+                "component_error_cross_term_share": (
+                    error_cross_term / combined_oob_mse
+                    if combined_oob_mse > 0.0
+                    else float("nan")
+                ),
+                "combined_oob_mse": combined_oob_mse,
+                "high_abs_error_by_abs_kf_low_corr": (
+                    high_abs_error_by_abs_kf_low_corr
+                ),
+                "high_squared_error_by_abs_kf_low_corr": (
+                    high_squared_error_by_abs_kf_low_corr
+                ),
+                "high_oob_mse_extreme_to_calm_low_state_ratio": (
+                    high_oob_mse_extreme_to_calm_low_state_ratio
+                ),
+                "true_innovation_squared_by_abs_true_low_corr": (
+                    true_innovation_squared_by_abs_true_low_corr
+                ),
+                "true_innovation_mse_extreme_to_calm_low_state_ratio": (
+                    true_innovation_mse_extreme_to_calm_low_state_ratio
+                ),
+                "cov_low_fit_low_error": cov_low_fit_low_error,
+                "cov_low_fit_high_error": cov_low_fit_high_error,
+                "cov_high_fit_low_error": cov_high_fit_low_error,
+                "cov_high_fit_high_error": cov_high_fit_high_error,
+                "fitted_residual_cov_total": fitted_residual_cov_total,
+                "covariance_cancellation_fraction": covariance_cancellation_fraction,
+                "residual_identity_max_abs_error": float(
+                    np.max(np.abs(final_residual - low_residual - high_residual))
+                ),
+            }
+        )
+
+    diagnostics = pd.DataFrame(diagnostic_rows)
+    summary_fields = [
+        "final_fitted_residual_slope",
+        "low_branch_residual_slope",
+        "high_branch_residual_slope",
+        "final_residual_by_low_slope",
+        "final_residual_by_high_slope",
+        "component_error_corr",
+        "component_error_cross_term",
+        "component_error_cross_term_share",
+        "combined_oob_mse",
+        "high_abs_error_by_abs_kf_low_corr",
+        "high_squared_error_by_abs_kf_low_corr",
+        "high_oob_mse_extreme_to_calm_low_state_ratio",
+        "true_innovation_squared_by_abs_true_low_corr",
+        "true_innovation_mse_extreme_to_calm_low_state_ratio",
+        "fitted_residual_cov_total",
+        "covariance_cancellation_fraction",
+    ]
+    summary = (
+        diagnostics[summary_fields]
+        .agg(["mean", "std"])
+        .T.reset_index(names="metric")
+    )
+    sign_rates = pd.DataFrame(
+        [
+            {
+                "metric": "opposite_branch_slope_sign_rate",
+                "mean": float(diagnostics["opposite_branch_slope_signs"].mean()),
+                "std": float("nan"),
+            },
+            {
+                "metric": "opposite_final_component_slope_sign_rate",
+                "mean": float(
+                    diagnostics["opposite_final_component_slope_signs"].mean()
+                ),
+                "std": float("nan"),
+            },
+        ]
+    )
+    summary = pd.concat([summary, sign_rates], ignore_index=True)
+    return diagnostics, summary
+
+
 def plot_monte_carlo_forecast_diagnostics(
     runs: pd.DataFrame,
     results: list[EnbPIResult],
@@ -1185,6 +1461,242 @@ def plot_monte_carlo_summary(
     )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig, axes
+
+
+def plot_oob_residual_diagnostics(result: EnbPIResult):
+    """Plot initial training OOB residuals against their OOB fitted values.
+
+    The component panels use the KF-decomposed training targets because those
+    are the targets actually fitted by the low ARIMA and high ANN branches.
+    These are raw OOB residuals, before any online test feedback is appended.
+    """
+    import matplotlib.pyplot as plt
+
+    final_residual = np.asarray(result.initial_oob_residuals, dtype=float)
+    low_residual = np.asarray(result.initial_low_oob_residuals, dtype=float)
+    high_residual = np.asarray(result.initial_high_oob_residuals, dtype=float)
+    n_oob = len(final_residual)
+    if n_oob == 0:
+        raise ValueError("No initial OOB residuals are available")
+    if len(low_residual) != n_oob or len(high_residual) != n_oob:
+        raise ValueError("Final, low, and high OOB residual pools must have equal length")
+
+    # make_lagged_features creates one target for every training time after the
+    # initial lag window, so the OOB residual pools align with this trailing
+    # portion of the training series.
+    target_start = result.train_size - n_oob
+    if target_start < 0:
+        raise ValueError("OOB residual pool is longer than the training series")
+    target_times = np.arange(target_start, result.train_size, dtype=int)
+
+    final_target = np.asarray(result.observed, dtype=float)[target_times]
+    low_target = np.asarray(result.estimated_low, dtype=float)[target_times]
+    high_target = np.asarray(result.estimated_high, dtype=float)[target_times]
+    final_fitted = final_target - final_residual
+    low_fitted = low_target - low_residual
+    high_fitted = high_target - high_residual
+
+    panels = (
+        (
+            final_fitted,
+            final_residual,
+            r"Combined OOB fitted $\hat{Y}_{-i}$",
+            r"Combined residual $Y_i-\hat{Y}_{-i}$",
+            "Final hybrid",
+            "tab:green",
+        ),
+        (
+            low_fitted,
+            low_residual,
+            r"Linear/low OOB fitted $\hat{L}_{-i}$",
+            r"Low residual $L_i^{KF}-\hat{L}_{-i}$",
+            "Linear branch: ARIMA",
+            "tab:blue",
+        ),
+        (
+            high_fitted,
+            high_residual,
+            r"Nonlinear/high OOB fitted $\hat{H}_{-i}$",
+            r"High residual $H_i^{KF}-\hat{H}_{-i}$",
+            "Nonlinear branch: ANN",
+            "tab:orange",
+        ),
+    )
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+    for axis, (fitted, residual, xlabel, ylabel, title, color) in zip(axes, panels):
+        finite = np.isfinite(fitted) & np.isfinite(residual)
+        x = fitted[finite]
+        e = residual[finite]
+        if len(x) == 0:
+            raise ValueError(f"No finite values are available for {title}")
+
+        axis.scatter(x, e, s=24, alpha=0.58, color=color, edgecolors="none")
+        axis.axhline(0.0, color="black", linestyle="--", linewidth=1.1)
+
+        correlation = float("nan")
+        if len(x) >= 2 and np.std(x) > 0 and np.std(e) > 0:
+            correlation = float(np.corrcoef(x, e)[0, 1])
+            slope, intercept = np.polyfit(x, e, deg=1)
+            order = np.argsort(x)
+            axis.plot(
+                x[order],
+                intercept + slope * x[order],
+                color="tab:red",
+                linewidth=1.5,
+                label="Linear diagnostic trend",
+            )
+            axis.legend(loc="best")
+
+        correlation_text = (
+            f"{correlation:.3f}" if np.isfinite(correlation) else "undefined"
+        )
+        axis.text(
+            0.03,
+            0.97,
+            f"mean residual = {np.mean(e):.4f}\n"
+            f"corr(fitted, residual) = {correlation_text}",
+            transform=axis.transAxes,
+            va="top",
+            bbox={"facecolor": "white", "alpha": 0.78, "edgecolor": "0.75"},
+        )
+        axis.set_title(title)
+        axis.set_xlabel(xlabel)
+        axis.set_ylabel(ylabel)
+        axis.grid(alpha=0.25)
+
+    fig.suptitle(
+        f"Initial training OOB residual diagnostics: {result.model_name.upper()}",
+        fontsize=14,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    return fig, axes
+
+
+def plot_combined_oob_residual_by_component_fitted(result: EnbPIResult):
+    """Relate the final OOB residual to each pre-combination fitted component.
+
+    These plots diagnose whether the error of the final hybrid forecast changes
+    systematically with the predicted low or high component. They complement,
+    but do not replace, the component-specific residual plots because a pattern
+    here can be caused by either branch or by dependence between the branches.
+    """
+    import matplotlib.pyplot as plt
+
+    final_residual = np.asarray(result.initial_oob_residuals, dtype=float)
+    low_residual = np.asarray(result.initial_low_oob_residuals, dtype=float)
+    high_residual = np.asarray(result.initial_high_oob_residuals, dtype=float)
+    n_oob = len(final_residual)
+    if n_oob == 0:
+        raise ValueError("No initial OOB residuals are available")
+    if len(low_residual) != n_oob or len(high_residual) != n_oob:
+        raise ValueError("Final, low, and high OOB residual pools must have equal length")
+
+    target_start = result.train_size - n_oob
+    if target_start < 0:
+        raise ValueError("OOB residual pool is longer than the training series")
+    target_times = np.arange(target_start, result.train_size, dtype=int)
+    low_target = np.asarray(result.estimated_low, dtype=float)[target_times]
+    high_target = np.asarray(result.estimated_high, dtype=float)[target_times]
+    low_fitted = low_target - low_residual
+    high_fitted = high_target - high_residual
+
+    panels = (
+        (
+            low_fitted,
+            r"Linear/low OOB fitted $\hat{L}_{-i}$",
+            "Final residual conditioned on ARIMA fitted value",
+            "tab:blue",
+        ),
+        (
+            high_fitted,
+            r"Nonlinear/high OOB fitted $\hat{H}_{-i}$",
+            "Final residual conditioned on ANN fitted value",
+            "tab:orange",
+        ),
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    for axis, (fitted, xlabel, title, color) in zip(axes, panels):
+        finite = np.isfinite(fitted) & np.isfinite(final_residual)
+        x = fitted[finite]
+        e = final_residual[finite]
+        if len(x) == 0:
+            raise ValueError(f"No finite values are available for {title}")
+
+        axis.scatter(x, e, s=24, alpha=0.58, color=color, edgecolors="none")
+        axis.axhline(0.0, color="black", linestyle="--", linewidth=1.1)
+
+        correlation = float("nan")
+        if len(x) >= 2 and np.std(x) > 0 and np.std(e) > 0:
+            correlation = float(np.corrcoef(x, e)[0, 1])
+            slope, intercept = np.polyfit(x, e, deg=1)
+            order = np.argsort(x)
+            axis.plot(
+                x[order],
+                intercept + slope * x[order],
+                color="tab:red",
+                linewidth=1.5,
+                label="Linear diagnostic trend",
+            )
+            axis.legend(loc="best")
+
+        correlation_text = (
+            f"{correlation:.3f}" if np.isfinite(correlation) else "undefined"
+        )
+        axis.text(
+            0.03,
+            0.97,
+            f"mean final residual = {np.mean(e):.4f}\n"
+            f"corr(component fitted, final residual) = {correlation_text}",
+            transform=axis.transAxes,
+            va="top",
+            bbox={"facecolor": "white", "alpha": 0.78, "edgecolor": "0.75"},
+        )
+        axis.set_title(title)
+        axis.set_xlabel(xlabel)
+        axis.set_ylabel(r"Combined residual $Y_i-\hat{Y}_{-i}$")
+        axis.grid(alpha=0.25)
+
+    fig.suptitle(
+        "Combined training OOB residual versus pre-combination fitted components: "
+        f"{result.model_name.upper()}",
+        fontsize=14,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    return fig, axes
+
+
+def plot_representative_monte_carlo_oob_residuals(
+    runs: pd.DataFrame,
+    results: list[EnbPIResult],
+    *,
+    model_name: str,
+):
+    """Plot both OOB residual diagnostics for the median-RMSE MC run."""
+    run_number, representative = select_representative_run(runs, results)
+
+    component_fig, component_axes = plot_oob_residual_diagnostics(representative)
+    component_fig.suptitle(
+        f"Representative Monte Carlo run {run_number}: {model_name.upper()} "
+        "initial training OOB residual diagnostics\n"
+        "(final RMSE closest to Monte Carlo median)",
+        fontsize=14,
+    )
+    component_fig.tight_layout(rect=(0, 0, 1, 0.90))
+
+    combined_fig, combined_axes = (
+        plot_combined_oob_residual_by_component_fitted(representative)
+    )
+    combined_fig.suptitle(
+        f"Representative Monte Carlo run {run_number}: {model_name.upper()} "
+        "combined OOB residual by fitted component\n"
+        "(final RMSE closest to Monte Carlo median)",
+        fontsize=14,
+    )
+    combined_fig.tight_layout(rect=(0, 0, 1, 0.88))
+
+    return (component_fig, component_axes), (combined_fig, combined_axes)
 
 
 def plot_result(result: EnbPIResult):
