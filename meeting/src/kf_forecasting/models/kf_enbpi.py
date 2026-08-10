@@ -16,15 +16,26 @@ import numpy as np
 import pandas as pd
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.neural_network import MLPRegressor
-from sklearn.exceptions import ConvergenceWarning
+from sklearn.exceptions import ConvergenceWarning as SklearnConvergenceWarning
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
 from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tools.sm_exceptions import (
+    ConvergenceWarning as StatsmodelsConvergenceWarning,
+)
 
 
 Array = np.ndarray
-ModelName = Literal["m1m3", "m1m9"]
+M1M9_GARCH_LOW_OMEGA = 0.50
+M1M9_GARCH_LOW_ALPHA = 0.15
+M1M9_GARCH_LOW_BETA = 0.80
+ModelName = Literal[
+    "m1m3",
+    "m1m9",
+    "m1m9_constant_high_variance",
+    "m1m9_garch_low_constant_high_variance",
+]
 
 
 def simulate_m1_m3_additive_data(
@@ -90,6 +101,101 @@ def simulate_m1_m9_additive_data(
     return low, high, observed
 
 
+def simulate_m1_m9_constant_high_variance_data(
+    n_steps: int,
+    *,
+    rng: np.random.Generator,
+    noise_std: float = 0.15,
+    low_error_std: float = 1.0,
+    high_error_std: float = 1.0,
+) -> tuple[Array, Array, Array]:
+    """M1+M9 control DGP whose high innovation scale is independent of low.
+
+    This retains the M1 and M9 conditional-mean equations and observation
+    noise used by :func:`simulate_m1_m9_additive_data`.  The sole structural
+    change is ``sigma_H,t = high_error_std`` instead of
+    ``sigma_H,t = high_error_std * (1 + 0.5 * abs(L[t-1]))``.
+    """
+    return simulate_m1_m9_additive_data(
+        n_steps,
+        rng=rng,
+        noise_std=noise_std,
+        low_error_std=low_error_std,
+        high_error_base_std=high_error_std,
+        high_error_low_sensitivity=0.0,
+    )
+
+
+def simulate_m1_m9_garch_low_constant_high_variance_data(
+    n_steps: int,
+    *,
+    rng: np.random.Generator,
+    noise_std: float = 0.15,
+    high_error_std: float = 1.0,
+    low_garch_omega: float = M1M9_GARCH_LOW_OMEGA,
+    low_garch_alpha: float = M1M9_GARCH_LOW_ALPHA,
+    low_garch_beta: float = M1M9_GARCH_LOW_BETA,
+) -> tuple[Array, Array, Array]:
+    """M1+M9 control DGP with volatile GARCH low innovations.
+
+    The low conditional mean remains Giordano M1,
+
+    ``L_t = 0.6 L_{t-1} + u_t``,
+
+    but ``u_t = sqrt(h_t) z_t`` and its conditional variance follows a
+    GARCH(1, 1) recursion
+
+    ``h_t = omega + alpha u_{t-1}^2 + beta h_{t-1}``.
+
+    The defaults deliberately create conspicuous, persistent volatility
+    clusters: ``alpha + beta = 0.95`` and the unconditional innovation
+    variance is four.  The M9 high branch keeps its original conditional-mean
+    equation but has constant innovation standard deviation.  Consequently,
+    high volatility is structurally independent of the low state and of the
+    low GARCH variance.
+    """
+    if n_steps < 1:
+        raise ValueError("n_steps must be positive")
+    if low_garch_omega <= 0.0:
+        raise ValueError("low_garch_omega must be positive")
+    if low_garch_alpha < 0.0 or low_garch_beta < 0.0:
+        raise ValueError("GARCH alpha and beta must be non-negative")
+    if low_garch_alpha + low_garch_beta >= 1.0:
+        raise ValueError("GARCH stationarity requires alpha + beta < 1")
+    if high_error_std <= 0.0 or noise_std < 0.0:
+        raise ValueError("Innovation scales must be valid")
+
+    low = np.zeros(n_steps, dtype=float)
+    high = np.zeros(n_steps, dtype=float)
+    low_innovation = np.zeros(n_steps, dtype=float)
+    low_variance = np.zeros(n_steps, dtype=float)
+
+    unconditional_variance = low_garch_omega / (
+        1.0 - low_garch_alpha - low_garch_beta
+    )
+    low_variance[0] = unconditional_variance
+    low_innovation[0] = np.sqrt(low_variance[0]) * rng.normal()
+    low[0] = low_innovation[0]
+    high[0] = rng.normal(0.0, 0.5)
+
+    for t in range(1, n_steps):
+        low_variance[t] = (
+            low_garch_omega
+            + low_garch_alpha * low_innovation[t - 1] ** 2
+            + low_garch_beta * low_variance[t - 1]
+        )
+        low_innovation[t] = np.sqrt(low_variance[t]) * rng.normal()
+        low[t] = 0.6 * low[t - 1] + low_innovation[t]
+
+        h1 = high[t - 1]
+        gate = 1.0 / (1.0 + np.exp(np.clip(-10.0 * h1, -700.0, 700.0)))
+        high_mean = 0.8 * h1 - 0.8 * h1 * gate
+        high[t] = high_mean + rng.normal(0.0, high_error_std)
+
+    observed = low + high + rng.normal(0.0, noise_std, n_steps)
+    return low, high, observed
+
+
 def simulate_additive_data(
     model: ModelName, n_steps: int, *, rng: np.random.Generator
 ) -> tuple[Array, Array, Array]:
@@ -97,6 +203,12 @@ def simulate_additive_data(
         return simulate_m1_m3_additive_data(n_steps, rng=rng)
     if model == "m1m9":
         return simulate_m1_m9_additive_data(n_steps, rng=rng)
+    if model == "m1m9_constant_high_variance":
+        return simulate_m1_m9_constant_high_variance_data(n_steps, rng=rng)
+    if model == "m1m9_garch_low_constant_high_variance":
+        return simulate_m1_m9_garch_low_constant_high_variance_data(
+            n_steps, rng=rng
+        )
     raise ValueError(f"Unknown model: {model}")
 
 
@@ -152,8 +264,83 @@ def moving_block_bootstrap_indices(
     return np.concatenate([(start + offsets) % n for start in starts])[:n]
 
 
+def _arima_fit_converged(fitted: object) -> bool:
+    """Return whether an ARIMA fit has finite parameters and reports convergence."""
+    params = np.asarray(getattr(fitted, "params", []), dtype=float)
+    if params.size == 0 or not np.all(np.isfinite(params)):
+        return False
+    return bool(getattr(fitted, "mle_retvals", {}).get("converged", True))
+
+
+def fit_arima_robust(
+    series: Array,
+    order: tuple[int, int, int],
+    *,
+    max_iter: int = 500,
+) -> tuple[object, int, bool]:
+    """Fit ARIMA with a deterministic optimizer retry.
+
+    L-BFGS is attempted first.  If statsmodels does not report convergence,
+    Powell is initialized from the first fit.  Warnings are captured here so
+    callers can report actual failures rather than printing thousands of
+    repeated warnings during a bootstrap Monte Carlo experiment.
+    """
+    values = np.asarray(series, dtype=float)
+    if max_iter < 1:
+        raise ValueError("max_iter must be positive")
+
+    candidates: list[object] = []
+    last_error: Exception | None = None
+    start_params = None
+    attempts = ("lbfgs", "powell")
+    attempted = 0
+    for optimizer in attempts:
+        attempted += 1
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", StatsmodelsConvergenceWarning)
+                fitted = ARIMA(
+                    values,
+                    order=order,
+                    enforce_stationarity=False,
+                    enforce_invertibility=False,
+                ).fit(
+                    start_params=start_params,
+                    method_kwargs={
+                        "method": optimizer,
+                        "maxiter": max_iter,
+                        "disp": 0,
+                    },
+                )
+            candidates.append(fitted)
+            if _arima_fit_converged(fitted):
+                return fitted, attempted - 1, True
+            params = np.asarray(getattr(fitted, "params", []), dtype=float)
+            start_params = params if params.size and np.all(np.isfinite(params)) else None
+        except Exception as exc:
+            last_error = exc
+            start_params = None
+
+    if candidates:
+        finite = [
+            fitted
+            for fitted in candidates
+            if np.isfinite(float(getattr(fitted, "llf", float("-inf"))))
+        ]
+        best = max(
+            finite or candidates,
+            key=lambda fitted: float(getattr(fitted, "llf", float("-inf"))),
+        )
+        return best, attempted - 1, False
+    raise RuntimeError(f"ARIMA{order} failed for both optimizers") from last_error
+
+
 def find_arima_order(
-    series: Array, max_p: int = 4, max_q: int = 4
+    series: Array,
+    max_p: int = 4,
+    max_q: int = 4,
+    *,
+    max_iter: int = 500,
 ) -> tuple[int, int, int]:
     """Select a non-seasonal ARMA order by BIC, as in KF_0050dispred."""
     values = np.asarray(series, dtype=float)
@@ -164,14 +351,11 @@ def find_arima_order(
             if p == 0 and q == 0:
                 continue
             try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    fitted = ARIMA(
-                        values,
-                        order=(p, 0, q),
-                        enforce_stationarity=False,
-                        enforce_invertibility=False,
-                    ).fit()
+                fitted, _, converged = fit_arima_robust(
+                    values, (p, 0, q), max_iter=max_iter
+                )
+                if not converged:
+                    continue
                 if np.isfinite(fitted.bic) and fitted.bic < best_bic:
                     best_bic = float(fitted.bic)
                     best_order = (p, 0, q)
@@ -219,6 +403,7 @@ class EnbPIConfig:
     arima_order: tuple[int, int, int] | None = None
     arima_max_p: int = 4
     arima_max_q: int = 4
+    arima_max_iter: int = 500
     ann_hidden_layers: tuple[int, ...] = (32, 16)
     ann_max_iter: int = 500
     ann_alpha: float = 1e-4
@@ -278,6 +463,8 @@ class EnbPIResult:
     ann_rolling_validation_mse: Array
     ann_nonconverged_models: int
     elapsed_seconds: float
+    arima_retry_count: int = 0
+    arima_nonconverged_fits: int = 0
 
     def metrics(self) -> dict[str, float]:
         error = self.truth - self.point
@@ -331,6 +518,8 @@ class EnbPIResult:
             "ann_selected_max_iter_mean": float(np.mean(self.selected_ann_max_iters)),
             "ann_rolling_validation_mse": mean_rolling_validation_mse,
             "ann_nonconverged_models": float(self.ann_nonconverged_models),
+            "arima_retry_count": float(self.arima_retry_count),
+            "arima_nonconverged_fits": float(self.arima_nonconverged_fits),
             "elapsed_seconds": float(self.elapsed_seconds),
         }
         if self.true_low is not None:
@@ -406,6 +595,10 @@ class EnbPIResult:
                     "ann_selected_max_iter_mean": m["ann_selected_max_iter_mean"],
                     "ann_rolling_validation_mse": m["ann_rolling_validation_mse"],
                     "ann_nonconverged_models": int(m["ann_nonconverged_models"]),
+                    "arima_retry_count": int(m["arima_retry_count"]),
+                    "arima_nonconverged_fits": int(
+                        m["arima_nonconverged_fits"]
+                    ),
                     "elapsed_seconds": m["elapsed_seconds"],
                 }
             ]
@@ -499,11 +692,25 @@ class KalmanEnbPI:
         self.high_residual_pool: Array | None = None
         self.oob_counts: Array | None = None
         self.ann_nonconverged_models = 0
+        self.arima_retry_count = 0
+        self.arima_nonconverged_fits = 0
         self.selected_arima_order: tuple[int, int, int] | None = None
         self.selected_ann_max_iters: list[int] = []
         self.ann_rolling_validation_scores: list[float] = []
         self.base_arima_result: object | None = None
         self.arima_bootstrap_residuals: Array | None = None
+
+    def _fit_arima(self, series: Array) -> object:
+        if self.selected_arima_order is None:
+            raise RuntimeError("ARIMA order must be selected before fitting")
+        fitted, retries, converged = fit_arima_robust(
+            series,
+            self.selected_arima_order,
+            max_iter=self.config.arima_max_iter,
+        )
+        self.arima_retry_count += retries
+        self.arima_nonconverged_fits += int(not converged)
+        return fitted
 
     def _new_ann(self, seed: int, *, max_iter: int):
         c = self.config
@@ -591,7 +798,7 @@ class KalmanEnbPI:
                 )
                 model = self._new_ann(fold_seed, max_iter=candidate)
                 with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", ConvergenceWarning)
+                    warnings.simplefilter("ignore", SklearnConvergenceWarning)
                     model.fit(x_train[fold_rows], high_targets[fold_rows])
                 prediction = np.asarray(model.predict(x_train[val_times]), dtype=float)
                 fold_scores.append(
@@ -639,17 +846,15 @@ class KalmanEnbPI:
             low_train,
             max_p=self.config.arima_max_p,
             max_q=self.config.arima_max_q,
+            max_iter=self.config.arima_max_iter,
         )
         # Preserve the genuine chronological low-frequency path in every
         # bootstrap replicate.  Only the base ARIMA one-step residuals are
         # resampled; directly concatenating low-level blocks would create fake
         # jumps and can shift the fitted ARIMA level (especially for prices).
-        self.base_arima_result = ARIMA(
-            low_train,
-            order=self.selected_arima_order,
-            enforce_stationarity=False,
-            enforce_invertibility=False,
-        ).fit()
+        self.arima_retry_count = 0
+        self.arima_nonconverged_fits = 0
+        self.base_arima_result = self._fit_arima(low_train)
         base_fitted = np.asarray(self.base_arima_result.fittedvalues, dtype=float)
         if len(base_fitted) != len(low_train):
             raise RuntimeError("Unexpected base ARIMA fitted-value length")
@@ -680,12 +885,7 @@ class KalmanEnbPI:
             pseudo_low[target_times] = (
                 base_fitted[target_times] + bootstrap_residuals[rows]
             )
-            arima_result = ARIMA(
-                pseudo_low,
-                order=self.selected_arima_order,
-                enforce_stationarity=False,
-                enforce_invertibility=False,
-            ).fit()
+            arima_result = self._fit_arima(pseudo_low)
             ann_seed = int(rng.integers(0, 2**31 - 1))
             high_targets = high_train[target_times]
             selected_max_iter, rolling_mse = self._select_ann_max_iter(
@@ -696,10 +896,11 @@ class KalmanEnbPI:
             )
             ann_model = self._new_ann(ann_seed, max_iter=selected_max_iter)
             with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always", ConvergenceWarning)
+                warnings.simplefilter("always", SklearnConvergenceWarning)
                 ann_model.fit(x_train[rows], high_targets[rows])
             self.ann_nonconverged_models += sum(
-                issubclass(item.category, ConvergenceWarning) for item in caught
+                issubclass(item.category, SklearnConvergenceWarning)
+                for item in caught
             )
             hybrid = BootstrapHybridModel(
                 arima_result=arima_result,
@@ -971,6 +1172,8 @@ def run_kf_enbpi(
         ),
         ann_nonconverged_models=enbpi.ann_nonconverged_models,
         elapsed_seconds=perf_counter() - started,
+        arima_retry_count=enbpi.arima_retry_count,
+        arima_nonconverged_fits=enbpi.arima_nonconverged_fits,
     )
 
 
@@ -1147,9 +1350,9 @@ def monte_carlo_oob_residual_diagnostics(
             else float("nan")
         )
 
-        # The simulated high-frequency innovation scale is a function of the
-        # previous low state. Signed errors can therefore have zero conditional
-        # mean while their absolute/squared magnitude changes with |L_{t-1}|.
+        # Diagnose whether high-frequency error magnitude changes with the
+        # previous low state. The coupled M1M9 DGP should exhibit this relation;
+        # the constant-high-variance control should not.
         abs_kf_low_lag = np.abs(
             np.asarray(result.estimated_low, dtype=float)[target_times - 1]
         )
@@ -1176,7 +1379,11 @@ def monte_carlo_oob_residual_diagnostics(
             true_low = np.asarray(result.true_low, dtype=float)
             true_high = np.asarray(result.true_high, dtype=float)
             h1 = true_high[target_times - 1]
-            if result.model_name.lower() == "m1m9":
+            if result.model_name.lower() in (
+                "m1m9",
+                "m1m9_constant_high_variance",
+                "m1m9_garch_low_constant_high_variance",
+            ):
                 gate = 1.0 / (
                     1.0 + np.exp(np.clip(-10.0 * h1, -700.0, 700.0))
                 )
