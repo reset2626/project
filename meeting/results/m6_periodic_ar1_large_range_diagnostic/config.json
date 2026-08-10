@@ -1,0 +1,16 @@
+{
+  "train_size": 650,
+  "horizon": 200,
+  "seeds": [
+    2020,
+    2021,
+    2022
+  ],
+  "phi": 0.8,
+  "innovation_sd": 1.0,
+  "amplitude": 175.0,
+  "periodic_offset": 175.0,
+  "period": 132,
+  "alpha": 0.05,
+  "output_dir": "results/m6_periodic_ar1_large_range_diagnostic"
+}

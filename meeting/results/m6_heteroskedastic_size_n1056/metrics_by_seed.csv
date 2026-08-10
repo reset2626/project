@@ -1,0 +1,2 @@
+seed,condition,mse,rmse,mae,coverage,coverage_percent,mean_width,median_width,mean_interval_score,lower_miss_rate,upper_miss_rate,test_range,relative_mean_width,relative_median_width,elapsed_seconds,selected_residual_window
+2020,AR1_plus_sine_heteroskedastic,97.78337525644899,9.888547681861528,6.701183504475697,0.9507575757575758,95.07575757575758,46.8970812615288,48.34816736703942,59.225924183928704,0.022727272727272728,0.026515151515151516,376.2982025303522,0.12462743894649903,0.12848365217248056,253.0607946,300

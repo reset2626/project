@@ -1,0 +1,4 @@
+,rmse,rmse,mae,mae,coverage_percent,coverage_percent,mean_width,mean_width,median_width,median_width,mean_interval_score,mean_interval_score,test_range,test_range,relative_mean_width,relative_mean_width,relative_median_width,relative_median_width,elapsed_seconds,elapsed_seconds
+,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,std,mean,sum
+condition,,,,,,,,,,,,,,,,,,,,
+AR1_plus_sine_heteroskedastic,10.902344334482978,,7.56745650314083,,96.5909090909091,,50.210379346294594,,50.1217112291703,,63.358795364471874,,409.7033169049032,,0.12255302135605847,,0.12233660105027688,,247.3428697999998,247.3428697999998

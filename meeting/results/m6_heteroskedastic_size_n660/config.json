@@ -1,0 +1,20 @@
+{
+  "train_size": 660,
+  "horizon": 264,
+  "seeds": [
+    2020
+  ],
+  "phi": 0.8,
+  "innovation_sd": 1.0,
+  "amplitude": 175.0,
+  "periodic_offset": 175.0,
+  "heteroskedastic_min_sd": 1.0,
+  "heteroskedastic_max_sd": 15.0,
+  "conditions": [
+    "AR1_plus_sine_heteroskedastic"
+  ],
+  "series_offset": 396,
+  "period": 132,
+  "alpha": 0.05,
+  "output_dir": "results/m6_heteroskedastic_size_n660"
+}

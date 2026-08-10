@@ -1,0 +1,6 @@
+seed,condition,window,window_value,mean_interval_score,coverage,mean_width,n_validation_residuals,validation_start_position,selected
+2020,AR1_plus_sine_heteroskedastic,200,200.0,59.320904819793554,0.9625,54.66483234299649,80,118,True
+2020,AR1_plus_sine_heteroskedastic,300,300.0,59.320904819793554,0.9625,54.66483234299649,80,118,False
+2020,AR1_plus_sine_heteroskedastic,400,400.0,59.320904819793554,0.9625,54.66483234299649,80,118,False
+2020,AR1_plus_sine_heteroskedastic,all,,59.320904819793554,0.9625,54.66483234299649,80,118,False
+2020,AR1_plus_sine_heteroskedastic,100,100.0,62.399660933927656,0.975,58.829595915173265,80,118,False
