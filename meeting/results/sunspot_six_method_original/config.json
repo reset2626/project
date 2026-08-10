@@ -1,0 +1,31 @@
+{
+  "data_file": "data\\raw\\SN_m_tot_V2.0.csv",
+  "frequency": "monthly",
+  "scale": "monthly total sunspot number",
+  "source_range": [
+    "1900-01-01",
+    "2023-01-01"
+  ],
+  "split": "chronological 80/20",
+  "train_range": [
+    "1900-01-01",
+    "1998-05-01"
+  ],
+  "test_range": [
+    "1998-06-01",
+    "2023-01-01"
+  ],
+  "n_total": 1477,
+  "n_train": 1181,
+  "n_test": 296,
+  "model_seed": 2026,
+  "methods": [
+    "M1_DistPred_ANN",
+    "M2_DistPred_Minusformer",
+    "M3_Quantile_ANN",
+    "M4_Quantile_Minusformer",
+    "M5_SortBootstrap_ANN",
+    "M6_OOT_Adaptive_EnbPI"
+  ],
+  "settings": "Original M1-M5 thesis settings and original M6 OOT settings"
+}
