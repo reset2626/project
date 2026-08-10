@@ -1,0 +1,120 @@
+{
+  "experiment": {
+    "train_size": 650,
+    "horizon": 200,
+    "data_seeds": [
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025,
+      2026,
+      2027,
+      2028,
+      2029,
+      2030,
+      2031,
+      2032,
+      2033,
+      2034,
+      2035,
+      2036,
+      2037,
+      2038,
+      2039
+    ],
+    "alpha": 0.05,
+    "output_dir": "results/m1m9_garch_six_method_controlled"
+  },
+  "shared": {
+    "lag_window": 30,
+    "ann_hidden_layers": [
+      128,
+      256,
+      128
+    ],
+    "ann_activation": "ReLU",
+    "learning_rate": 0.001,
+    "training_budget": 50,
+    "bootstrap_or_ensemble_count_M5_M6": 100,
+    "kalman_process_variance": 0.5,
+    "kalman_measurement_variance": 10.0,
+    "arima_max_p": 5,
+    "arima_max_q": 5,
+    "nominal_coverage": 0.95
+  },
+  "sister_overrides": {
+    "seq_len": 30,
+    "bootstrap_window": 30,
+    "hidden_dims": [
+      128,
+      256,
+      128
+    ],
+    "dropout_ann": 0.0,
+    "learning_rate": 0.001,
+    "train_epochs": 50,
+    "patience": 5,
+    "bootstrap_iters": 100,
+    "kalman_process_var": 0.5,
+    "kalman_measurement_var": 10.0,
+    "arima_max_p": 5,
+    "arima_max_q": 5
+  },
+  "oot_config": {
+    "base": {
+      "window_size": 30,
+      "alpha": 0.05,
+      "n_bootstrap": 100,
+      "block_length": 30,
+      "batch_size": 1,
+      "beta_grid_size": 101,
+      "oob_bias_correction": true,
+      "oob_bias_correction_mode": "combined",
+      "arima_order": null,
+      "arima_max_p": 5,
+      "arima_max_q": 5,
+      "arima_max_iter": 500,
+      "ann_hidden_layers": [
+        128,
+        256,
+        128
+      ],
+      "ann_max_iter": 50,
+      "ann_alpha": 0.0001,
+      "ann_learning_rate_init": 0.001,
+      "ann_target_standardization": false,
+      "ann_early_stopping": false,
+      "ann_rolling_validation": false,
+      "ann_rolling_splits": 3,
+      "ann_validation_fraction": 0.1,
+      "ann_iteration_candidates": [
+        50
+      ],
+      "ann_tol": 0.001,
+      "random_state": 1234,
+      "process_variance": 0.5,
+      "measurement_variance": 10.0
+    },
+    "initial_train_fraction": 0.5,
+    "n_crossfit_blocks": 4,
+    "residual_window_candidates": [
+      100,
+      200,
+      300,
+      400,
+      null
+    ],
+    "window_validation_fraction": 0.4,
+    "min_window_history": 40
+  },
+  "smoke_test": false,
+  "unavoidably_method_specific": {
+    "M1_M2": "CRPS DistPred with 100 output samples",
+    "M2_M4": "Minusformer backbone",
+    "M3_M4": "pinball loss at 0.025, 0.5, 0.975",
+    "M5": "100 index-sorted IID bootstrap ANN fits",
+    "M6": "100 moving-block hybrid fits plus rolling-origin OOT calibration"
+  }
+}

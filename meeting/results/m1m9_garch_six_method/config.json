@@ -1,0 +1,18 @@
+{
+  "train_size": 650,
+  "horizon": 200,
+  "data_seeds": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026,
+    2027,
+    2028,
+    2029
+  ],
+  "alpha": 0.05,
+  "output_dir": "results/m1m9_garch_six_method"
+}
