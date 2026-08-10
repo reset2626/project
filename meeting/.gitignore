@@ -5,6 +5,11 @@ __pycache__/
 # Installed package metadata
 *.egg-info/
 
+# Local benchmark caches and extracted reference workspaces
+$build/
+results/**/.yfinance_cache/
+tmp_hong_thesis_archive/
+
 # Jupyter temporary files
 .ipynb_checkpoints/
 
