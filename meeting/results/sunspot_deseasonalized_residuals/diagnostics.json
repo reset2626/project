@@ -1,0 +1,14 @@
+{
+  "data_range": [
+    "1900-01-01",
+    "2023-01-01"
+  ],
+  "n_months": 1477,
+  "decomposition": "robust STL on original scale",
+  "period_months": 132,
+  "rolling_sd_months": 36,
+  "corr_cycle_level_abs_remainder_pearson": 0.33553744930356877,
+  "corr_cycle_level_abs_remainder_spearman": 0.37705222445228403,
+  "high_to_low_remainder_sd_ratio": 2.3475606574951353,
+  "interpretation_scope": "descriptive full-series diagnostic; not causal OOT validation"
+}

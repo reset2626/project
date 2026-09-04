@@ -1,0 +1,39 @@
+\begin{center}
+    \large
+    \begin{singlespace}    
+        \textbf{\chineseTitle{}} \\[0.5cm]
+    \end{singlespace}
+
+    \begin{singlespace}    
+    學生：蔣承燁\studentCnName  \hspace{2.5cm}  指導教授：高竹嵐\advisorCnName \hspace{0.1cm} 博士 \\
+
+    \ifdefined\advisorCnNameB % 如果有共同指導教授
+        \hspace{9.6cm}  \advisorCnNameB ~ 博士 \\
+    \fi
+    \end{singlespace}
+
+    \vspace{0.5cm}
+
+    \begin{singlespace}
+        國立陽明交通大學\\
+        \NameofDepartmentInstituteCN\\[0.2cm]
+    \end{singlespace}
+
+    \textbf{摘\hspace{1cm}要} \\[0.5cm]
+
+\end{center}
+
+\normalsize 
+
+時間序列預測除了提供點預測，亦應以預測區間表達不確定性。然而，未依時間順序產生的校準殘差可能無法反映真正的樣本外誤差；誤差尺度也可能隨資料狀態改變，使共用相同殘差分布的區間過寬或涵蓋不足。
+
+為處理上述問題，本研究提出Out-of-Time Adaptive EnbPI（OOT-AEnbPI）。OOT-AEnbPI以Kalman filter分解高低頻成分，再分別以ARIMA及ANN ensemble建立並合併點預測。區間估計將訓練資料依序劃分為initial prefix與future blocks，每次只以較早資料訓練並預測較晚的block，形成out-of-time residual pool。接著，僅以訓練期逐期回測選擇residual window，再由近期殘差建立可逐期更新的最短非對稱區間。
+
+此外，本研究在OOT-AEnbPI中整合Local-scale調整，形成OOT-AEnbPI-LS，根據預測水準、變化方向及短長期波動估計局部誤差尺度；另以OOT-AEnbPI-IFOMC作為替代區間版本，利用前期殘差狀態與逐期更新的轉移機率建立區間。兩個版本皆保留OOT-AEnbPI的核心OOT residual設計。
+
+實驗將OOT-AEnbPI與\cite{hung2026thesis}及\cite{lin2024thesis}所提出的方法進行比較，資料包含GARCH模擬序列、0050價格、太陽黑子月資料及風速資料。在相同OOT-AEnbPI點預測下，OOT-AEnbPI-LS於四組資料的三種區間比較中皆取得最低interval score，並能增加必要寬度或縮短過度保守的區間；OOT-AEnbPI在0050與太陽黑子資料上呈現較具實用性的表現。OOT-AEnbPI-IFOMC在GARCH與風速的部分指標上小幅改善原始區間，但未全面優於OOT-AEnbPI-LS。整體而言，OOT-AEnbPI兼顧時間順序、近期誤差與逐期更新，Local-scale調整則進一步納入局部狀態差異。
+
+\vspace{1cm}
+
+% 中文摘要及關鍵詞 5-7 個 
+\textbf{關鍵字：}時間序列、預測區間、樣本外殘差、EnbPI、局部尺度、異質變異

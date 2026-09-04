@@ -1,0 +1,42 @@
+\chapter*{五、結論與未來展望}
+
+\section*{5.1 研究結論}
+
+本研究提出Out-of-Time Adaptive EnbPI（OOT-AEnbPI），以依時間順序建立的OOT residual pool、自適應residual window及最短非對稱殘差區間進行預測。為比較誤差尺度調整的效果，本研究另建立OOT-AEnbPI-LS，使區間可依當期預測水準、變化方向以及短期與長期波動進行調整；並將IFOMC的狀態轉移概念應用於OOT residual，以rolling方式逐期更新轉移矩陣，形成OOT-AEnbPI-IFOMC，作為替代區間預測器。實驗在相同資料切分與評估指標下，將OOT-AEnbPI與B1至B5五種比較方法進行評估；B1至B5分別為DistPred--ANN、DistPred--Minusformer、Quantile--ANN、Quantile--Minusformer及Sort Bootstrap--ANN，並保留其原始模型與區間定義。
+
+GARCH模擬結果顯示，B5具有最低點預測RMSE，但其Original區間明顯過窄，coverage僅為$64.850\%$。經Local-scale校準後，B5的coverage提高至$95.675\%$，interval score降至15.968，為此實驗六種Local-scale方法中的最佳結果。OOT-AEnbPI-LS的interval score為16.824，與B5 Local-scale相近，但coverage為$92.300\%$，顯示其在此資料生成機制下仍有涵蓋不足的情形。另一方面，OOT-AEnbPI經Local-scale調整後，coverage跨seed標準差由3.439降至1.881；然而此結果僅為20次Monte Carlo實驗的描述性比較，不代表已證明其變異必然較小。OOT-AEnbPI-IFOMC在不改變點預測的情況下，將coverage由OOT-AEnbPI的$92.200\%$提高至$93.300\%$，interval score由17.585降至17.421，但coverage的跨seed標準差為4.011，高於OOT-AEnbPI與OOT-AEnbPI-LS，顯示其在不同模擬路徑間的表現較不穩定。
+
+0050結果中，OOT-AEnbPI-LS同時取得最低RMSE 1.331及最低interval score 6.307，coverage為$94.503\%$，平均寬度為4.370。相較於其他Local-scale方法，OOT-AEnbPI-LS並未依靠大幅增加寬度取得coverage，而是在較窄區間下維持接近95\%的涵蓋率。OOT-AEnbPI-IFOMC的coverage為$90.838\%$，平均寬度為3.679，interval score為7.218；雖然區間略微縮短且interval score小幅改善，但未改善OOT-AEnbPI原始區間的涵蓋不足。
+
+太陽黑子結果中，OOT-AEnbPI的平均寬度達97.859，且coverage為$97.297\%$，顯示原始區間較為保守；此現象可能與長期殘差池納入不同太陽活動狀態的殘差有關，但目前實驗尚不足以確認單一因果來源。OOT-AEnbPI-LS將平均寬度降至75.383，縮短約$23\%$，coverage仍有$95.946\%$，並取得最低interval score 86.179，表示局部尺度調整能在此資料上減少不必要的區間寬度。OOT-AEnbPI-IFOMC的coverage為$97.973\%$，但平均寬度仍有97.522，interval score反而上升至112.370，顯示只使用前一期殘差狀態無法像Local-scale一樣有效區分太陽活動高峰與低谷所需的誤差尺度。
+
+風速Data1結果中，OOT-AEnbPI的coverage為$82.0\%$，平均寬度為2.480，interval score為6.823。OOT-AEnbPI-LS將coverage提高至$87.0\%$，並將interval score降至5.517，但仍未達95\%名目水準。OOT-AEnbPI-IFOMC的coverage為$83.0\%$，平均寬度為2.412，interval score為6.126，表示殘差狀態轉移含有部分可用資訊，但改善幅度仍然有限。Ding與Meng在同一資料上提出的方法是專為風速設計的EMD--SSA、ARIMA--BPNN與ARIMA--IFOMC組合架構，因此在此資料上比OOT-AEnbPI具有較佳表現；但兩者除了區間預測器之外，點預測與分解架構也不同，因此不能將差異單獨歸因於IFOMC。
+
+四組實驗共同顯示，點預測誤差較小不代表預測區間必然較佳，平均寬度較小也不代表區間較有效。對原始區間偏窄的模型，Local-scale主要透過增加必要寬度改善coverage；對OOT-AEnbPI在太陽黑子資料上偏寬的原始區間，Local-scale則能依局部狀態縮短區間。因此，Local-scale的作用不是固定放大區間，而是重新分配不同狀態下所需的誤差尺度。OOT-AEnbPI-IFOMC在GARCH與風速資料上小幅改善OOT-AEnbPI的部分區間指標，但在0050與太陽黑子上未優於OOT-AEnbPI-LS，顯示單一前期殘差狀態尚不足以完整描述當期誤差尺度。
+
+本研究所提出之OOT-AEnbPI，其主要優勢在於OOT residual的建立與測試期更新均遵守時間順序，並同時考慮近期殘差與當期局部狀態。OOT residual可減少直接以模型內配適誤差代替樣本外誤差的問題；自適應residual window使模型不必固定使用全部歷史殘差；最短非對稱區間可因應偏斜誤差分布；OOT-AEnbPI-LS則進一步避免高波動與低波動狀態共用完全相同的殘差尺度。整體而言，實驗結果支持OOT-AEnbPI及其Local-scale延伸在0050與太陽黑子資料上的實用性，但亦顯示不同資料可能適合不同方法，因此不主張OOT-AEnbPI在所有情況下均全面優於其他模型。
+
+\section*{5.2 研究限制}
+
+本研究仍有若干限制。\\
+第一：GARCH模擬使用20個seeds，雖可初步觀察平均表現與變動程度，但若要更精確比較方法間的小幅差異或進行統計推論，仍需要更多Monte Carlo重複次數。\\
+第二：0050、太陽黑子與風速均為單一序列的一次樣本外實驗，研究結果可能受到所選訓練與測試期間影響，尚不能直接推廣至所有金融、週期性或風速資料。\\
+第三：Local-scale固定使用$K=60$個鄰居及四項狀態特徵，尚未以獨立的training-only程序比較其他鄰居數、距離定義及特徵組合。\\
+第四：B1至B5原始神經網路程式以random split切分training與validation樣本，雖未將testing資料加入訓練，但此切分未保留時間先後順序，與嚴格的時間序列驗證方式仍有差異。\\
+第五：太陽黑子數具有非負支撐，本研究為觀察方法原始區間行為而未將負下界截斷為0，因此尚未評估支撐限制對coverage與interval score的影響。\\
+第六：IFOMC固定使用10個狀態並只建立一階轉移關係，本研究尚未以training-only程序選擇狀態數，也未檢驗更高階或同時納入序列狀態特徵的Markov區間。\\
+最後：OOT-AEnbPI需重複估計bootstrap hybrid models及future-block模型，計算成本較高；其統計效益是否足以抵銷額外運算時間，仍應依實際應用需求判斷。
+
+\section*{5.3 未來展望}
+
+未來研究可從下列方向延伸：
+\begin{enumerate}
+  \item 將GARCH模擬的Monte Carlo次數由目前20次進一步增加，並設計不同波動持續性、偏態、厚尾與結構轉折情境，以檢驗各方法對不同資料生成機制的穩健性。
+  \item 對Local-scale進行feature ablation，分別比較只使用預測水準、12期波動、36期波動及其組合，確認各項狀態特徵對區間寬度與coverage的實際貢獻。
+  \item 將鄰居數$K$、距離衡量方式與尺度估計量納入training-only選擇程序，並比較median absolute error、MAD或其他robust scale estimator。
+  \item 將B1至B5內部的random training--validation split改為rolling或expanding-window validation，使模型選擇與實際樣本外預測流程更加一致，再重新進行六種方法比較。
+  \item 對太陽黑子等具有已知非負支撐的資料，比較原始區間、截斷區間及可直接滿足支撐條件的轉換或分布模型，評估其對低活動區間的影響。
+  \item 研究可隨時間更新的鄰居數與residual window，使Local-scale及時間視窗能共同因應資料狀態改變，而非分別採用固定候選集合。
+  \item 對IFOMC比較不同狀態數、最低轉移次數與狀態合併規則，並檢驗將殘差狀態與Local-scale特徵共同納入條件區間的可行性。
+  \item 增加不同金融、能源與自然科學時間序列，並同時報告預測指標與運算時間，以更完整評估方法的適用範圍及計算成本。
+\end{enumerate}

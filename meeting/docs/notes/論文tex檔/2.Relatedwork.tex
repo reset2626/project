@@ -1,0 +1,337 @@
+\chapter*{二、文獻回顧}
+
+\section*{2.1 本章架構與文獻脈絡}
+
+本章內容安排可分為兩個部分。第2.2節至第2.8節
+介紹本文所提出之OOT-AEnbPI及其Local-scale延伸所使用的理論基礎：
+第2.2節為Kalman filter，第2.3節為ARIMA，第2.4節為人工神經網路，
+第2.5節為ARIMA混合模型，第2.6節為Bootstrap與Block Bootstrap，
+第2.7節為EnbPI序列殘差區間，第2.8節為Local-scale conformal校準。
+第2.9節介紹作為替代區間預測器的Improved First-Order Markov
+Chain（IFOMC）。第2.10節至第2.13節則依序回顧比較方法中
+所使用的Minusformer、DistPred、Quantile Regression及Sort
+Bootstrap。
+
+\section*{2.2 卡爾曼濾波器(Kalman filter)}
+
+卡爾曼濾波器（Kalman filter）是一種線性高斯狀態空間模型下的遞迴狀態估計方法\cite{kalman1960,welch1995}。狀態方程與觀測方程分別為
+\begin{align}
+ \boldsymbol{x}_t
+ &=\boldsymbol{A}_t\boldsymbol{x}_{t-1}
+ +\boldsymbol{B}_t\boldsymbol{u}_{t-1}
+ +\boldsymbol{w}_{t-1},\\
+ \boldsymbol{z}_t
+ &=\boldsymbol{H}_t\boldsymbol{x}_t+\boldsymbol{v}_t,
+\end{align}
+其中$\boldsymbol{x}_t$為不可直接觀察的狀態，$\boldsymbol{z}_t$為觀測值，$\boldsymbol A_t$描述狀態如何隨時間演化，$\boldsymbol H_t$把狀態映射至觀測尺度；$\boldsymbol{w}_{t-1}\sim N(0,\boldsymbol Q_t)$為過程噪音，$\boldsymbol{v}_t\sim N(0,\boldsymbol R_t)$為觀測噪音，並假設兩者互相獨立。$\boldsymbol Q_t$越大，代表狀態本身變動較劇烈；$\boldsymbol R_t$越大，代表觀測含有較多測量雜訊。
+
+\subsection*{2.2.1 時間更新}
+
+在取得第$t$期觀測以前，先由前一期後驗狀態計算先驗狀態及先驗協方差：
+\begin{align}
+ \widehat{\boldsymbol{x}}_{t|t-1}
+ &=\boldsymbol A_t\widehat{\boldsymbol{x}}_{t-1|t-1}
+ +\boldsymbol B_t\boldsymbol u_{t-1},\\
+\boldsymbol P_{t|t-1}
+ &=\boldsymbol A_t\boldsymbol P_{t-1|t-1}\boldsymbol A_t^{\mathsf T}
+ +\boldsymbol Q_{t-1}.
+\end{align}
+第一式給出尚未看見$\boldsymbol z_t$時的狀態預測；第二式傳遞估計不確定性，並加入新一期過程噪音。
+
+\subsection*{2.2.2 測量更新}
+
+觀測$\boldsymbol z_t$後，先計算Kalman gain：
+\begin{equation}
+ \boldsymbol K_t=\boldsymbol P_{t|t-1}\boldsymbol H_t^{\mathsf T}
+ \left(\boldsymbol H_t\boldsymbol P_{t|t-1}\boldsymbol H_t^{\mathsf T}
+ +\boldsymbol R_t\right)^{-1},
+\end{equation}
+再更新狀態與協方差：
+\begin{align}
+ \widehat{\boldsymbol{x}}_{t|t}
+ &=\widehat{\boldsymbol{x}}_{t|t-1}
+ +\boldsymbol K_t
+ \left(\boldsymbol z_t-\boldsymbol H_t\widehat{\boldsymbol{x}}_{t|t-1}\right),\\
+ \boldsymbol P_{t|t}
+ &=\left(\boldsymbol I-\boldsymbol K_t\boldsymbol H_t\right)
+ \boldsymbol P_{t|t-1}.
+\end{align}
+括號內的$\boldsymbol z_t-\boldsymbol H_t\widehat{\boldsymbol x}_{t|t-1}$稱為innovation，表示新觀測與先驗預測之差。Kalman gain決定修正幅度：觀測噪音較小時會給新觀測較大權重；觀測噪音較大時則較依賴狀態模型。預測及校正會在每一期重複，因此不必每次使用全部歷史資料重新估計狀態。
+
+\section*{2.3 ARIMA}
+
+ARIMA(Autoregressive Integrated Moving Average)是時間序列分析中常用的線性模型\cite{boxjenkins2015}。ARIMA$(p,d,q)$由自迴歸、差分與移動平均三部分組成，其中$p$為自迴歸階數、$d$為差分次數、$q$為移動平均階數。
+
+\subsection*{2.3.1 自迴歸模型(AR)}
+
+自迴歸模型AR$(p)$假設目前觀測值可由前$p$期觀測值的線性組合表示：
+\begin{equation}
+ y_t=c+\sum_{i=1}^{p}\phi_i y_{t-i}+a_t,
+ \label{eq:ar}
+\end{equation}
+其中$c$為截距，$\phi_i$為第$i$階自迴歸係數，$a_t$為平均值為零、變異數為$\sigma^2$的白噪音。AR模型利用序列自身的落後值描述時間相依性；$p$越大，模型可直接納入的歷史期數越多，但參數數目也隨之增加。
+
+\subsection*{2.3.2 移動平均模型(MA)}
+
+移動平均模型MA$(q)$以目前及過去$q$期的隨機擾動描述觀測值：
+\begin{equation}
+ y_t=\mu+a_t-\sum_{j=1}^{q}\theta_ja_{t-j},
+ \label{eq:ma}
+\end{equation}
+其中$\mu$為常數，$\theta_j$為移動平均係數。其中$\mu$為常數，$\theta_j$為第$j$階移動平均係數，$a_t$為平均值為零、變異數為$\sigma^2$的白噪音。
+
+\subsection*{2.3.3 自迴歸移動平均(ARMA)}
+
+合併式\eqref{eq:ar}與式\eqref{eq:ma}可得ARMA$(p,q)$：
+\begin{equation}
+ y_t=c+\sum_{i=1}^{p}\phi_i y_{t-i}
+ +a_t-\sum_{j=1}^{q}\theta_ja_{t-j}.
+ \label{eq:arma}
+\end{equation}
+
+\subsection*{2.3.4 差分}
+
+ARMA模型通常要求序列具有弱平穩性。對非平穩序列，可先進行一階差分
+\begin{equation}
+ \nabla y_t=y_t-y_{t-1},
+\end{equation}
+$d$階差分則為
+\begin{equation}
+ \nabla^d y_t=\nabla^{d-1}y_t-\nabla^{d-1}y_{t-1}.
+\end{equation}
+對$\nabla^d y_t$建立ARMA$(p,q)$即構成ARIMA$(p,d,q)$。
+
+\section*{2.4 人工神經網路(ANN)}
+
+人工神經網路（Artificial Neural Network, ANN）是由多個人工神經元連接而成的非線性模型，其基本概念可追溯至McCulloch與Pitts\cite{mcculloch1943}。ANN主要包含輸入層、隱藏層與輸出層。輸入層接收資料；隱藏層對輸入進行加權、加上偏差並通過激活函數；輸出層再依預測任務產生結果。
+
+給定輸入向量$\boldsymbol x$，第$\ell$層的運算可寫為
+\begin{equation}
+ \boldsymbol h^{(\ell)}
+ =f^{(\ell)}\!\left(
+ \boldsymbol W^{(\ell)}\boldsymbol h^{(\ell-1)}
+ +\boldsymbol b^{(\ell)}\right),
+ \qquad \boldsymbol h^{(0)}=\boldsymbol x,
+\end{equation}
+其中$\boldsymbol W^{(\ell)}$為權重矩陣、$\boldsymbol b^{(\ell)}$為偏差向量，$f^{(\ell)}$為激活函數。常用的ReLU激活函數定義為
+\begin{equation}
+ \operatorname{ReLU}(a)=\max(0,a).
+\end{equation}
+非線性激活函數使ANN能描述ARIMA不易捕捉的非線性結構。
+
+應用於時間序列時，先以長度為$w$的滑動視窗建立輸入
+\begin{equation}
+ \boldsymbol X_t=(y_{t-w},\ldots,y_{t-1})^{\mathsf T},
+\end{equation}
+再由ANN產生第$t$期預測。模型先以前向傳播計算輸出，再以損失函數衡量預測與真值的差距，最後利用反向傳播更新權重與偏差，重複訓練直到模型收斂或符合停止條件。
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/ANN.png}
+    \caption{ANN 模型架構}
+    \label{fig:placeholder}
+\end{figure}
+
+\section*{2.5 ARIMA混合模型}
+
+ARIMA擅長描述線性、自相關及平穩時間序列，但面對複雜非線性結構時可能有所不足；ANN具有較強的非線性函數近似能力，卻不一定能像ARIMA一樣清楚描述線性時間相依性。因此，混合模型的主要想法是讓不同模型分別處理其較擅長的資料結構，再將預測結果整合。
+
+\cite{zhang2003}提出殘差式混合方法。先以ARIMA擬合原始序列，讓ARIMA捕捉資料中的線性結構；接著將實際值與ARIMA預測值之間的殘差交由ANN建模，使ANN學習ARIMA尚未捕捉的非線性訊息。最後將ARIMA預測與ANN對殘差的預測相加，形成完整預測。
+
+\cite{khashei2011}認為線性與非線性部分未必只是簡單相加，因此提出特徵增強式的混合方式。他們把原始序列的歷史值、ARIMA預測值及ARIMA殘差一併作為ANN輸入，再由ANN學習這些資訊與最終預測之間的關係。相較於直接相加，這種方式讓ANN自行決定各類資訊的重要程度及組合方式。
+
+\cite{babu2014}採用訊號分解式方法。他們先以移動平均濾波器(Moving-Average Filter)將原始序列拆成較平滑的低波動成分與變化較快的高波動成分，再使用ARIMA預測低波動成分、使用ANN預測高波動成分，最後將兩部分預測相加。此方法與殘差式混合不同之處，在於模型訓練以前便先對原始訊號進行分解。
+
+\cite{lin2024thesis}延續訊號分解式架構，但以Kalman filter取代固定長度的移動平均濾波器。Kalman filter能隨新觀測遞迴修正平滑狀態，使低波動成分的估計具有動態更新能力；平滑狀態與原始觀測之間的差值則視為高波動成分。
+
+\section*{2.6 Bootstrap與Block Bootstrap}
+
+Bootstrap將觀察到的經驗分布視為未知母體分布的替代，透過有放回抽樣反覆建立大小相同的假樣本，進而近似統計量或預測結果的抽樣分布\cite{efron1994}。若原樣本為$y_1,\ldots,y_T$，一般bootstrap令每次抽中的索引獨立且在$\{1,\ldots,T\}$上均勻分布。此做法適用於i.i.d.資料，但會破壞時間序列的先後順序及自相關。Block bootstrap改以連續區塊為抽樣單位，使同一區塊內的局部相依性得以保留\cite{carlstein1986}。
+
+\section*{2.7 EnbPI序列殘差區間}
+
+時間序列具有序列相依性，通常不符合一般i.i.d.資料的交換性條件。Xu與Xie提出Ensemble Batch Prediction Intervals（EnbPI），結合ensemble點預測、歷史預測殘差及序列更新機制建立時間序列預測區間\cite{xu2023}。若$B$個模型在時間$t$的預測為$\widehat y_t^{(1)},\ldots,\widehat y_t^{(B)}$，ensemble點預測可取平均：
+\begin{equation}
+ \widehat y_t=\frac{1}{B}\sum_{b=1}^{B}\widehat y_t^{(b)}.
+\end{equation}
+令$\mathcal E_{t-1}$表示預測$t$期以前可取得的歷史殘差池，則非對稱區間可寫為
+\begin{equation}
+ \left[
+ \widehat y_t+Q_{\beta}(\mathcal E_{t-1}),
+ \widehat y_t+Q_{1-\alpha+\beta}(\mathcal E_{t-1})
+ \right],
+\end{equation}
+其中$Q_\gamma(\mathcal E_{t-1})$為殘差池的經驗$\gamma$分位數，$\beta\in[0,\alpha]$控制左右尾端分配。對所有候選$\beta$比較
+\begin{equation}
+ Q_{1-\alpha+\beta}(\mathcal E_{t-1})
+ -Q_{\beta}(\mathcal E_{t-1}),
+\end{equation}
+選取差值最小者，即可在經驗殘差分布上取得涵蓋$1-\alpha$機率質量的最短非對稱區間。此區間不要求上下界與點預測等距，因此能反映偏斜的預測誤差。當第$t$期真值揭露後，新殘差加入殘差池，使下一期區間能使用最新的預測誤差資訊。
+
+\section*{2.8 Local-scale Conformal校準}
+
+\cite{lei2018}提出locally weighted conformal inference，用以處理條件誤差變異$\operatorname{Var}(Y\mid\boldsymbol X)$隨輸入狀態改變的異質變異問題。一般未加權方法使用同一組殘差分位數，因此形成的區間寬度大致固定；當不同輸入狀態的誤差尺度差異明顯時，可能在低變異區域產生過寬區間，在高變異區域產生過窄區間。
+
+令$\widehat\mu(\boldsymbol X_i)$為點預測，$\widehat\rho(\boldsymbol X_i)>0$為條件誤差尺度的估計，局部加權分數定義為
+\begin{equation}
+ R_i=\frac{|Y_i-\widehat\mu(\boldsymbol X_i)|}
+ {\widehat\rho(\boldsymbol X_i)}.
+\end{equation}
+此標準化將原始殘差除以該輸入位置的估計誤差尺度，使不同變異程度的觀測能在較接近的尺度上進行比較。若$d$為標準化分數的conformal分位數，則在新輸入$\boldsymbol x$的預測區間為
+\begin{equation}
+ C^{1-\alpha}(\boldsymbol x)
+ =\left[
+ \widehat\mu(\boldsymbol x)-\widehat\rho(\boldsymbol x)d,
+ \widehat\mu(\boldsymbol x)+\widehat\rho(\boldsymbol x)d
+ \right].
+\end{equation}
+因此，條件誤差尺度較大時，乘回原尺度的區間會變寬；尺度較小時，區間則會變窄。局部加權方法不改變點預測本身，而是讓區間寬度隨輸入位置的誤差尺度調整。
+
+\section*{2.9 Improved First-Order Markov Chain}
+
+\cite{dingmeng2020}提出以Improved First-Order Markov Chain（IFOMC）建立風速預測區間。該研究先以Empirical Mode Decomposition（EMD）將原始風速分解為多個intrinsic mode functions與residue，再辨識其中的線性子序列。線性子序列合併為$c_t^{\mathrm{linear}}$，其餘子序列合併為$c_t^{\mathrm{remaining}}$。在區間預測模組中，ARIMA只對線性成分產生下一期點預測，IFOMC則用來描述remaining成分的不確定性。
+
+IFOMC先將$c_t^{\mathrm{remaining}}$由小到大分成$K$個有序狀態$S_1,\ldots,S_K$，並使各狀態的觀測數盡量接近，以避免部分狀態樣本過少而無法穩定估計轉移機率。將數值序列轉換為狀態序列後，令$m_{ij}$為相鄰時點由$S_i$轉移至$S_j$的次數，則一階轉移機率為
+\begin{equation}
+ p_{ij}=P(s_{t+1}=S_j\mid s_t=S_i)
+ =\frac{m_{ij}}{\sum_{j=1}^{K}m_{ij}}.
+\end{equation}
+將所有$p_{ij}$排列即得狀態轉移矩陣$\boldsymbol P$。
+\begin{equation}
+\mathbf{P}
+=
+\begin{pmatrix}
+p_{11} & p_{12} & \cdots & p_{1k}\\
+p_{21} & p_{22} & \cdots & p_{2k}\\
+\vdots & \vdots & \ddots & \vdots\\
+p_{k1} & p_{k2} & \cdots & p_{kk}
+\end{pmatrix}.
+\end{equation}
+當前一期remaining成分屬於$S_i$時，矩陣第$i$列即表示下一期落入各狀態的條件機率。
+
+為建立中央$100(1-\alpha)\%$預測區間，將狀態依其數值範圍由小至大排列，並對下一期狀態機率累加；再取累積機率對應$\alpha/2$與$1-\alpha/2$的狀態界限，得到remaining成分的下界$L_{t+1}^{\mathrm{rem}}$與上界$U_{t+1}^{\mathrm{rem}}$。若ARIMA的線性成分點預測為$\widehat c_{t+1}^{\mathrm{linear}}$，則原始風速區間為
+\begin{equation}
+ C_{t+1}=\left[
+ \widehat c_{t+1}^{\mathrm{linear}}+L_{t+1}^{\mathrm{rem}},
+ \widehat c_{t+1}^{\mathrm{linear}}+U_{t+1}^{\mathrm{rem}}
+ \right].
+\end{equation}
+
+\section*{2.10 Minusformer}
+
+B1至B5共同使用前述Kalman分解與低頻ARIMA預測，其高頻模型與
+區間估計方式則涉及本節以下介紹的方法。\cite{hung2026thesis}在相同
+的Kalman分解架構下，保留ARIMA對低波動成分的預測，並將高波動
+成分的區間估計改為兩類方式：DistPred在一次模型輸出中產生多個
+預測樣本，以經驗分布建立區間；Quantile Regression則直接估計
+指定的下分位數、中位數及上分位數。兩種預測方式亦分別搭配ANN
+與Minusformer作為非線性骨幹模型。
+
+Minusformer由Liang等人提出，用以降低深度時間序列模型逐層累積冗餘資訊所造成的過度擬合\cite{liang2024minusformer}。一般Transformer以self-attention建立不同時間位置間的關聯，再使用殘差加法保留原始表示；當多層重複累加相近資訊時，可能形成冗餘。Minusformer將資訊聚合由加法改為減法，使後續模組處理尚未被前層解釋的部分。
+
+設第$\ell$層輸入流為$\boldsymbol R^{(\ell)}$，該層產生的表示為$\boldsymbol G^{(\ell)}$，則下一層輸入可概念化為
+\begin{equation}
+ \boldsymbol R^{(\ell+1)}
+ =\boldsymbol R^{(\ell)}-\boldsymbol G^{(\ell)}.
+\end{equation}
+若第$\ell$層預測頭輸出$\widehat{\boldsymbol y}^{(\ell)}$，監督訊號亦逐層轉為尚未解釋的預測殘差：
+\begin{equation}
+ \boldsymbol r_y^{(\ell+1)}
+ =\boldsymbol r_y^{(\ell)}-\widehat{\boldsymbol y}^{(\ell)}.
+\end{equation}
+輸入流逐層移除已抽取的表示，輸出流則逐層學習尚未完成的預測目標。各層預測最後彙整為模型輸出。此雙流減法機制與boosting逐步擬合殘差的想法相近，使第一層先處理較明顯的結構，後續層再處理剩餘訊息，而不是每一層重複學習完整序列。
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.5\linewidth]{img/Minusformer.png}
+    \caption{Minusformer 模型架構}
+    \label{fig:placeholder}
+\end{figure}
+
+\section*{2.11 分布預測(Distpred)}
+
+DistPred是一種不預先指定高斯或其他參數分布的機率預測方法，可在單次forward pass輸出$K$個預測樣本，以其經驗分布近似條件分布\cite{liang2024distpred}：
+\begin{equation}
+ \widehat{\mathcal Y}_t=
+ \left\{\widehat y_t^{(1)},\ldots,\widehat y_t^{(K)}\right\}.
+\end{equation}
+
+其訓練基礎為連續排列機率分數（Continuous Ranked Probability Score, CRPS）。對預測累積分布$F$與真值$y$，CRPS定義為\cite{gneiting2007}
+\begin{equation}
+ \operatorname{CRPS}(F,y)
+ =\int_{-\infty}^{\infty}
+ \left[F(z)-\mathbf 1\{y\le z\}\right]^2\,dz.
+\end{equation}
+當$F$由$K$個預測樣本近似時，可寫成
+\begin{equation}
+ \widehat{\operatorname{CRPS}}
+ =\frac{1}{K}\sum_{k=1}^{K}|\widehat y^{(k)}-y|
+ -\frac{1}{2K^2}\sum_{j=1}^{K}\sum_{k=1}^{K}
+ |\widehat y^{(j)}-\widehat y^{(k)}|.
+\end{equation}
+第一項衡量每一個預測樣本與真值的距離，鼓勵整體分布位於正確位置；第二項衡量預測樣本彼此間的距離，避免所有輸出塌縮在同一點。兩者共同評估校準程度與分布銳利度。若直接計算第二項，需要$O(K^2)$次兩兩比較；DistPred先排序輸出，再利用probability weighted moments將其改寫為$O(K)$的加權總和，因此可在單次forward pass產生大量預測樣本。
+
+完成訓練後，令$\widehat Q_{\tau,t}$為$K$個輸出的經驗$\tau$分位數，則$100(1-\alpha)\%$區間為
+\begin{equation}
+ \left[\widehat Q_{\alpha/2,t},
+       \widehat Q_{1-\alpha/2,t}\right].
+\end{equation}
+
+\section*{2.12 分位數迴歸(Quantile Regression)}
+
+分位數迴歸直接估計響應變數在給定輸入下的條件分位數\cite{koenker1978}。對分位數水準$\tau\in(0,1)$，條件分位數定義為
+\begin{equation}
+ Q_{Y|X}(\tau\mid\boldsymbol x)
+ =\inf\{y:F_{Y|X}(y\mid\boldsymbol x)\ge\tau\}.
+\end{equation}
+條件分位數$Q_{Y|X}(\tau\mid\boldsymbol x)$表示在給定$\boldsymbol x$後，條件分布累積機率首次達到$\tau$的位置。例如$\tau=0.5$為條件中位數，$\tau=0.025$與$0.975$則分別描述條件分布兩側。模型以pinball loss訓練：
+\begin{equation}
+ \rho_\tau(u)=
+ \begin{cases}
+   \tau u, & u\ge0,\\
+   (\tau-1)u, & u<0,
+ \end{cases}
+ \qquad u=y-\widehat Q_\tau(\boldsymbol x).
+\end{equation}
+同時估計多個分位數時，損失函數可寫為
+\begin{equation}
+ \mathcal L(\boldsymbol\theta)
+ =\frac{1}{n}\sum_{i=1}^{n}
+ \sum_{\tau\in\mathcal T}
+ \rho_\tau\!\left(y_i-\widehat Q_\tau(\boldsymbol x_i)\right).
+\end{equation}
+當真值高於預測時，損失給予權重$\tau$；真值低於預測時，則給予權重$1-\tau$。因此，高分位數會更重地懲罰低估，低分位數會更重地懲罰高估，而期望pinball loss的最小值正好位於對應的條件分位數。
+例如令$\mathcal T=\{0.025,0.5,0.975\}$，可用$\widehat Q_{0.5}$作為點預測，並以
+\begin{equation}
+ [\widehat Q_{0.025},\widehat Q_{0.975}]
+\end{equation}
+作為$95\%$預測區間。為避免低分位數高於高分位數的quantile crossing，可將輸出參數化為非負增量，例如
+\begin{align}
+ \widehat Q_{0.025}&=a,\\
+ \widehat Q_{0.5}&=a+\operatorname{softplus}(b),\\
+ \widehat Q_{0.975}&=a+\operatorname{softplus}(b)
+ +\operatorname{softplus}(c),
+\end{align}
+以結構保證$\widehat Q_{0.025}\le\widehat Q_{0.5}\le\widehat Q_{0.975}$。
+
+\section*{2.13 Sort Bootstrap}
+
+\cite{lin2024thesis}提出的Sort Bootstrap先將每筆觀測與原時間索引配對。給定訓練序列
+\begin{equation}
+ \mathcal D=\{(t,y_t):t=1,\ldots,T\},
+\end{equation}
+先透過有放回抽取索引$i_1,\ldots,i_T$，再經過時間排序$i_{(1)}\le\cdots\le i_{(T)}$，形成
+\begin{equation}
+ \mathcal D^{*(b)}
+ =\{(i_{(j)},y_{i_{(j)}}):j=1,\ldots,T\}.
+\end{equation}
+每一組重抽樣序列分別訓練一個ANN並產生$\widehat y_t^{*(b)}$。若共有$B$組bootstrap預測，點預測可寫為
+\begin{equation}
+ \widehat y_t=\frac{1}{B}\sum_{b=1}^{B}\widehat y_t^{*(b)},
+\end{equation}
+區間則由bootstrap預測的經驗分位數形成：
+\begin{equation}
+ \left[
+ Q_{\alpha/2}\{\widehat y_t^{*(b)}\}_{b=1}^{B},
+ Q_{1-\alpha/2}\{\widehat y_t^{*(b)}\}_{b=1}^{B}
+ \right].
+\end{equation}

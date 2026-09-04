@@ -1,0 +1,667 @@
+研究方法
+
+Kalman–ARIMA–ANN Out-of-Time Adaptive EnbPI
+
+訓練資料切割與整體估計流程
+
+   首先先切割資料，在每一個時間 fold 內執行分解與模型訓練。完整資料分為 Train-
+ing 與 Testing：
+                      Y1 , . . . , Y T           YT +1 , . . . , YT +H .
+                      | {z }                     |        {z         }
+                          training                        ﬁnal test
+
+在 Training period 內，將前 ρ 筆資料定義為 initial training preﬁx，並將其後的時間點切
+成 K 個彼此不重疊且連續的 future validation blocks：
+
+
+                                      I1 , I 2 , . . . , I K .
+
+
+對於第 k 個 future block 的第一個時間點。所有步驟，包括 Kalman 分解、ARIMA order
+selection、ANN iteration selection 與 B 組 bootstrap models 的訓練，都只能使用該時間點
+以前的資料。模型隨後對 Ik 逐期進行 one-step-ahead prediction。完成整個 block 且其中
+真值均已揭露後，該 block 才併入下一個 fold 的 training preﬁx。資料流程可寫成
+
+
+                   Y1:325 −→ 訓練模型並預測I1 ,
+
+                 Y1:max(I1 ) −→ 重新分解、選模、訓練並預測I2 ,
+
+                 Y1:max(I2 ) −→ 重新分解、選模、訓練並預測I3 ,
+
+                 Y1:max(I3 ) −→ 重新分解、選模、訓練並預測I4 .
+
+
+Kalman 分解
+
+                                               bKF ，並
+   在任一時間 t，僅使用時間 t 之前的資料執行 Kalman ﬁlter，得到低頻估計 L t
+
+將高頻成分定義為觀測值扣除低頻估計：
+
+
+                                                  bKF
+                                     b tKF = Yt − L
+                                     H              t
+
+
+
+因此對每個時間點皆有
+                                      bKF
+                                 Yt = L t
+                                           b tKF .
+                                          +H
+
+
+
+                                                1
+高頻 ANN supervised windows
+
+    令 lag window 為 w。對每個 t = w + 1, . . . , m，以過去 w 期的 Kalman low、Kalman
+high 與原始觀測建立 ANN 輸入：
+
+
+                                 bKF
+                          Xt = ( L           b KF
+                                   t−w:t−1 , Ht−w:t−1 , Yt−w:t−1 )
+
+
+
+ANN 的預測目標為當期 Kalman high：
+
+
+                                            b KF .
+                                       Zt = H t
+
+
+
+因此一筆 supervised sample 為
+                                     Dt = (Xt , Zt ).
+
+
+低頻 base ARIMA 與 order selection
+
+    在每個 fold 中，只使用該 validation block 開始以前的 Kalman low series，於候選集
+合
+                         P = {(p, 0, q) : 0 ≤ p ≤ 4, 0 ≤ q ≤ 4}
+
+中以 BIC 選擇一次共同 order：
+
+
+                          (p∗ , 0, q ∗ ) = arg min BIC(p, 0, q).
+                                           (p,0,q)∈P
+
+
+使用此 order 在依時間排列的 Kalman low series 上擬合 base ARIMA，並取得 one-step
+             bbase 及殘差
+ﬁtted values L t
+                                              bbase .
+                                        bKF − L
+                                   ut = L t     t
+
+
+為避免將 base model 的有限樣本平均誤差重複加入 bootstrap series，先將殘差中心化：
+
+
+                                      et = ut − u.
+                                      u
+
+
+Moving-block bootstrap 與 B 組 hybrid models
+
+    令 supervised samples 數量為 n，bootstrap block length 為
+
+                                                √
+                               ℓ = max{2, round( n)}.
+
+
+                                             2
+第 b 次 bootstrap 隨機選取
+                                                  n
+                                          Kb =
+                                                  ℓ
+個 block 起點，每個起點向後取得 ℓ 個連續索引，串接後截取前 n 個索引，形成
+
+
+                                  Sb = (sb1 , . . . , sbn ).
+
+
+此程序重複 B 次。
+
+
+第 b 個 ARIMA。 ARIMA 分支抽取 base ARIMA residual blocks，並將抽得的 residual
+逐點加回 base ﬁtted values：
+                                 Lt
+                                   ∗(b)    bbase
+                                          =L t    esbt .
+                                                 +u
+
+第 b 個 ARIMA 使用同一個已選 order (p∗ , 0, q ∗ )，並重新估計模型參數：
+
+                                                           
+                          Ab = ARIMA L∗(b) ; (p∗ , 0, q ∗ ) .
+
+
+第 b 個 ANN。 ANN 分支使用相同索引 Sb 抽取按時間排列的 supervised samples：
+
+
+                         Db∗ = {(Xsbj , Zsbj ) : j = 1, . . . , n}.
+
+
+每個 Dt = (Xt , Zt ) 是不可拆分的一筆訓練樣本；moving-block bootstrap 抽取的是相鄰
+target times 所對應的整筆 supervised samples。
+   輸入 X 與 target Z 均在第 b 個 bootstrap training set 內標準化。ANN 採兩層 hidden
+layers (32, 16)、ReLU activation 與 MSE loss：
+
+                                  1 X                   2
+                                          n
+                         Lb (θ) =       Zsbj − gθ (Xsbj ) .
+                                  n j=1
+
+
+最大 iteration 由候選集合 {125, 250, 500} 中，透過 bootstrap sample 內依原始時間排序的
+rolling validation 選定。由於各 replicate 的樣本、重複次數、random seed 與可能選到的
+iteration 不同，最終得到 B 個 ANN：
+
+
+                                      N1 , . . . , NB .
+
+
+
+
+                                              3
+Hybrid aggregation。 同一次 bootstrap 的 Ab 與 Nb 配成第 b 個 hybrid predictor。使用
+mean aggregation：
+                            1 Xb                         1 Xb
+                               B                            B
+                      b raw
+                      Lt =        Lt,b ,           b raw
+                                                   Ht =        Ht,b ,
+                            B b=1                        B b=1
+
+並得到未校正的合併點預測
+                                           braw + H
+                                     Yet = L t
+                                                  b raw .
+                                                    t
+
+
+
+各 future blocks 的 out-of-time residuals
+
+   依照前述 rolling-origin 切割，第 k 個 fold 的 predictor 只使用該 fold 前的數值完成
+分解、model selection 與 ﬁtting。為避免先使用完整 training series 選擇模型，再回頭校
+準同一段資料所造成的資訊洩漏，第 k 個 future block 的每一筆 residual 都必須由此
+predictor 產生。
+   接著對 t ∈ Ik 進行 sequential one-step-ahead prediction：模型參數在該 block 內固定，
+但 Yt 只能在完成時間 t 的預測後，加入歷史以供 t + 1 使用。令
+
+
+                                           bt|t−1 + H
+                                 Ybt|t−1 = L        b t|t−1
+
+
+表示只依賴時間 t − 1 以前資訊的合併點預測，並定義 calibration residual
+
+
+                                     rtcal = Yt − Ybt|t−1 .
+
+
+完成第 k 個 block 後，該 block 已揭露的真實資料才可加入 expanding training preﬁx，再
+重新執行整套 model selection 與 ﬁtting 以預測下一個 block。
+   最終 training calibration sequence 為
+
+
+                            Ecal = {rtcal : t ∈ I1 ∪ · · · ∪ IK }.
+
+
+Adaptive residual window selection
+
+   為容許預測誤差分布隨時間改變，考慮候選 residual-window lengths
+
+
+                             W = {100, 200, 300, 400, all}.
+
+
+
+
+                                               4
+對 training cross-ﬁt residual sequence 的後 40% 進行 prequential validation。在每個 vali-
+dation residual 出現以前，只使用先前 residuals 建立區間，並以 Gneiting–Raftery interval
+score 評估：
+
+                                           2                  2
+              Sα (l, u; y) = (u − l) +       (l − y)1{y < l} + (y − u)1{y > u}.
+                                           α                  α
+
+選擇平均 interval score 最小的 window：
+
+                                          X
+                         c = arg min 1
+                         W                    Sα (lj,W , uj,W ; eCF
+                                                                 j ).
+                                 W ∈W |V|
+                                          j∈V
+
+
+此選擇完全在 training cross-ﬁt residuals 上完成，不使用 ﬁnal test outcomes。進入測試階
+   c 的數值固定，但 residual pool 的內容會隨新真值揭露逐步更新。
+段後，W
+
+
+Final sequential point and interval prediction
+
+    完成 calibration 後，使用完整 training set Y1:T 重新執行 Kalman 分解、ARIMA order
+selection、ANN iteration selection，以及 B 組 hybrid models 的訓練。初始測試 residual
+                                       c 筆：
+pool 為 training cross-ﬁt residuals 的最後 W
+
+
+                                           ET = tailW
+                                                    c (E
+                                                         CF
+                                                            ).
+
+
+    對每一個測試時間 t = T + 1, . . . , T + H，先計算合併 raw forecast Yet 。並使用 com-
+bined bias correction：
+                                       1      X
+                            bt =                       e,    Ybt = Yet + bt .
+                                   |Et−1 | e∈E
+                                                 t−1
+
+
+接著在尚未觀察 Yt 前，以目前 residual pool 選擇最短 residual interval 的 β：
+
+
+                   βbt = arg min {Q1−α+β (Et−1 − bt ) − Qβ (Et−1 − bt )}
+                             β∈[0,α]
+
+
+令
+                    qt− = Qβbt (Et−1 − bt ),            qt+ = Q1−α+βbt (Et−1 − bt ),
+
+則輸出的 prediction interval 為
+
+
+                                   Ct1−α = [Ybt + qt− , Ybt + qt+ ].
+
+
+                                                       5
+當 Ybt 與 Ct1−α 均輸出後，才揭露 Yt 並計算新的 raw residual：
+
+
+                                            et = Yt − Yet .
+
+
+殘差池更新為
+                                               c (Et−1 ∪ {et }) .
+                                      Et = tailW
+
+因此 et 只能影響時間 t + 1 以後的區間，不會回頭改變時間 t 已輸出的結果。
+
+Algorithm 1 Kalman–ARIMA–ANN Out-of-Time Adaptive EnbPI
+Input: 訓練序列 {Yt }Tt=1 ；測試長度 H；錯誤率 α；bootstrap 數量 B；lag window w；
+    block length ℓ；future-block 數量 K；residual-window 候選集合 W
+Output: 測試期點預測 Ybt|t−1 與預測區間 Ct1−α
+ 1: 令 a0 = T2 ；以前 a0 筆為 initial training，後半段切成連續 validation blocks I1 , . . . , IK
+ 2: 初始化 calibration residual sequence Ecal ← ∅
+ 3: for k = 1, . . . , K do
+ 4:     令 sk = min(Ik )，第 k 個 fold 只使用 Y1:sk −1 訓練
+ 5:     Kalman 分解：L         bKF = KF (Yt )，H        b KF = Yt − L   bKF
+                               t                     t                t
+        建立 ANN supervised samples Xt = (L                 bKF         b KF
+ 6:                                                         t−w:t−1 , H t−w:t−1 , Yt−w:t−1 )，target 為 Zt =
+    Hbt
+      KF
+
+ 7:     以 BIC 選擇一次 ARIMA order，擬合 base ARIMA 並取得 residuals ut
+ 8:     for b = 1, . . . , B do
+ 9:          以 moving-block bootstrap 產生 Sb ；用 ut [Sb ] 擬合相同 order 的 ARIMAb ；用
+    (Xt , Zt )[Sb ] 與 MSE 訓練 ANNb
+10:     end for
+11:     for t ∈ Ik do                               P
+12:          使用 Y1:t−1 計算 Ybt|t−1 = B −1 B                  b       b
+                                                       b=1 (Lt,b + Ht,b )
+13:          揭露 Yt ，並令 Ecal ← Ecal ∪ {Yt − Ybt|t−1 }
+14:     end for
+15: end for
+16: 以 training-only interval score 選擇 W          c = arg minW ∈W Score(W ; Ecal )
+17: 令 E = tailW   c (Ecal )，並以完整 Y1:T 重新訓練最終 B 組模型
+18: for t = T + 1, . . . , T + H do
+                            P
+19:     計算 Yet = B −1 B               b      b
+                                 b=1 (Lt,b + Ht,b )
+20:     令 bt = mean(E)，Ybt|t−1 = Yet + bt
+21:     選擇 βbt = arg minβ∈[0,α] {Q1−α+β (E − bt ) − Qβ (E − bt )}
+22:     輸出 Ct1−α = [Ybt|t−1 + Qβbt (E − bt ), Ybt|t−1 + Q1−α+βbt (E − bt )]
+23:     揭露 Yt ，更新 E ← tailW                             e
+                                        c (E ∪ {Yt − Yt })
+24: end for
+25: return {Y  bt|t−1 , Ct1−α }T +H
+                                t=T +1
+
+
+
+
+                                                   6
+方法比較
+
+DistPred：以樣本表示條件預測分布
+
+   一般點預測模型對每個輸入只輸出單一預測值；DistPred 則令神經網路一次輸出 K
+個數值
+                                   c t = (H
+                                   H                      b t,K ),
+                                          b t,1 , . . . , H
+
+並將其視為條件預測分布的經驗樣本。模型不預先假設誤差必須服從常態分布，而是
+透過 Continuous Ranked Probability Score（CRPS）同時衡量樣本分布與真值的距離及預
+測分布本身的離散程度。其經驗形式可寫為
+
+                       XK                      XK X K
+                \t = 1
+                CRPS        b t,k − Ht | − 1
+                           |H                                   b t,k |.
+                                                        b t,j − H
+                                                       |H
+                     K k=1                2K 2 j=1 k=1
+
+
+第一項懲罰預測樣本偏離真值，第二項避免所有樣本不適當地集中於同一點。模型完
+成訓練後，可直接由 K 個輸出的經驗分位數取得點預測及 prediction interval；本文取中
+位數為點預測，並取第 2.5 與 97.5 百分位數為 95% 區間。
+
+
+Quantile Regression：直接估計條件分位數
+
+   Quantile Regression 不估計完整機率密度，而是針對指定的 quantile level τ 直接學習
+條件分位數
+                                           Qτ (Ht | Xt ).
+
+令預測值為 qbt,τ ，其 pinball loss 定義為
+                                         
+                                         
+                                         τ (Ht − qbt,τ ),            Ht ≥ qbt,τ ,
+                    ρτ (Ht − qbt,τ ) =
+                                         
+                                         (1 − τ )(b
+                                                   qt,τ − Ht ), Ht < qbt,τ .
+
+此非對稱損失使低分位數對高估施加較大懲罰、高分位數對低估施加較大懲罰。本文
+同時估計 τ ∈ {0.025, 0.5, 0.975}：0.5 分位數作為點預測，0.025 與 0.975 分位數形成
+95% prediction interval。
+                                  qbt,0.025 ≤ qbt,0.5 ≤ qbt,0.975 .
+
+
+
+
+                                                  7
+Minusformer：以逐層去冗餘強化時間特徵
+
+  Minusformer 為 Transformer 類型之時間序列 backbone，其核心思想是在 encoder lay-
+ers 中保留輸入流與輸出流，並將各層已解釋的資訊從後續 representation 中扣除。若第
+j 層由目前 residual representation R(j) 擷取成分 O(j) ，則後續輸入可概念化為
+
+
+                                          b(j) .
+                          R(j+1) = R(j) − O
+
+
+輸出流亦以逐層相減或累積的方式整合不同層所提取的訊息。這種 “minus” 操作的目
+的，是降低不同 encoder layers 重複學習相同時間特徵的情形，使較深層著重於尚未被
+前層解釋的 residual structure。最後將各層資訊整合並映射至目標輸出維度。
+
+
+Sort Bootstrap：保留原始時間索引順序的重抽樣
+
+  傳統 i.i.d. bootstrap 對時間序列觀測值直接有放回抽樣，會打亂時間順序並破壞序列
+結構。Sort Bootstrap 的做法是先將每一筆觀測與其原始時間索引配對：
+
+
+                         {(t, Ht ) : t = 1, . . . , T }.
+
+
+每次 bootstrap 對這些成對資料進行 T 次有放回抽樣，得到索引
+
+
+                                (s1 , . . . , sT ),
+
+
+再依 sj 的原始時間索引由小到大排序，並以排序後對應的觀測值建立假樣本。
+
+
+方法比較之共同流程
+
+  針對不同模型一樣先對完整觀測序列進行 Kalman ﬁlter 分解，令
+
+
+                      bKF
+                 Yt = L t
+                           b tKF ,
+                          +H                              bKF
+                                             b tKF = Yt − L
+                                             H              t .
+
+
+
+                          bKF ，使用 AIC 選擇 ARIMA order；進入測試期後採
+低頻分支只使用 training period 的 L t
+
+rolling one-step-ahead prediction，時間 t 的真值揭露後才加入歷史以預測 t + 1。高頻分
+               b KF 建立 supervised windows，並由 M1–M5 各自產生高頻點預
+支以過去 w = 30 期的 H t
+
+
+
+
+                                        8
+測及區間。若 ARIMA 分支的點預測與區間為
+
+
+                                   bt ,
+                                   L            b−
+                                               [L     b+
+                                                  t , Lt ],
+
+
+
+而高頻方法的輸出為
+                                   bt,
+                                   H                b + ],
+                                               b −, H
+                                              [H t    t
+
+
+則最終合併結果定義為
+
+
+                        bt + H
+                  Ybt = L    bt,                    b−
+                                          Ct0.95 = [L     b − b+ b +
+                                                      t + Ht , Lt + Ht ].
+
+
+
+
+方法比較之參數設定
+
+M1-DistPred–ANN
+
+   M1 使用三層全連接 ANN 作為高頻 predictor，hidden dimensions 為 (128, 256, 128)，
+各 hidden layer 使用 ReLU 與 dropout 0.2，輸出 K = 100 個 ensemble samples。訓練時
+將輸出排序，並以 DistPred 的 CRPS–PWM loss 最小化預測分布與真值之差異。learning
+rate 設為 0.001，最多訓練 50 epochs，validation patience 為 5。測試時以輸出樣本之中位
+數作為高頻點預測，並以第 2.5 與第 97.5 百分位數形成高頻 95% 區間。
+
+
+M2-DistPred–Minusformer
+
+   M2 保留 M1 的 DistPred 分布輸出與 CRPS–PWM loss，但以 Minusformer 取代 ANN
+backbone。模型使用 label length 15、dmodel = 128、feed-forward dimension df f = 128、2
+個 encoder layers、dropout 0.1 與 gate parameter 1，輸出同樣為 100 個 ensemble samples。
+learning rate、最大 epochs、patience 及分位數取法均與 M1 相同。
+
+
+M3-Quantile–ANN
+
+   M3 使用與 M1 相同的 ANN hidden dimensions (128, 256, 128)、ReLU、dropout 0.2 與
+lag window 30，但輸出改為
+                               τ ∈ {0.025, 0.5, 0.975}
+
+三個條件分位數，並以 pinball loss 訓練。為避免 quantile crossing，模型以 monotone pa-
+rameterization 保證下界、中位數與上界依序排列。第 0.5 分位數作為點預測，第 0.025
+與 0.975 分位數作為高頻區間。learning rate 為 0.001，最多 50 epochs，patience 為 5。
+
+                                               9
+M4-Quantile–Minusformer
+
+   M4 將 M3 的 quantile regression head 接於 Minusformer backbone，並沿用 M2 的
+dmodel = 128、df f = 128、2 個 encoder layers、label length 15、dropout 0.1 與 gate param-
+eter 1。模型輸出三個具單調限制的條件分位數，使用 pinball loss、learning rate 0.001、
+最多 50 epochs 及 patience 5。
+
+
+M5-Sort Bootstrap–ANN
+
+   M5 依 Sort Bootstrap 執行。首先將 training high-frequency observations 與原始時間索
+引配對；第 b 次 bootstrap 對
+                                                    b KF )}T
+                                               {(t, H t    t=1
+
+
+進行等長度有放回抽樣，再依抽得的原始時間索引排序，而非依觀測值大小排序。排
+序後的假樣本用 lag window 30 建立 ANN training windows。此程序重複 B = 100 次，
+每次皆重新訓練一個 hidden dimensions 為 (128, 256, 128)、ReLU、dropout 0.2 的 MSE–
+ANN；learning rate 為 0.001，最多 50 epochs，patience 為 5。第 t 期的 100 個高頻預測
+之平均為點預測，第 2.5 與第 97.5 百分位數為高頻區間。
+
+
+六方法之主要原始參數
+
+                              Table 1: 六種方法的主要原始超參數
+方法  高頻模型       lag    hidden/model dimension           訓練上限            ensemble/bootstrap      區間建立方式
+M1    ANN      30           (128, 256, 128)            50 epochs           100 outputs       DistPred percentiles
+M2 Minusformer 30    dmodel = df f = 128, 2 layers     50 epochs           100 outputs       DistPred percentiles
+M3    ANN      30           (128, 256, 128)            50 epochs               —           quantiles (.025, .5, .975)
+M4 Minusformer 30    dmodel = df f = 128, 2 layers     50 epochs               —           quantiles (.025, .5, .975)
+M5    ANN      30           (128, 256, 128)            50 epochs         100 resamples    Sort Bootstrap percentiles
+M6    ANN      15              (32, 16)              {125, 250, 500}    30 hybrid models OOT adaptive residual interval
+
+
+
+
+評估指標與比較原則
+
+   點估計以 MSE、RMSE 與 MAE 評估；區間估計以 empirical coverage、mean width、
+median width、lower/upper miss rates 與 Gneiting–Raftery interval score 評估。除 coverage
+以越接近名目 95% 為佳外，其餘誤差、寬度與 interval score 越小越佳；區間寬度要與
+coverage 一起解讀。每個方法另記錄程式執行時間，觀察每個方法所需要的時間成本。
+
+
+
+
+                                                        10
+研究結果
+
+GARCH 模擬資料比較
+
+資料生成與實驗設定
+
+   模擬資料由低頻與高頻相加而成。低頻條件平均為 AR(1)：
+
+                                                         p
+                          Lt = 0.6Lt−1 + ut ,     ut =    ht zt ,
+
+
+其中 zt ∼ N (0, 1)，且
+                            ht = 0.5 + 0.15u2t−1 + 0.80ht−1 .
+
+高頻成分遵循非線性條件平均：
+
+                                    0.8Ht−1
+              Ht = 0.8Ht−1 −                     + εt ,         εt ∼ N (0, 1).
+                               1 + exp(−10Ht−1 )
+
+最終觀測為 Yt = Lt + Ht + ηt ，ηt ∼ N (0, 0.152 )。每次 Monte Carlo run 重新生成一條
+序列，training size 為 650、test horizon 為 200，data seeds 為 2020–2039，共 20 次 paired
+runs；六種方法在同一 seed 下使用完全相同的觀測路徑。
+
+
+原始超參數比較
+
+   Table 2 報告各方法保留原始超參數時，20 次 Monte Carlo 的平均表現。M5 的 RMSE
+與 MAE 最小，但 coverage 僅 64.85%，顯示其區間過窄；M6 的 coverage 最高，為
+92.20%，且點估計誤差僅次於 M5。M3 的 interval score 最低，為 17.313，其每 seed 平
+均時間約 36.7 秒；M6 平均需 231.3 秒，約為 M3 的 6.3 倍。
+
+     Table 2: M1M9–GARCH 模擬資料：原始超參數之 20 次 Monte Carlo 平均結果
+方法    MSE RMSE MAE Coverage(%) Mean width Median width Interval score 秒/seed 20-seed 分鐘
+M1   11.688 3.366 2.637  90.35     11.769       11.250        17.625    36.8        12.28
+M2   12.663 3.500 2.741  89.35     12.091       11.337        18.987    37.5        12.51
+M3   11.674 3.366 2.636  91.68     12.327       11.753        17.313    36.7        12.22
+M4   13.182 3.564 2.795  66.23      7.987        7.336        35.410    38.0        12.67
+M5   10.516 3.193 2.497  64.85      5.783        5.602        30.793    46.9        15.62
+M6   11.394 3.327 2.604  92.20     12.352       12.184        17.585   231.3        77.09
+
+
+
+   原始設定下各方法的 lower/upper miss rates 依序為：M1 (4.83%, 4.83%)、M2 (5.60%, 5.05%)、
+M3 (3.65%, 4.68%)、M4 (15.45%, 18.33%)、M5 (17.60%, 17.55%)、M6 (3.60%, 4.20%)。
+
+
+                                           11
+M6 的上下漏失相對平衡。
+
+
+0050 實證資料比較
+
+   0050 實驗使用 Yahoo Finance 之 0050.TW adjusted close。training period 為 2020-01-01
+至 2024-12-31，共 1215 個交易日；test period 為 2025-01-01 至 2026-07-31，共 382 個交
+易日。六種方法皆在 log adjusted-price scale 建模，最終合併點預測與區間 endpoints 經
+exponential transformation 返回價格尺度後評估。
+                   Table 3: 0050.TW 原始超參數之點預測與區間預測比較
+方法 MSE RMSE MAE             Coverage(%) Mean width    Median width     Interval score   Lower/Upper miss(%)      秒
+M1 2.177 1.476 0.950              90.58      3.986           2.945             7.543              5.50/3.93   106.4
+M2 3.675 1.917 1.277              91.36      5.724           4.472             8.329              6.02/2.62   106.7
+M3 2.170 1.473 0.950              81.41      6.513           5.812            15.134              9.42/9.16   106.2
+M4 3.396 1.843 1.206              69.11      4.762           3.157            19.842            18.32/12.57   108.3
+M5 4.810 2.193 1.507              74.87      3.823           3.119            16.359             5.50/19.63   111.5
+M6 1.787 1.337 0.881              91.10      3.712           3.300             7.350              4.71/4.19   348.3
+
+
+   在 0050 單一路徑實驗中，M6 同時取得最低 MSE、RMSE、MAE、mean width 與
+interval score，且 lower/upper miss rates 相對平衡。M2 的 coverage 最高，但僅比 M6 高
+約 0.26 個百分點，平均區間則寬約 54%。
+
+
+太陽黑子實證資料比較
+
+   太陽黑子實驗使用月總太陽黑子數（monthly total sunspot number），資料期間為
+1900 年 1 月至 2023 年 1 月，共 1477 筆觀測值。資料依時間順序以前 80% 作為 training
+set、後 20% 作為 test set；training period 為 1900 年 1 月至 1998 年 5 月，共 1181 筆，test
+period 為 1998 年 6 月至 2023 年 1 月，共 296 筆。六種方法直接在原始太陽黑子數值尺
+度訓練及評估。
+               Table 4: 月總太陽黑子數：原始超參數之點預測與區間預測比較
+方法     MSE     RMSE      MAE Coverage(%) Mean width       Median width Interval score   Lower/Upper miss(%)      秒
+M1   395.486   19.887   13.672     90.20     63.794             60.566       107.028              5.41/4.39   109.3
+M2   397.530   19.938   13.889     92.23     64.908             58.242       103.185              3.04/4.73   110.1
+M3   395.454   19.886   13.745     92.57     68.512             58.151        94.361              3.38/4.05   108.0
+M4   414.711   20.364   13.898     63.51     33.093             28.070       258.780            19.93/16.55   111.2
+M5   384.020   19.596   13.356     69.59     33.614             32.134       177.780            15.20/15.20   125.5
+M6   383.407   19.581   13.915     97.30     97.859             99.481       107.378              1.69/1.01   450.6
+
+
+   M6 取得最低 MSE 與 RMSE，coverage 亦為六種方法中最高，但其 97.30% coverage
+高於名目 95%，且平均區間寬度為六種方法中最大。M3 的 interval score 最低，coverage
+為 92.57%。M6 其優勢主要在較高 coverage 與較低平方誤差，而代價為較寬的區間及較
+高計算成本。
+
+                                                     12
+參考文獻
+
+
+
+
+       13
+

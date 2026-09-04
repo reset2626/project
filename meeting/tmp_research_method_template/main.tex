@@ -1,12 +1,156 @@
-\section{研究方法}
-\label{sec:methodology}
+% update date: 2024.09.04
+% 有問題or更新需求可email至: wufish@gmail.com
+% 也可以到github留言: https://github.com/coldwufish/NYCU-thesis-template
 
-本研究比較六種結合 Kalman filter、ARIMA 與機器學習之時間序列點預測及區間預測方法。M1--M5 依洪瑋翎之研究流程實作；M6 為本研究提出之 Kalman--ARIMA--ANN Out-of-Time Adaptive EnbPI-type 方法。除另行說明之控制實驗外，各方法皆保留原始模型結構與超參數。所有方法均採 sequential one-step-ahead evaluation：時間 $t$ 的預測完成後才揭露 $Y_t$，且 $Y_t$ 僅能用於時間 $t+1$ 以後的預測。
+% 載入會用到的套件, 通常不需要修改這邊的資料
+\input{covers/load_env.tex} 
 
-\subsection{M6：Kalman--ARIMA--ANN Out-of-Time Adaptive EnbPI}
-\label{subsec:m6-method}
+% 預設英文目錄
+% 如果想用中文目錄, 再把下面的註解拿掉
+\toggletrue{toc-use-cn}
 
-\subsubsection{訓練資料切割與整體估計流程}
+
+% #### 下面是自己的資料 ####
+
+% 博士班就把下方註解拿掉吧!!
+\toggletrue{iamphd}
+
+% 論文名稱
+\newcommand{\chineseTitle}{論文名稱}
+\newcommand{\englishTitle}{English Title}
+% 論文名稱太長的話, 可以修改covers/inside_var.tex 的顯示語法, 詳情寫在那邊
+
+% 自己的名字 (英文名字有兩種寫法, 一個是姓在後, 一個是放前面還有逗號. )
+\newcommand{\studentCnName}{學生名字}
+\newcommand{\studentEnName}{XXXX Wu} % 書名頁
+\newcommand{\studentEnNameA}{Wu, XXXX} % 封面用
+
+% 教授的名字
+\newcommand{\advisorCnName}{指導教授名字}
+\newcommand{\advisorEnName}{OOOO Tseng}     % 書名頁
+\newcommand{\advisorEnNamex}{Tseng, OOOO}   % 封面用
+
+% 共同指導教授的名字, 若有再填寫即可. 目前只支援兩位指導教授的欄位
+%\newcommand{\advisorCnNameB}{共同指導教授名字}
+%\newcommand{\advisorEnNameB}{OOO Lin}     % 書名頁
+%\newcommand{\advisorEnNameBx}{Lin, OOO}   % 封面用
+
+% 論文提交的日期，可以寫口試日期 or 畢業日期
+\newcommand{\ThesisDate}{August 2022}           
+\newcommand{\ThesisDateTW}{中華民國~ 一一一年八月} 
+
+
+% [書名頁] 可參考教務處的 學位授予名稱 寫法
+% https://aa.nycu.edu.tw/aa/ch/app/statisticalmap/list?module=statisticalmap&id=4358
+
+% 詳情請向系所承辦人員確認，以系所提供的資訊為主
+
+% 下面變數跟表格使用一樣的名稱, 後綴的CN與EN表示中英文
+\newcommand{\NameofCollegeCN}{資訊學院} % 這個其實沒用到, 不過為了一致還是放進來
+\newcommand{\NameofCollegeEN}{College of Computer Science}
+\newcommand{\NameofDepartmentInstituteCN}{資訊學院碩士在職專班} % 系所名稱, 請看下方[說明1]
+\newcommand{\NameofDepartmentInstituteEN}{Degree Program of Computer Science}
+\newcommand{\NameofDegree}{Master of Science} % 學位名稱, 常見的是Master of Science, 不同系所採用不同寫法, 記得查學校的資料.
+\newcommand{\ResearchTopic}{Computer Science} % 研究領域, 請看下方[說明2]
+
+% [說明1]
+% 這邊需要填寫 XX系 or OO所 的名稱
+% 如果你的單位是系所合一, 就用 Department. 如: 土木系碩士班請用 Department
+% 只有所, 沒有大學部的話, 就用 Institute. 如: 電信所請用Institute
+
+% [說明2]
+% 書名頁的最後會有 in OOOO 的內容. 這個目前找不到通用性的寫法. 
+% 大家就自行找前人的畢業論文, 看同系所的人是怎麼寫, 就跟他們寫一樣的吧.
+% 不過有些系所不需要寫這個東西, ex: 教育所. 
+% 不需要的話就把\ResearchTopic整句刪掉
+
+% --------------------------------------------
+
+% [紙本裝訂順序]
+% 封面 >> 書名頁 >> 電子檔著作權授權書 >> 紙本延後公開申請書(如果有) >> 審定同意書 >> 論文內容(致謝-附錄) >> 形式確認書 >> 共同作者貢獻度聲明書(彙編著作者)
+
+% 注意: 有簽名的表單不用放到論文電子檔裡面, 上傳圖書館的時候會有相應欄位讓你上傳.
+
+
+\makeatletter
+% 若已定義則重新定義，未定義則直接建立
+\renewcommand*\l@figure[2]{\@dottedtocline{1}{1.5em}{2.3em}{#1}{#2}}
+\renewcommand*\l@table[2]{\@dottedtocline{1}{1.5em}{2.3em}{#1}{#2}}
+\makeatother
+
+\begin{document}
+
+% ====================================================
+\newgeometry{top=3cm,bottom=3cm,left=3cm,right=3cm}
+
+% 1. 第一頁的封面, 系所資訊使用變數代入
+% \input{covers/front_var.tex}        % 論文的封面
+
+% 2. 第二頁的書名頁, 系所&日期使用變數代入
+% 目前的浮水印剛好可以把校名&相關資訊包在裡面
+% \input{covers/inside_var.tex}       % 論文的書名頁
+
+\restoregeometry
+% ====================================================
+% 書名頁起至最後一頁皆須加入浮水印
+% 目前語法不知道怎麼設定透明度, 就直接放刷淡的圖片放在頁面中央
+\AddToShipoutPicture{
+    \put(-5,-15){
+        \parbox[b][\paperheight]{\paperwidth}{%
+            \vfill
+            \centering
+            {\includegraphics[scale=0.65]{covers/logo2.pdf}}%
+            \vfill
+        }
+    }
+}
+% ====================================================
+
+% [補充] 圖書館有說: 授權書(3)&審定書(5)要裝訂於紙本論文中，不用放在PDF電子檔裡面，要記得請口委簽名。
+
+% 3. 論文電子檔著作權授權書: (要裝訂在紙本論文)
+
+% 4. 博士論文指導教授推薦書(碩士論文免附) 由各所自定，可有可無。檔名 phd_recommend.pdf
+%\includepdf[pages={1},pagecommand={\thispagestyle{empty}}]{phd_recommend.pdf}
+
+% 5. 學位論文審定同意書(審定書): (要裝訂在紙本論文)
+
+% 6. 致謝 Acknowledgement {Sections/0.1.Acknowledgement}
+% \input{Sections/0.1.Acknowledgement}\newpage
+% 誌謝（依個人意願自行決定是否撰寫）：以不超過一頁為原則。
+
+% 頁碼設定
+\frontmatter
+\pagenumbering{roman} % 小寫羅馬數字頁碼
+{\fontfamily{ptm}\selectfont
+
+% 中英文目錄設定放在covers/toc_var.tex 裡面, 主頁看起來比較清爽, 包含下面項目 (這邊的語法應該不太需要調整)
+% \input{covers/toc_var.tex}
+
+% 7. 中文摘要及關鍵詞 5-7 個 {Sections/0.2.Abstract_chinese}
+% 8. 英文摘要及關鍵詞 5-7 個 {Sections/0.3.Abstract}
+% 9. 目錄 toc
+% 10. 圖片目錄 lof 
+% 11. 表格目錄 lot
+
+% 頁碼設定
+\mainmatter
+\pagenumbering{arabic} % 阿拉伯數字頁碼
+
+% ====================================================
+% 12. 論文正文, 可以每個章節一個.tex檔案
+% put your statements in the following
+% \input{Sections/1.Introduction} \newpage
+% \input{Sections/2.Relatedwork} \newpage
+% \input{Sections/3.Architecture} \newpage
+% \input{Sections/4.Methodology} \newpage
+
+\section*{研究方法}
+
+\subsection*{Kalman--ARIMA--ANN Out-of-Time Adaptive EnbPI}
+
+
+\subsubsection*{訓練資料切割與整體估計流程}
 
 首先先切割資料，在每一個時間 fold 內執行分解與模型訓練。完整資料分為 Training 與 Testing：
 \[
@@ -33,7 +177,7 @@ Y_{1:\max(I_3)}
 \end{aligned}
 \]
 
-\subsubsection{Kalman 分解}
+\subsubsection*{Kalman 分解}
 在任一時間 $t$，僅使用時間 $t$ 之前的資料執行 Kalman filter，得到低頻估計$\widehat L_t^{KF}$，
 並將高頻成分定義為觀測值扣除低頻估計：
 \[\widehat H_t^{KF}=Y_t-\widehat L_t^{KF}\]
@@ -42,7 +186,7 @@ Y_{1:\max(I_3)}
     Y_t=\widehat L_t^{KF}+\widehat H_t^{KF}.
 \]
 
-\subsubsection{高頻 ANN supervised windows}
+\subsubsection*{高頻 ANN supervised windows}
 令 lag window 為 $w$。對每個 $t=w+1,\ldots,m$，以過去 $w$ 期的 Kalman low、Kalman high 與原始觀測建立 ANN 輸入：
 \[
     X_t=(
@@ -60,7 +204,7 @@ ANN 的預測目標為當期 Kalman high：
     D_t=(X_t,Z_t).
 \]
 
-\subsubsection{低頻 base ARIMA 與 order selection}
+\subsubsection*{低頻 base ARIMA 與 order selection}
 
 在每個 fold 中，只使用該 validation block 開始以前的 Kalman low series，於候選集合
 \[
@@ -80,7 +224,7 @@ ANN 的預測目標為當期 Kalman high：
     \widetilde u_t=u_t-\overline u.
 \]
 
-\subsubsection{Moving-block bootstrap 與 $B$ 組 hybrid models}
+\subsubsection*{Moving-block bootstrap 與 $B$ 組 hybrid models}
 
 令 supervised samples 數量為 $n$，bootstrap block length 為
 \[
@@ -98,6 +242,7 @@ ANN 的預測目標為當期 Kalman high：
 
 \paragraph{第 $b$ 個 ARIMA。}
 
+
 ARIMA 分支抽取 base ARIMA residual blocks，並將抽得的 residual 逐點加回 base fitted values：
 \[
     L_t^{\ast(b)}
@@ -110,6 +255,7 @@ ARIMA 分支抽取 base ARIMA residual blocks，並將抽得的 residual 逐點�
 \]
 
 \paragraph{第 $b$ 個 ANN。}
+
 
 ANN 分支使用相同索引 $S_b$ 抽取按時間排列的 supervised samples：
 \[
@@ -130,6 +276,7 @@ ANN 分支使用相同索引 $S_b$ 抽取按時間排列的 supervised samples�
 
 \paragraph{Hybrid aggregation。}
 
+
 同一次 bootstrap 的 $\mathcal A_b$ 與 $\mathcal N_b$ 配成第 $b$ 個 hybrid predictor。使用 mean aggregation：
 \[
     \widehat L_t^{\mathrm{raw}}
@@ -144,7 +291,7 @@ ANN 分支使用相同索引 $S_b$ 抽取按時間排列的 supervised samples�
     =\widehat L_t^{\mathrm{raw}}+\widehat H_t^{\mathrm{raw}}.
 \]
 
-\subsubsection{各 future blocks 的 out-of-time residuals}
+\subsubsection*{各 future blocks 的 out-of-time residuals}
 
 依照前述 rolling-origin 切割，第 $k$ 個 fold 的 predictor 只使用該 fold 前的數值完成分解、model selection 與 fitting。為避免先使用完整 training series 選擇模型，再回頭校準同一段資料所造成的資訊洩漏，第 $k$ 個 future block 的每一筆 residual 都必須由此 predictor 產生。
 
@@ -165,7 +312,7 @@ ANN 分支使用相同索引 $S_b$ 抽取按時間排列的 supervised samples�
     \mathcal E_{\mathrm{cal}}
     =\{r_t^{\mathrm{cal}}:t\in I_1\cup\cdots\cup I_K\}.
 \]
-\subsubsection{Adaptive residual window selection}
+\subsubsection*{Adaptive residual window selection}
 
 為容許預測誤差分布隨時間改變，考慮候選 residual-window lengths
 \[
@@ -187,8 +334,8 @@ S_{\alpha}(l,u;y)
 \]
 此選擇完全在 training cross-fit residuals 上完成，不使用 final test outcomes。進入測試階段後，$\widehat W$ 的數值固定，但 residual pool 的內容會隨新真值揭露逐步更新。
 
-\subsubsection{Final sequential point and interval prediction}
-
+\subsubsection*{Final sequential point and interval prediction}
+    
 完成 calibration 後，使用完整 training set $Y_{1:T}$ 重新執行 Kalman 分解、ARIMA order selection、ANN iteration selection，以及 $B$ 組 hybrid models 的訓練。初始測試 residual pool 為 training cross-fit residuals 的最後 $\widehat W$ 筆：
 \[
     \mathcal E_T
@@ -365,20 +512,78 @@ $\{\widehat Y_{t\mid t-1},C_t^{1-\alpha}\}_{t=T+1}^{T+H}$
 \end{spacing}
 \end{algorithm}
 
-\subsection{M1--M5 比較方法之共同流程}
-\label{subsec:m1-m5-common}
+\subsection*{方法比較}
 
-M1--M5 先對完整觀測序列進行因果 Kalman filter 分解，令
+\subsubsection*{DistPred：以樣本表示條件預測分布}
+
+一般點預測模型對每個輸入只輸出單一預測值；DistPred 則令神經網路一次輸出 $K$ 個數值
+\[
+    \widehat{\boldsymbol H}_t
+    =(\widehat H_{t,1},\ldots,\widehat H_{t,K}),
+\]
+並將其視為條件預測分布的經驗樣本。模型不預先假設誤差必須服從常態分布，而是透過 Continuous Ranked Probability Score（CRPS）同時衡量樣本分布與真值的距離及預測分布本身的離散程度。其經驗形式可寫為
+\[
+    \widehat{\operatorname{CRPS}}_t
+    =\frac{1}{K}\sum_{k=1}^{K}
+      |\widehat H_{t,k}-H_t|
+    -\frac{1}{2K^2}\sum_{j=1}^{K}\sum_{k=1}^{K}
+      |\widehat H_{t,j}-\widehat H_{t,k}|.
+\]
+第一項懲罰預測樣本偏離真值，第二項避免所有樣本不適當地集中於同一點。模型完成訓練後，可直接由 $K$ 個輸出的經驗分位數取得點預測及 prediction interval；本文取中位數為點預測，並取第 $2.5$ 與 $97.5$ 百分位數為 $95\%$ 區間。
+
+\subsubsection*{Quantile Regression：直接估計條件分位數}
+
+Quantile Regression 不估計完整機率密度，而是針對指定的 quantile level $\tau$ 直接學習條件分位數
+\[
+    Q_{\tau}(H_t\mid X_t).
+\]
+令預測值為 $\widehat q_{t,\tau}$，其 pinball loss 定義為
+\[
+    \rho_{\tau}(H_t-\widehat q_{t,\tau})
+    =
+    \begin{cases}
+      \tau(H_t-\widehat q_{t,\tau}),
+      & H_t\geq \widehat q_{t,\tau},\\
+      (1-\tau)(\widehat q_{t,\tau}-H_t),
+      & H_t<\widehat q_{t,\tau}.
+    \end{cases}
+\]
+此非對稱損失使低分位數對高估施加較大懲罰、高分位數對低估施加較大懲罰。本文同時估計 $\tau\in\{0.025,0.5,0.975\}$：$0.5$ 分位數作為點預測，$0.025$ 與 $0.975$ 分位數形成 $95\%$ prediction interval。
+\[
+    \widehat q_{t,0.025}
+    \leq \widehat q_{t,0.5}
+    \leq \widehat q_{t,0.975}.
+\]
+
+\subsubsection*{Minusformer：以逐層去冗餘強化時間特徵}
+
+Minusformer 為 Transformer 類型之時間序列 backbone，其核心思想是在 encoder layers 中保留輸入流與輸出流，並將各層已解釋的資訊從後續 representation 中扣除。若第 $j$ 層由目前 residual representation $R^{(j)}$ 擷取成分 $O^{(j)}$，則後續輸入可概念化為
+\[
+    R^{(j+1)}=R^{(j)}-\widehat O^{(j)}.
+\]
+輸出流亦以逐層相減或累積的方式整合不同層所提取的訊息。這種 ``minus'' 操作的目的，是降低不同 encoder layers 重複學習相同時間特徵的情形，使較深層著重於尚未被前層解釋的 residual structure。最後將各層資訊整合並映射至目標輸出維度。
+
+\subsubsection*{Sort Bootstrap：保留原始時間索引順序的重抽樣}
+
+傳統 i.i.d. bootstrap 對時間序列觀測值直接有放回抽樣，會打亂時間順序並破壞序列結構。Sort Bootstrap 的做法是先將每一筆觀測與其原始時間索引配對：
+\[
+    \{(t,H_t):t=1,\ldots,T\}.
+\]
+每次 bootstrap 對這些成對資料進行 $T$ 次有放回抽樣，得到索引
+\[
+    (s_1,\ldots,s_T),
+\]
+再依 $s_j$ 的原始時間索引由小到大排序，並以排序後對應的觀測值建立假樣本。
+
+\subsection*{方法比較之共同流程}
+
+針對不同模型一樣先對完整觀測序列進行 Kalman filter 分解，令
 \[
     Y_t=\widehat L_t^{KF}+\widehat H_t^{KF},
     \qquad
     \widehat H_t^{KF}=Y_t-\widehat L_t^{KF}.
 \]
-Kalman filter 的 process variance 與 measurement variance 分別設為 $0.5$ 與 $10$。低頻分支只使用 training period 的 $\widehat L_t^{KF}$，在
-\[
-    \{(p,0,q):p,q\in\{0,1,2,3,4\}\}
-\]
-中以 AIC 選擇 ARIMA order；進入測試期後採 rolling one-step-ahead prediction，時間 $t$ 的真值揭露後才加入歷史以預測 $t+1$。高頻分支以過去 $w=30$ 期的 $\widehat H_t^{KF}$ 建立 supervised windows，並由 M1--M5 各自產生高頻點預測及區間。若 ARIMA 分支的點預測與區間為
+低頻分支只使用 training period 的 $\widehat L_t^{KF}$，使用 AIC 選擇 ARIMA order；進入測試期後採 rolling one-step-ahead prediction，時間 $t$ 的真值揭露後才加入歷史以預測 $t+1$。高頻分支以過去 $w=30$ 期的 $\widehat H_t^{KF}$ 建立 supervised windows，並由 M1--M5 各自產生高頻點預測及區間。若 ARIMA 分支的點預測與區間為
 \[
     \widehat L_t,\qquad
     [\widehat L_t^{-},\widehat L_t^{+}],
@@ -396,86 +601,18 @@ Kalman filter 的 process variance 與 measurement variance 分別設為 $0.5$ �
     [\widehat L_t^{-}+\widehat H_t^{-},
      \widehat L_t^{+}+\widehat H_t^{+}].
 \]
-此合併方式沿用原始研究設定，隱含低頻與高頻不確定性可直接相加之操作性假設。
 
-M1--M4 的 training windows 以 $80\%/20\%$ 隨機切為 model-training 與 validation subsets，training DataLoader 採 batch size $32$ 並打亂 mini-batches；validation 與 testing 不打亂。此程序未直接使用 final-test data，但隨機切割可能使較晚窗口進入 model-training、較早窗口進入 validation，且相鄰滑動窗口可能高度重疊，因此其 validation loss 可能包含 temporal look-ahead bias。本文在原始設定比較中予以保留，以忠實重現原方法；M6 則使用依時間排序的 rolling-origin future-block validation。
+\subsection*{方法比較之參數設定}
 
-\subsection{核心方法概念}
-\label{subsec:core-method-concepts}
-
-\subsubsection{DistPred：以樣本表示條件預測分布}
-
-一般 point forecasting model 對每個輸入只輸出單一預測值；DistPred 則令神經網路一次輸出 $K$ 個數值
-\[
-    \widehat{\boldsymbol H}_t
-    =(\widehat H_{t,1},\ldots,\widehat H_{t,K}),
-\]
-並將其視為條件預測分布的經驗樣本。模型不預先假設誤差必須服從常態分布，而是透過 Continuous Ranked Probability Score（CRPS）同時衡量樣本分布與真值的距離及預測分布本身的離散程度。其經驗形式可寫為
-\[
-    \widehat{\operatorname{CRPS}}_t
-    =\frac{1}{K}\sum_{k=1}^{K}
-      |\widehat H_{t,k}-H_t|
-    -\frac{1}{2K^2}\sum_{j=1}^{K}\sum_{k=1}^{K}
-      |\widehat H_{t,j}-\widehat H_{t,k}|.
-\]
-第一項懲罰預測樣本偏離真值，第二項避免所有樣本不適當地集中於同一點。模型完成訓練後，可直接由 $K$ 個輸出的經驗分位數取得點預測及 prediction interval；本文取中位數為點預測，並取第 $2.5$ 與 $97.5$ 百分位數為 $95\%$ 區間。M1 與 M2 的差異不在 DistPred loss，而在其 backbone 分別為 ANN 與 Minusformer。
-
-\subsubsection{Quantile Regression：直接估計條件分位數}
-
-Quantile Regression 不估計完整機率密度，而是針對指定的 quantile level $\tau$ 直接學習條件分位數
-\[
-    Q_{\tau}(H_t\mid X_t).
-\]
-令預測值為 $\widehat q_{t,\tau}$，其 pinball loss 定義為
-\[
-    \rho_{\tau}(H_t-\widehat q_{t,\tau})
-    =
-    \begin{cases}
-      \tau(H_t-\widehat q_{t,\tau}),
-      & H_t\geq \widehat q_{t,\tau},\\
-      (1-\tau)(\widehat q_{t,\tau}-H_t),
-      & H_t<\widehat q_{t,\tau}.
-    \end{cases}
-\]
-此非對稱損失使低分位數對高估施加較大懲罰、高分位數對低估施加較大懲罰。本文同時估計 $\tau\in\{0.025,0.5,0.975\}$：$0.5$ 分位數作為點預測，$0.025$ 與 $0.975$ 分位數形成 $95\%$ prediction interval。為避免三條 quantile curves 次序顛倒，M3 與 M4 使用 monotone parameterization 保證
-\[
-    \widehat q_{t,0.025}
-    \leq \widehat q_{t,0.5}
-    \leq \widehat q_{t,0.975}.
-\]
-
-\subsubsection{Minusformer：以逐層去冗餘強化時間特徵}
-
-Minusformer 為 Transformer 類型之時間序列 backbone，其核心思想是在 encoder layers 中保留輸入流與輸出流，並將各層已解釋的資訊從後續 representation 中扣除。若第 $j$ 層由目前 residual representation $R^{(j)}$ 擷取成分 $O^{(j)}$，則後續輸入可概念化為
-\[
-    R^{(j+1)}=R^{(j)}-\widehat O^{(j)}.
-\]
-輸出流亦以逐層相減或累積的方式整合不同層所提取的訊息。這種 ``minus'' 操作的目的，是降低不同 encoder layers 重複學習相同時間特徵的情形，使較深層著重於尚未被前層解釋的 residual structure。最後將各層資訊整合並映射至目標輸出維度。本文不將 Minusformer 本身視為區間方法；它是 M2 與 M4 的共同 backbone，分別搭配 DistPred distribution head 與 Quantile Regression head。
-
-\subsubsection{Sort Bootstrap：保留原始時間索引順序的重抽樣}
-
-傳統 i.i.d. bootstrap 對時間序列觀測值直接有放回抽樣，會打亂時間順序並破壞序列結構。Sort Bootstrap 的做法是先將每一筆觀測與其原始時間索引配對：
-\[
-    \{(t,H_t):t=1,\ldots,T\}.
-\]
-每次 bootstrap 對這些成對資料進行 $T$ 次有放回抽樣，得到索引
-\[
-    (s_1,\ldots,s_T),
-\]
-再依 $s_j$ 的原始時間索引由小到大排序，並以排序後對應的觀測值建立假樣本。必須注意，此步驟是依時間索引排序，而不是依 $H_t$ 的數值大小排序。此方法使重複抽樣後的一階與二階樣本動差不受排序操作影響，同時嘗試保留原序列由早至晚的結構。本文對每個 Sort Bootstrap 假樣本重新訓練一個 ANN；重複 $100$ 次後，以預測平均作為點估計，並以預測分布的第 $2.5$ 與 $97.5$ 百分位數建立區間。Sort Bootstrap 與 moving-block bootstrap 不同：前者抽取個別時間點後再依索引排序，後者則直接抽取連續時間 blocks。
-
-\subsection{M1：DistPred--ANN}
-\label{subsec:m1-method}
+\subsubsection*{M1-DistPred--ANN}
 
 M1 使用三層全連接 ANN 作為高頻 predictor，hidden dimensions 為 $(128,256,128)$，各 hidden layer 使用 ReLU 與 dropout $0.2$，輸出 $K=100$ 個 ensemble samples。訓練時將輸出排序，並以 DistPred 的 CRPS--PWM loss 最小化預測分布與真值之差異。learning rate 設為 $0.001$，最多訓練 $50$ epochs，validation patience 為 $5$。測試時以輸出樣本之中位數作為高頻點預測，並以第 $2.5$ 與第 $97.5$ 百分位數形成高頻 $95\%$ 區間。
 
-\subsection{M2：DistPred--Minusformer}
-\label{subsec:m2-method}
+\subsubsection*{M2-DistPred--Minusformer}
 
 M2 保留 M1 的 DistPred 分布輸出與 CRPS--PWM loss，但以 Minusformer 取代 ANN backbone。模型使用 label length $15$、$d_{\mathrm{model}}=128$、feed-forward dimension $d_{ff}=128$、$2$ 個 encoder layers、dropout $0.1$ 與 gate parameter $1$，輸出同樣為 $100$ 個 ensemble samples。learning rate、最大 epochs、patience 及分位數取法均與 M1 相同。
 
-\subsection{M3：Quantile--ANN}
-\label{subsec:m3-method}
+\subsubsection*{M3-Quantile--ANN}
 
 M3 使用與 M1 相同的 ANN hidden dimensions $(128,256,128)$、ReLU、dropout $0.2$ 與 lag window $30$，但輸出改為
 \[
@@ -483,22 +620,19 @@ M3 使用與 M1 相同的 ANN hidden dimensions $(128,256,128)$、ReLU、dropout
 \]
 三個條件分位數，並以 pinball loss 訓練。為避免 quantile crossing，模型以 monotone parameterization 保證下界、中位數與上界依序排列。第 $0.5$ 分位數作為點預測，第 $0.025$ 與 $0.975$ 分位數作為高頻區間。learning rate 為 $0.001$，最多 $50$ epochs，patience 為 $5$。
 
-\subsection{M4：Quantile--Minusformer}
-\label{subsec:m4-method}
+\subsubsection*{M4-Quantile--Minusformer}
 
 M4 將 M3 的 quantile regression head 接於 Minusformer backbone，並沿用 M2 的 $d_{\mathrm{model}}=128$、$d_{ff}=128$、$2$ 個 encoder layers、label length $15$、dropout $0.1$ 與 gate parameter $1$。模型輸出三個具單調限制的條件分位數，使用 pinball loss、learning rate $0.001$、最多 $50$ epochs 及 patience $5$。
 
-\subsection{M5：Sort Bootstrap--ANN}
-\label{subsec:m5-method}
+\subsubsection*{M5-Sort Bootstrap--ANN}
 
-M5 依學長論文所提出之 Sort Bootstrap 執行。首先將 training high-frequency observations 與原始時間索引配對；第 $b$ 次 bootstrap 對
+M5 依 Sort Bootstrap 執行。首先將 training high-frequency observations 與原始時間索引配對；第 $b$ 次 bootstrap 對
 \[
     \{(t,\widehat H_t^{KF})\}_{t=1}^{T}
 \]
 進行等長度有放回抽樣，再依抽得的原始時間索引排序，而非依觀測值大小排序。排序後的假樣本用 lag window $30$ 建立 ANN training windows。此程序重複 $B=100$ 次，每次皆重新訓練一個 hidden dimensions 為 $(128,256,128)$、ReLU、dropout $0.2$ 的 MSE--ANN；learning rate 為 $0.001$，最多 $50$ epochs，patience 為 $5$。第 $t$ 期的 $100$ 個高頻預測之平均為點預測，第 $2.5$ 與第 $97.5$ 百分位數為高頻區間。
 
-\subsection{六方法之主要原始參數}
-\label{subsec:method-parameters}
+\subsection*{六方法之主要原始參數}
 
 \begin{table}[htbp]
 \centering
@@ -520,22 +654,17 @@ M6 & ANN & 15 & $(32,16)$ & $\{125,250,500\}$ & 30 hybrid models & OOT adaptive 
 }
 \end{table}
 
-M6 另使用 $K=4$ 個 rolling-origin future blocks、initial training fraction $0.5$、residual-window candidates $\{100,200,300,400,\mathrm{all}\}$、$101$ 個 shortest-interval $\beta$ candidates、ARIMA BIC search $0\leq p,q\leq4$，以及 Kalman process/measurement variances $(0.5,10)$。
+\subsection*{評估指標與比較原則}
 
-\subsection{評估指標與比較原則}
-\label{subsec:evaluation-metrics}
+點估計以 MSE、RMSE 與 MAE 評估；區間估計以 empirical coverage、mean width、median width、lower/upper miss rates 與 Gneiting--Raftery interval score 評估。除 coverage 以越接近名目 $95\%$ 為佳外，其餘誤差、寬度與 interval score 越小越佳；區間寬度要與 coverage 一起解讀。每個方法另記錄程式執行時間，觀察每個方法所需要的時間成本。
 
-點估計以 MSE、RMSE 與 MAE 評估；區間估計以 empirical coverage、mean width、median width、lower/upper miss rates 與 Gneiting--Raftery interval score 評估。除 coverage 以越接近名目 $95\%$ 為佳外，其餘誤差、寬度與 interval score 越小越佳；然而區間寬度不得脫離 coverage 單獨解讀。每個方法另記錄 end-to-end elapsed time，包含該方法所需的 Kalman/ARIMA、model selection、training、calibration 與 prediction。M1--M5 共用的 Kalman/ARIMA 前處理成本在方法別時間中各自計入，因此方法別時間代表該 pipeline 獨立執行之成本。
+\section*{研究結果}
 
-\section{研究結果}
-\label{sec:results}
+\subsection*{GARCH 模擬資料比較}
 
-\subsection{M1M9--GARCH 模擬資料比較}
-\label{subsec:simulation-results}
+\subsubsection*{資料生成與實驗設定}
 
-\subsubsection{資料生成與實驗設定}
-
-模擬資料由低頻 M1 與高頻 M9 相加而成。低頻條件平均為 AR(1)：
+模擬資料由低頻與高頻相加而成。低頻條件平均為 AR(1)：
 \[
     L_t=0.6L_{t-1}+u_t,
     \qquad
@@ -545,7 +674,7 @@ M6 另使用 $K=4$ 個 rolling-origin future blocks、initial training fraction 
 \[
     h_t=0.5+0.15u_{t-1}^{2}+0.80h_{t-1}.
 \]
-高頻成分遵循 M9 非線性條件平均，innovation standard deviation 固定為 $1$：
+高頻成分遵循非線性條件平均：
 \[
     H_t=0.8H_{t-1}
     -\frac{0.8H_{t-1}}{1+\exp(-10H_{t-1})}
@@ -554,9 +683,9 @@ M6 另使用 $K=4$ 個 rolling-origin future blocks、initial training fraction 
 \]
 最終觀測為 $Y_t=L_t+H_t+\eta_t$，$\eta_t\sim N(0,0.15^2)$。每次 Monte Carlo run 重新生成一條序列，training size 為 $650$、test horizon 為 $200$，data seeds 為 2020--2039，共 $20$ 次 paired runs；六種方法在同一 seed 下使用完全相同的觀測路徑。
 
-\subsubsection{原始超參數比較}
+\subsubsection*{原始超參數比較}
 
-表~\ref{tab:simulation-original} 報告各方法保留原始超參數時，$20$ 次 Monte Carlo 的平均表現。M5 的 RMSE 與 MAE 最小，但 coverage 僅 $64.85\%$，顯示其區間過窄；M6 的 coverage 最高，為 $92.20\%$，且點估計誤差僅次於 M5。M3 的 interval score 最低，為 $17.313$，其每 seed 平均時間約 $36.7$ 秒；M6 平均需 $231.3$ 秒，約為 M3 的 $6.3$ 倍。
+Table ~\ref{tab:simulation-original} 報告各方法保留原始超參數時，$20$ 次 Monte Carlo 的平均表現。M5 的 RMSE 與 MAE 最小，但 coverage 僅 $64.85\%$，顯示其區間過窄；M6 的 coverage 最高，為 $92.20\%$，且點估計誤差僅次於 M5。M3 的 interval score 最低，為 $17.313$，其每 seed 平均時間約 $36.7$ 秒；M6 平均需 $231.3$ 秒，約為 M3 的 $6.3$ 倍。
 
 \begin{table}[htbp]
 \centering
@@ -578,38 +707,11 @@ M6 & 11.394 & 3.327 & 2.604 & \textbf{92.20} & 12.352 & 12.184 & 17.585 & 231.3 
 }
 \end{table}
 
-原始設定下各方法的 lower/upper miss rates 依序為：M1 $(4.83\%,4.83\%)$、M2 $(5.60\%,5.05\%)$、M3 $(3.65\%,4.68\%)$、M4 $(15.45\%,18.33\%)$、M5 $(17.60\%,17.55\%)$、M6 $(3.60\%,4.20\%)$。M6 的上下漏失相對平衡，但平均 coverage 仍低於名目 $95\%$，故結果應解讀為「六種方法中最接近名目水準」，而非已達成精確 $95\%$ coverage。
+原始設定下各方法的 lower/upper miss rates 依序為：M1 $(4.83\%,4.83\%)$、M2 $(5.60\%,5.05\%)$、M3 $(3.65\%,4.68\%)$、M4 $(15.45\%,18.33\%)$、M5 $(17.60\%,17.55\%)$、M6 $(3.60\%,4.20\%)$。M6 的上下漏失相對平衡。
 
-\subsubsection{控制超參數比較}
+\subsection*{0050 實證資料比較}
 
-為降低 predictor capacity 與計算預算差異造成的混淆，另將可共同控制之設定統一為：lag $30$、ANN hidden dimensions $(128,256,128)$、ReLU、learning rate $0.001$、訓練上限 $50$、Kalman variances $(0.5,10)$、ARIMA 搜尋上限參數設為 $5$，以及 M5/M6 ensemble count $100$。惟兩套原始 ARIMA 函數對搜尋上限的端點定義不同：M1--M5 使用 \texttt{range(5)}，實際候選為 $0\leq p,q\leq4$；M6 使用包含端點的搜尋，候選為 $0\leq p,q\leq5$。因此此處屬於「盡量控制」而非所有實作細節完全相同。M6 因 sequential OOT prediction 必須維持 batch size $1$，moving-block bootstrap、rolling-origin cross-fitting 與 adaptive calibration 亦屬方法定義而予以保留。此控制實驗仍保留 M1--M4 原程式的 random training/validation split，故不應解讀為已消除其 validation temporal look-ahead bias。
-
-\begin{table}[htbp]
-\centering
-\caption{M1M9--GARCH 模擬資料：控制超參數之 20 次 Monte Carlo 平均結果}
-\label{tab:simulation-controlled}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{lrrrrrrrrr}
-\hline
-方法 & MSE & RMSE & MAE & Coverage(\%) & Mean width & Median width & Interval score & 秒/seed & 20-seed 分鐘 \\
-\hline
-M1 & 11.616 & 3.358 & 2.637 & 91.40 & 12.205 & 11.697 & \textbf{17.315} & 34.5 & 11.51 \\
-M2 & 12.448 & 3.477 & 2.710 & 89.25 & 11.954 & 11.184 & 19.241 & 35.3 & 11.76 \\
-M3 & 11.825 & 3.384 & 2.649 & 90.88 & 11.861 & 11.393 & 17.633 & \textbf{34.4} & \textbf{11.48} \\
-M4 & 12.742 & 3.517 & 2.758 & 64.28 & 7.170 & 6.716 & 36.819 & 35.5 & 11.84 \\
-M5 & \textbf{10.481} & \textbf{3.189} & \textbf{2.493} & 68.30 & \textbf{6.152} & \textbf{5.971} & 28.506 & 37.5 & 12.51 \\
-M6 & 12.260 & 3.449 & 2.696 & \textbf{92.65} & 12.901 & 12.777 & 18.098 & 405.4 & 135.13 \\
-\hline
-\end{tabular}%
-}
-\end{table}
-
-控制設定後，M1 的 interval score 最低且點估計誤差僅次於 M5，形成較佳的速度與區間品質折衷；M6 coverage 仍最高，但每 seed 平均時間約為 M1 的 $11.7$ 倍，且 RMSE 與 interval score 均未優於 M1。因此 M6 的主要優勢應定位為 training-only rolling-origin calibration 與較高 coverage，而非計算效率或所有數值指標皆全面較佳。
-
-\subsection{0050 實證資料比較}
-\label{subsec:0050-results}
-
-0050 實驗使用 Yahoo Finance 之 0050.TW adjusted close。training period 為 2020-01-01 至 2024-12-31，共 $1215$ 個交易日；test period 為 2025-01-01 至 2026-07-31，共 $382$ 個交易日。六種方法皆在 log adjusted-price scale 建模，最終合併點預測與區間 endpoints 經 exponential transformation 返回價格尺度後評估。此處為單一真實歷史路徑及固定 model seed 2026，故不是不同資料生成路徑的 Monte Carlo 實驗。
+0050 實驗使用 Yahoo Finance 之 0050.TW adjusted close。training period 為 2020-01-01 至 2024-12-31，共 $1215$ 個交易日；test period 為 2025-01-01 至 2026-07-31，共 $382$ 個交易日。六種方法皆在 log adjusted-price scale 建模，最終合併點預測與區間 endpoints 經 exponential transformation 返回價格尺度後評估。
 
 \begin{table}[htbp]
 \centering
@@ -631,12 +733,11 @@ M6 & \textbf{1.787} & \textbf{1.337} & \textbf{0.881} & 91.10 & \textbf{3.712} &
 }
 \end{table}
 
-在 0050 單一路徑實驗中，M6 同時取得最低 MSE、RMSE、MAE、mean width 與 interval score，且 lower/upper miss rates 相對平衡。M2 的 coverage 最高，但僅比 M6 高約 $0.26$ 個百分點，平均區間則寬約 $54\%$。M6 的執行時間約為 M1 的 $3.3$ 倍。所有方法的 coverage 仍低於名目 $95\%$，因此本結果支持 M6 在此測試期間具有較佳的點預測與區間寬度--漏失折衷，但不構成對其他市場期間或資產之普遍性保證。
+在 0050 單一路徑實驗中，M6 同時取得最低 MSE、RMSE、MAE、mean width 與 interval score，且 lower/upper miss rates 相對平衡。M2 的 coverage 最高，但僅比 M6 高約 $0.26$ 個百分點，平均區間則寬約 $54\%$。
 
-\subsection{太陽黑子實證資料比較}
-\label{subsec:sunspot-results}
+\subsection*{太陽黑子實證資料比較}
 
-太陽黑子實驗使用月總太陽黑子數（monthly total sunspot number），資料期間為 1900 年 1 月至 2023 年 1 月，共 $1477$ 筆觀測值。資料依時間順序以前 $80\%$ 作為 training set、後 $20\%$ 作為 test set；training period 為 1900 年 1 月至 1998 年 5 月，共 $1181$ 筆，test period 為 1998 年 6 月至 2023 年 1 月，共 $296$ 筆。本節保留六種方法各自的原始模型結構與超參數，直接在原始太陽黑子數值尺度訓練及評估，並固定 model seed 為 2026。由於此處僅使用一條真實歷史路徑及一個固定 seed，因此不是 Monte Carlo 實驗。
+太陽黑子實驗使用月總太陽黑子數（monthly total sunspot number），資料期間為 1900 年 1 月至 2023 年 1 月，共 $1477$ 筆觀測值。資料依時間順序以前 $80\%$ 作為 training set、後 $20\%$ 作為 test set；training period 為 1900 年 1 月至 1998 年 5 月，共 $1181$ 筆，test period 為 1998 年 6 月至 2023 年 1 月，共 $296$ 筆。六種方法直接在原始太陽黑子數值尺度訓練及評估。
 
 \begin{table}[htbp]
 \centering
@@ -658,4 +759,48 @@ M6 & \textbf{383.407} & \textbf{19.581} & 13.915 & \textbf{97.30} & 97.859 & 99.
 }
 \end{table}
 
-在原始尺度與原始超參數設定下，M6 取得最低 MSE 與 RMSE，coverage 亦為六種方法中最高，但其 $97.30\%$ coverage 高於名目 $95\%$，且平均區間寬度為六種方法中最大。M3 的 interval score 最低，coverage 為 $92.57\%$，顯示其在本測試期間具有較佳的區間寬度--漏失折衷。M5 的 MAE 最低，惟 coverage 僅為 $69.59\%$；M4 雖有最窄的平均與中位區間寬度，但 coverage 僅為 $63.51\%$，故不能將其窄區間解讀為較佳的區間預測。M6 執行時間約為 M1 的 $4.1$ 倍，其優勢主要在較高 coverage 與較低平方誤差，而代價為較寬的區間及較高計算成本。
+M6 取得最低 MSE 與 RMSE，coverage 亦為六種方法中最高，但其 $97.30\%$ coverage 高於名目 $95\%$，且平均區間寬度為六種方法中最大。M3 的 interval score 最低，coverage 為 $92.57\%$。M6 其優勢主要在較高 coverage 與較低平方誤差，而代價為較寬的區間及較高計算成本。
+
+
+% \input{Sections/5.Evaluation} \newpage
+% \input{Sections/6.Conclusion} \newpage
+
+
+% ====================================================
+% 13. 參考文獻 Reference (檔案名稱 ref.bib)
+%\ClearShipoutPicture % 把ref的浮水印關掉
+
+\iftoggle{toc-use-cn} % 使用中文
+{\addcontentsline{toc}{chapter}{參考文獻}
+\renewcommand{\bibname}{參考文獻}} 
+{\addcontentsline{toc}{chapter}{References}
+\renewcommand{\bibname}{References}
+} 
+
+\bibliographystyle{IEEEtran}
+\bibliography{ref}
+
+
+% 14. 附錄 Appendix (用不到可以直接註解)
+% \input{Sections/appendix} \newpage
+
+
+% =========================================
+% [113年2月19日後上傳圖書館博碩士論文系統者適用] 
+% 15. 學位論文發表形式確認書
+% 16. 著作彙編之學位論文資訊及彙編學術著作之共同作者貢獻聲明書
+% 這兩個不用附在論文PDF檔裡面
+
+% 說明1: https://aa.nycu.edu.tw/userfiles/aach/files/20240125111443441.pdf
+% 說明2: "國立陽明交通大學著作彙編之學位論文應行注意事項" https://bit.ly/457NTHk
+
+% [心得感想]
+% 畢業論文有使用到"就學期間發表"的論文, 就要填寫. 畢業後才刊登論文, 就屬於"不是".
+% 對博士生來說, 在學期間可能發表很多篇論文, 可以放在畢業論文裡, 只是要記得填寫著作彙編的表格. 
+
+% 著作彙編的說明
+% https://ethics.moe.edu.tw/resource/epaper/html/27/
+
+
+\balance
+\end{document}

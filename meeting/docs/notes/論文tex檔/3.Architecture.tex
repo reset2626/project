@@ -1,0 +1,630 @@
+\chapter*{三、研究方法}
+
+\section*{3.1 本章架構與方法總覽}
+
+本章的內容安排可分為三個部分。第3.2節至第3.6節說明本文提出之
+OOT-AEnbPI及其Local-scale延伸：第3.2節先介紹整體流程，第3.3節與
+第3.4節說明Kalman高低頻分解及基礎點預測器，第3.5節說明
+OOT-AEnbPI原始區間，第3.6節說明Local-scale延伸。第3.7節以
+IFOMC作為替代區間預測器；第3.8節與第3.9節介紹B1至B5五種比較
+方法及其Local-scale校準方式。第3.10節定義本文使用的評估指標。
+
+表\ref{tab:method-overview}整理本文提出方法、延伸區間版本與比較
+方法的整體架構。OOT-AEnbPI、OOT-AEnbPI-LS及
+OOT-AEnbPI-IFOMC使用相同的Kalman--ARIMA--ANN ensemble基礎點
+預測，三者的差異集中於區間預測器。B1至B5則沿用既有研究的高頻
+模型與區間生成方式，作為評估OOT-AEnbPI的比較基準。
+
+\begin{table}[htbp]
+\centering
+\caption{本文提出方法與比較方法之整體架構}
+\label{tab:method-overview}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{clll}
+\toprule
+定位 & 方法 & 點預測架構 & 區間預測方式\\
+\midrule
+本文核心方法 & OOT-AEnbPI
+& Kalman--ARIMA--ANN ensemble
+& OOT residual、自適應window與最短非對稱區間\\
+本文延伸版本 & OOT-AEnbPI-LS
+& Kalman--ARIMA--ANN ensemble
+& 局部尺度標準化後的OOT residual區間\\
+替代區間比較 & OOT-AEnbPI-IFOMC
+& Kalman--ARIMA--ANN ensemble
+& OOT residual狀態轉移區間\\
+\midrule
+比較方法B1 & DistPred--ANN
+& Kalman--ARIMA--ANN
+& DistPred經驗分位數區間\\
+比較方法B2 & DistPred--Minusformer
+& Kalman--ARIMA--Minusformer
+& DistPred經驗分位數區間\\
+比較方法B3 & Quantile--ANN
+& Kalman--ARIMA--ANN
+& Quantile條件分位數區間\\
+比較方法B4 & Quantile--Minusformer
+& Kalman--ARIMA--Minusformer
+& Quantile條件分位數區間\\
+比較方法B5 & Sort Bootstrap--ANN
+& Kalman--ARIMA--ANN
+& Bootstrap預測的經驗分位數區間\\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section*{3.2 演算法流程}
+
+本研究提出Out-of-Time Adaptive EnbPI（以下簡稱OOT-AEnbPI）。OOT-AEnbPI以
+Kalman--ARIMA--ANN ensemble作為基礎點預測器，並針對時間序列
+預測區間所使用的校準殘差進行時間順序調整。利用依時間順序產生的out-of-time（OOT）residual
+建立殘差池，只使用training期間的資訊選擇residual window，再由
+選定的近期殘差建立可逐期更新的最短非對稱預測區間。
+
+OOT-AEnbPI的主要流程如下：
+\begin{enumerate}
+  \item 使用Kalman filter將觀察序列分解為低頻與高頻成分；
+  \item 分別以ARIMA及ANN ensemble預測低頻與高頻成分，再合併為原序列的點預測；
+  \item 將training前半段設為initial prefix，其餘資料依時間順序劃分為多個future blocks；
+  \item 對每個future block只使用該block以前的資料估計模型，再預測該block，以建立OOT residual pool；
+  \item 在training期間以逐期回測比較候選residual windows；
+  \item 從選定的殘差池計算最短非對稱上下界，建立OOT-AEnbPI原始區間；
+  \item 發出當期預測後才觀察真值，並更新殘差池供下一期使用。
+\end{enumerate}
+
+在上述OOT-AEnbPI核心方法之外，本研究另建立兩種區間版本。第一種為
+OOT-AEnbPI-LS，將OOT residual依當期局部狀態進行尺度標準化；
+第二種為OOT-AEnbPI-IFOMC，利用前一期殘差狀態及逐期更新的
+轉移矩陣建立條件區間。兩者均保留OOT-AEnbPI的基礎點預測，其中IFOMC主要
+用於比較不同區間預測器，不屬於OOT-AEnbPI原始區間的核心流程。
+
+為評估OOT-AEnbPI，本研究另與\cite{hung2026thesis}及\cite{lin2024thesis}所提出的方法進行比較。
+將比較方法依序記為B1至B5。B1至B5沿用既有模型定義及原始超參數，其實際設定統一於本章後段說明。
+
+\section*{3.3 Kalman分解}
+
+先使用一維local-level Kalman filter處理觀察序列$\{z_t\}$。令$x_t$為無法直接觀察的潛在水準狀態，
+模型的狀態方程與觀測方程分別為
+\begin{align}
+  x_t &= x_{t-1}+w_{t-1}, & w_{t-1}&\sim N(0,Q),\\
+  z_t &= x_t+v_t, & v_t&\sim N(0,R),
+\end{align}
+其中$w_t$為process noise、$v_t$為measurement noise，並假設兩者互相獨立。
+$Q$控制潛在水準允許隨時間改變的程度，$R$則表示觀察值相對於潛在水準的雜訊程度。
+
+使用第一筆觀察值及初始估計誤差變異數初始化：
+\begin{equation}
+ \widehat x_{0|0}=z_0,\qquad P_{0|0}=1.
+\end{equation}
+接著依時間順序逐期執行預測與更新。首先，在尚未使用第$t$期觀察值以前，由前一期更新後的估計得到當期先驗狀態：
+\begin{align}
+ \widehat x_{t|t-1}&=\widehat x_{t-1|t-1},\\
+ P_{t|t-1}&=P_{t-1|t-1}+Q.
+\end{align}
+
+取得第$t$期觀察值$z_t$後，計算Kalman gain：
+\begin{equation}
+ K_t=\frac{P_{t|t-1}}{P_{t|t-1}+R}.
+\end{equation}
+再利用當期innovation $z_t-\widehat x_{t|t-1}$更新水準估計與其誤差變異數：
+\begin{align}
+ \widehat x_{t|t}
+ &=\widehat x_{t|t-1}
+ +K_t\left(z_t-\widehat x_{t|t-1}\right),\\
+ P_{t|t}&=(1-K_t)P_{t|t-1}.
+\end{align}
+
+完成第 $t$ 期的更新後，以 Kalman filter 得到的狀態估計值
+$\widehat{x}_{t|t}$ 作為變動較平緩的水準成分，並將觀察值與
+狀態估計值之差作為變動較快速的剩餘成分：
+\begin{align}
+    \ell_t &= \widehat{x}_{t|t},\\
+    r_t &= z_t-\widehat{x}_{t|t}.
+\end{align}
+令水準成分與剩餘成分在第$t-1$期資訊下，對第$t$期的
+一步點預測分別為$\widehat{\ell}_{t|t-1}$與
+$\widehat{r}_{t|t-1}$，則原觀察序列的一步合併點預測為
+\begin{equation}
+    \widehat{z}_{t|t-1}
+    =
+    \widehat{\ell}_{t|t-1}
+    +
+    \widehat{r}_{t|t-1}.
+\end{equation}
+取得合併點預測後，再依不同區間估計方法計算相對於
+$\widehat{z}_{t|t-1}$ 的下界與上界偏移量。令兩個偏移量分別為
+$q_t^{-}$ 與 $q_t^{+}$，則最終預測區間可統一表示為
+\begin{equation}
+    C_t
+    =
+    \left[
+    \widehat{z}_{t|t-1}+q_t^{-},
+    \widehat{z}_{t|t-1}+q_t^{+}
+    \right].
+\end{equation}
+
+
+\section*{3.4 OOT-AEnbPI基礎點預測器}
+
+\subsection*{3.4.1 低頻ARIMA}
+
+令Kalman filter得到的低頻成分為
+$\{\ell_1,\ldots,\ell_n\}$。OOT-AEnbPI使用$ARIMA(p,0,q)$描述低頻成分的
+線性時間相依性。由於低頻成分已是變動較平緩的水準序列，差分
+階數固定為$d=0$。自迴歸階數與移動平均階數的候選集合為
+\[
+p,q\in\{0,1,2,3,4\},\qquad (p,q)\neq(0,0).
+\]
+對每一組候選$(p,q)$估計$ARIMA(p,0,q)$，再以BIC選擇階數：
+\[
+(\widehat p,\widehat q)
+=
+\arg\min_{p,q}
+BIC\{ARIMA(p,0,q)\}.
+\]
+
+選定階數後，以當時所有可用的低頻序列重新估計模型。預測第$t$期
+時，ARIMA只能使用第$t-1$期以前已取得的低頻成分，產生一步向前
+點預測
+\[
+\widehat\ell_{t|t-1}
+=
+E(\ell_t\mid\ell_1,\ldots,\ell_{t-1}).
+\]
+在建立training期future-block OOT residual時，每個block的ARIMA
+階數選擇與參數估計皆只使用該block以前的資料；在testing開始前，
+則以完整training低頻序列重新選階與估計。如此可避免使用future
+block或testing期間的未來資訊。
+
+\subsection*{3.4.2 高頻ANN}
+
+OOT-AEnbPI的ANN使用長度$w=15$的滑動視窗。預測第$t$期高頻成分$r_t$
+時，輸入同時包含第$t$期以前的低頻成分、高頻成分及原觀察序列：
+\begin{equation}
+ X_t=\left(
+ \ell_{t-15:t-1},\;r_{t-15:t-1},\;z_{t-15:t-1}
+ \right),
+\end{equation}
+因此每筆輸入共有45個特徵，預測目標為$r_t$。所有輸入都只到
+$t-1$期為止，不包含當期或未來資料。
+
+ANN包含兩個隱藏層$(32,16)$，使用ReLU及Adam；learning rate為
+0.001、正則化係數為$10^{-4}$。輸入特徵與高頻目標值均使用當次
+training資料估計的平均數與標準差進行標準化。最大迭代次數的候選
+集合為$\{125,250,500\}$，並以3個時間順序rolling validation
+splits的平均MSE選擇；每個split只使用較早資料訓練、較晚資料驗證。
+選定後，再以當時完整可用的training樣本重新估計ANN。
+
+\subsection*{3.4.3 Bootstrap hybrid ensemble}
+
+為降低單一模型的不穩定性，OOT-AEnbPI建立$B=30$組bootstrap hybrid
+models。設訓練樣本數為$n$，區塊長度為
+\begin{equation}
+ d_B=\max\left\{2,\operatorname{round}(\sqrt n)\right\}.
+\end{equation}
+第$b$次bootstrap隨機抽取區塊起點$S_{b,j}$，並以
+\begin{equation}
+ \mathcal I_{b,j}=\left\{(S_{b,j}+k)\bmod n:
+ k=0,\ldots,d_B-1\right\}
+\end{equation}
+取得連續樣本索引，直到組成$n$筆樣本，因此屬於circular
+moving-block bootstrap。
+
+低頻部分保留原始時間路徑，只依上述索引重抽中心化後的一步預測
+殘差，避免拼接低頻區塊造成不自然的水準跳動；高頻部分則使用相同
+索引重抽輸入與目標。每組樣本分別估計ARIMA與ANN，形成一個
+hybrid model。令第$b$組模型的高低頻預測為
+$\widehat\ell_{t|t-1}^{(b)}$與$\widehat r_{t|t-1}^{(b)}$，則原始
+ensemble點預測為
+\begin{equation}
+ \widehat z_{t|t-1}^{raw}
+ =\frac{1}{B}\sum_{b=1}^{B}
+ \left(\widehat\ell_{t|t-1}^{(b)}+
+ \widehat r_{t|t-1}^{(b)}\right).
+\end{equation}
+
+\section*{3.5 OOT-AEnbPI原始區間}
+
+\subsection*{3.5.1 OOT residual的建立}
+
+OOT-AEnbPI將training前$\rho=0.5$比例設為initial prefix，剩餘資料按時間
+順序分為4個future blocks。對第$k$個block，模型只使用該block
+以前的資料估計，再預測該block，因此得到
+\begin{equation}
+ e_t^{OOT}=z_t-\widetilde z_{t|t-1},
+\end{equation}
+其中$\widetilde z_{t|t-1}$表示未使用第$t$期及其未來資料所產生的
+預測。依序合併各block的殘差形成OOT residual pool。這種設計目的是使校準殘差更接近真正測試時
+可取得的樣本外誤差。
+
+\subsection*{3.5.2 自適應residual window}
+
+OOT-AEnbPI原始區間的候選集合為
+\begin{equation}
+ \mathcal W=\{100,200,300,400,\mathrm{all}\}.
+\end{equation}
+每個候選$W$只保留最近$W$筆OOT residual，並在OOT residual序列
+尾端40\%進行prequential回測。預測某一驗證殘差時，只能使用它
+以前的殘差建立區間；以平均interval score最小的候選值作為
+$\widehat W$。所有候選比較及視窗選擇均限制於training期間完成。
+
+\subsection*{3.5.3 Bias correction與最短非對稱區間}
+
+令第$t$期可用的raw residual pool為$\mathcal E_t$。OOT-AEnbPI使用其平均值
+進行bias correction：
+\begin{equation}
+ b_t=\frac{1}{|\mathcal E_t|}\sum_{e_i\in\mathcal E_t}e_i,
+ \qquad
+ \widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}=\widehat z_{t|t-1}^{raw}+b_t.
+\end{equation}
+為避免相同偏差同時出現在點預測與區間偏移量，分位數計算使用
+中心化殘差$\mathcal E_t-b_t$。
+
+OOT-AEnbPI不強制左右各保留$\alpha/2$的誤差，而是在
+$\beta\in[0,\alpha]$設定101個等距網格點，尋找
+\begin{equation}
+ \widehat\beta_t=\arg\min_{\beta}
+ \left\{Q_{1-\alpha+\beta}(\mathcal E_t-b_t)
+       -Q_{\beta}(\mathcal E_t-b_t)\right\}.
+\end{equation}
+令$q_t^-=Q_{\widehat\beta_t}(\mathcal E_t-b_t)$、
+$q_t^+=Q_{1-\alpha+\widehat\beta_t}(\mathcal E_t-b_t)$，則
+\begin{equation}
+ C_t^{\mathrm{OOT-AEnbPI}}=\left[
+ \widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}+q_t^-,
+ \widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}+q_t^+
+ \right].
+\end{equation}
+完成第$t$期點預測與區間後才觀察$z_t$，再將raw residual
+$z_t-\widehat z_{t|t-1}^{raw}$加入pool，移除超出$\widehat W$的
+舊殘差，供第$t+1$期使用。
+
+\section*{3.6 OOT-AEnbPI-LS}
+
+OOT-AEnbPI-LS保留OOT-AEnbPI的OOT residual建立方式，但讓殘差尺度依局部
+資料狀態調整，以避免高波動與低波動狀態共用完全相同的誤差尺度。
+
+\subsection*{3.6.1 狀態特徵與局部尺度}
+
+對時間點$i$建立四維特徵
+\begin{equation}
+ X_i=\left(
+ \widehat z_{i|i-1},
+ \widehat z_{i|i-1}-z_{i-1},
+ SD(\Delta z_{i-12:i-1}),
+ SD(\Delta z_{i-36:i-1})
+ \right).
+\end{equation}
+四項依序為預測水準、相對前一期的變化、最近12期一階差分的短期
+波動，以及最近36期一階差分的長期波動；12與36是波動觀察窗，
+不是季節差分。
+
+各特徵先依training資料的中位數與四分位距作RobustScaler轉換，
+再以標準化特徵的平方Euclidean distance尋找最近的$K=60$個歷史
+時間點。令鄰居集合為$N_{60}(X_t)$，局部尺度定義為
+\begin{equation}
+ \widehat\sigma_t=\operatorname{median}
+ \left\{|z_i-\widehat z_{i|i-1}|:i\in N_{60}(X_t)\right\},
+\end{equation}
+並使用
+\begin{equation}
+ \widehat\sigma_t\leftarrow
+ \max\{\widehat\sigma_t,Q_{0.10}(|e|),10^{-6}\}
+\end{equation}
+避免尺度過小。training期估計尺度時排除樣本本身；testing期只能從
+當時已觀察的歷史點尋找鄰居。當期真值出現後，才將其特徵與絕對
+殘差加入資料庫。
+
+\subsection*{3.6.2 標準化殘差與區間生成}
+
+對每筆OOT residual計算
+\begin{equation}
+ u_i=\frac{e_i^{OOT}}{\widehat\sigma_i}.
+\end{equation}
+Local-scale版本在標準化殘差上，從
+\begin{equation}
+ \mathcal W_{LS}=\{24,60,120,180,300,\mathrm{all}\}
+\end{equation}
+選擇window。令當期標準化殘差pool為$\mathcal U_t$，其平均為
+\begin{equation}
+ b_t^u=\frac{1}{|\mathcal U_t|}\sum_{u_i\in\mathcal U_t}u_i.
+\end{equation}
+修正後點預測為
+\begin{equation}
+ \widehat z_{t|t-1}^{LS}
+ =\widehat z_{t|t-1}^{raw}+\widehat\sigma_t b_t^u.
+\end{equation}
+對$u_i-b_t^u$尋找95\%最短非對稱分位數端點
+$q_t^{u,-}$與$q_t^{u,+}$，回到原尺度後得到
+\begin{equation}
+ C_t^{\mathrm{OOT-AEnbPI-LS}}=\left[
+ \widehat z_{t|t-1}^{LS}+\widehat\sigma_tq_t^{u,-},
+ \widehat z_{t|t-1}^{LS}+\widehat\sigma_tq_t^{u,+}
+ \right].
+\end{equation}
+觀察$z_t$後，以raw point計算
+\begin{equation}
+ u_t^{new}=\frac{z_t-\widehat z_{t|t-1}^{raw}}{\widehat\sigma_t},
+\end{equation}
+再加入標準化residual pool，供下一期使用。
+
+\section*{3.7 OOT-AEnbPI-IFOMC}
+
+為比較不同區間預測器，本研究保留OOT-AEnbPI已完成bias correction的點
+預測，另將\cite{dingmeng2020}的IFOMC狀態轉移概念應用
+於OOT-AEnbPI的OOT residual。此版本不使用原文的EMD remaining component，
+而是將OOT-AEnbPI依時間順序建立的誤差視為Markov狀態序列。
+
+\subsection*{3.7.1 殘差狀態與轉移矩陣}
+
+令raw OOT residual為$e_i^{OOT}$。為與OOT-AEnbPI testing點預測的bias
+correction一致，先扣除當時只由過去residual pool計算的平均值：
+\begin{equation}
+ r_i=e_i^{OOT}-\overline e_{i-1}.
+\end{equation}
+將training期$r_i$由小到大以經驗分位數切成$K=10$個樣本數盡量
+接近的有序狀態$S_1,\ldots,S_K$。狀態邊界只使用training OOT
+residual估計，testing期間固定不變。令$m_{ab}$為相鄰時間由
+$S_a$轉移至$S_b$的次數，則
+\begin{equation}
+ p_{ab}=\frac{m_{ab}}{\sum_{j=1}^{K}m_{aj}}.
+\end{equation}
+
+\subsection*{3.7.2 條件區間與rolling更新}
+
+預測第$t$期時只能使用前一期已觀察殘差狀態$s_{t-1}=S_a$。
+轉移矩陣第$a$列描述$r_t$進入各目的狀態的條件機率；實作將
+$p_{aj}$平均分配給歷史上屬於$S_j$的殘差值，形成加權條件殘差
+分布，並取
+\begin{equation}
+ q_t^-=Q_{0.025}(r_t\mid s_{t-1}=S_a),\qquad
+ q_t^+=Q_{0.975}(r_t\mid s_{t-1}=S_a).
+\end{equation}
+若第$a$列累積轉移少於10次，則改用當時所有可得的歷史殘差，避免
+以極少轉移估計尾端分位數。IFOMC區間為
+\begin{equation}
+ C_t^{\mathrm{OOT-AEnbPI-IFOMC}}=\left[
+ \widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}+q_t^-,
+ \widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}+q_t^+
+ \right].
+\end{equation}
+發出區間後才觀察$z_t$並計算
+\begin{equation}
+ r_t=z_t-\widehat z_{t|t-1}^{\mathrm{OOT-AEnbPI}}.
+\end{equation}
+再依固定邊界取得$s_t$，新增$s_{t-1}\rightarrow s_t$轉移，供下一期
+使用。IFOMC不屬於conformal prediction，本文僅報告testing period
+的實證coverage與interval score，不主張嚴格有限樣本保證。
+
+\section*{3.8 比較方法B1至B5}
+
+B1至B5是用來評估OOT-AEnbPI的比較基準。五種方法皆先使用第3.3節的
+Kalman filter分解資料，低頻成分使用$ARIMA(p,0,q)$；候選
+$p,q\in\{0,1,2,3,4\}$並以AIC選階。各方法的差異集中於高頻點
+預測器與區間估計器，其整體組合已整理於表\ref{tab:method-overview}，
+以下分別說明各模型及區間方法的實際設定。
+
+\subsection*{3.8.1 人工神經網路（ANN）}
+
+ANN以過去30期高頻值作為輸入，預測下一期高頻成分。網路包含
+三個全連接隱藏層，神經元數依序為$(128,256,128)$；每層使用ReLU
+activation，並加入dropout 0.2以降低過度配適。訓練使用Adam，
+learning rate為0.001、batch size為32、最多訓練50 epochs，early
+stopping的patience設為5。
+
+使用DistPred或Quantile輸出時，可用樣本隨機切為80\% training與
+20\% validation，並在validation loss連續5個epochs未改善時停止；
+使用Sort Bootstrap時，則先對每組重抽樣序列建立滑動視窗，再依
+形成後的樣本順序以前80\%訓練、後20\%驗證。ANN隱藏層設定相同，
+差異僅在輸出維度及損失函數。
+
+\subsection*{3.8.2 Minusformer}
+
+Minusformer同樣使用過去30期高頻值，label length為15，輸入先經embedding
+投影至$d_{model}=128$，包含2個encoder layers、feed-forward
+dimension 128、dropout 0.1並啟用gate。每層抽取已解釋訊號$x_l$後
+以
+\begin{equation}
+ h_{l+1}=h_l-x_l
+\end{equation}
+更新剩餘訊號，使下一層繼續處理尚未被前一層解釋的部分。與一般
+Transformer以殘差加法保留輸入不同，Minusformer的input stream
+逐層扣除已抽取訊號；output stream則將各層抽取到的資訊轉換為
+預測貢獻並逐層累加。因此，減法發生於待解釋的hidden state，並非
+直接把前一層的最終預測值從下一層預測值扣除。
+
+每個encoder layer先對輸入進行normalization，再以卷積式
+feed-forward模組抽取$x_l$。Gate使用Sigmoid函數控制資訊通過比例，
+可概念化表示為
+\begin{align}
+ g_l&=\sigma\!\left(\operatorname{Conv}_g(h_l)\right),\\
+ o_l&=g_l\odot\operatorname{Conv}_o(x_l),
+\end{align}
+其中$g_l$為門控權重、$o_l$為第$l$層的預測貢獻。各層$o_l$相加
+後再經projection映射至需要的輸出維度。搭配DistPred時輸出100個
+members；搭配Quantile時輸出三個quantile raw values。兩者使用
+相同Minusformer骨幹，差別僅在projection輸出維度及訓練損失。
+
+\subsection*{3.8.3 分布預測（DistPred）}
+
+DistPred不預先假設高頻成分服從常態分布，而是在一次forward pass
+輸出$K=100$個DistPred members，以其經驗分布近似下一期高頻成分
+的條件分布。這100個輸出可由ANN輸出層或Minusformer最後的
+projection產生，並以ensemble CRPS訓練：
+\begin{equation}
+ \widehat{CRPS}
+ =\frac{1}{K}\sum_{k=1}^{K}
+  \left|\widehat r^{(k)}-r\right|
+ -\frac{1}{2K^2}\sum_{j=1}^{K}\sum_{k=1}^{K}
+  \left|\widehat r^{(j)}-\widehat r^{(k)}\right|.
+\end{equation}
+第一項衡量預測members與真值的距離，使預測分布位於適當位置；
+第二項反映members彼此的分散程度，避免100個輸出全部塌縮於相同
+數值。程式先將members排序，再使用probability weighted moments
+的等價形式降低兩兩比較的計算量。
+
+令排序後輸出為
+\begin{equation}
+ \widehat r_{t|t-1}^{(1)}\leq\cdots\leq
+ \widehat r_{t|t-1}^{(100)},
+\end{equation}
+高頻點預測取中位數，高頻區間取2.5與97.5百分位數：
+\begin{align}
+ \widehat r_{t|t-1}&=Q_{0.5}
+ \left(\{\widehat r_{t|t-1}^{(k)}\}_{k=1}^{100}\right),\\
+ [\widehat L_t^{(H)},\widehat U_t^{(H)}]
+ &=\left[Q_{0.025}
+ \left(\{\widehat r_{t|t-1}^{(k)}\}_{k=1}^{100}\right),
+ Q_{0.975}
+ \left(\{\widehat r_{t|t-1}^{(k)}\}_{k=1}^{100}\right)\right].
+\end{align}
+因此，DistPred的輸出數、損失函數及區間定義固定，ANN與
+Minusformer只負責提供不同的高頻特徵學習架構。
+
+\subsection*{3.8.4 分位數回歸（Quantile Regression）}
+
+Quantile方法直接估計$\tau\in\{0.025,0.5,0.975\}$三個條件分位數，
+而不先產生大量預測members。對分位數水準$\tau$，令
+$e_t=r_t-\widehat Q_{\tau,t}$，pinball loss為
+\begin{equation}
+ \rho_\tau(e_t)=
+ \begin{cases}
+  \tau e_t, & e_t\geq0,\\
+  (\tau-1)e_t, & e_t<0.
+ \end{cases}
+\end{equation}
+模型以三個分位數loss的平均值作為訓練目標。高分位數對低估給予
+較大懲罰，低分位數則對高估給予較大懲罰，因此各輸出會分別學習
+條件分布的中間位置與兩側尾端。
+
+若三個分位數完全獨立輸出，可能發生下分位數高於中位數或上分位
+數的quantile crossing。為避免此問題，令輸出層raw values為
+$a_t,b_t,c_t$，本研究將其轉換為
+\begin{align}
+ \widehat Q_{0.5,t}&=a_t,\\
+ \widehat Q_{0.025,t}&=a_t-\operatorname{Softplus}(b_t),\\
+ \widehat Q_{0.975,t}&=a_t+\operatorname{Softplus}(c_t),
+\end{align}
+由於Softplus輸出非負值，可從模型結構上維持
+$\widehat Q_{0.025,t}\leq\widehat Q_{0.5,t}
+\leq\widehat Q_{0.975,t}$。0.5分位數作為高頻點預測，另外兩個
+分位數作為高頻區間端點。使用ANN或Minusformer時，皆採相同的
+分位數水準、pinball loss與monotone輸出，差別僅在骨幹網路。
+
+\subsection*{3.8.5 Sort Bootstrap}
+
+Sort Bootstrap不由單一ANN直接輸出預測分布，而是利用重複抽樣及重新訓練
+形成模型間的預測分布。設高頻訓練序列長度為$n$，第$b$次先從
+$\{0,\ldots,n-1\}$有放回抽取$n$個索引，再將索引由小至大排序：
+\begin{equation}
+ i_{(1)}^{(b)}\leq\cdots\leq i_{(n)}^{(b)}.
+\end{equation}
+依排序後索引形成
+\begin{equation}
+ r^{*(b)}=\left(r_{i_{(1)}^{(b)}},\ldots,
+ r_{i_{(n)}^{(b)}}\right).
+\end{equation}
+排序可恢復被抽中觀察值的相對先後關係，但有放回抽樣仍會使部分
+時間點重複、部分時間點未被抽中，也不代表完整保留原序列的實際
+時間間距。
+
+每組bootstrap序列使用長度30的滑動視窗建立輸入與下一期目標，
+再依形成後的樣本順序以前80\%訓練、後20\%驗證。每組樣本均重新
+初始化並以MSE訓練一個ANN，再對同一組testing輸入產生預測；此
+程序重複$B=100$次。令第$b$個ANN的預測為
+$\widehat r_{t|t-1}^{(b)}$，則
+\begin{align}
+ \widehat r_{t|t-1}
+ &=\frac{1}{B}\sum_{b=1}^{B}\widehat r_{t|t-1}^{(b)},\\
+ [\widehat L_t^{(H)},\widehat U_t^{(H)}]
+ &=\left[Q_{0.025}
+ \left(\{\widehat r_{t|t-1}^{(b)}\}_{b=1}^{B}\right),
+ Q_{0.975}
+ \left(\{\widehat r_{t|t-1}^{(b)}\}_{b=1}^{B}\right)\right].
+\end{align}
+因此，點預測取100組ANN預測的平均，區間則取其經驗分布的
+2.5與97.5百分位數。Sort Bootstrap的預測分布來自100次重抽與
+重訓，與DistPred由單一模型一次輸出100個members的方式不同。
+
+\medskip
+\noindent\textbf{高低頻結果整合。}
+
+對B1至B5，令低頻ARIMA點預測及區間為
+$\widehat\ell_{t|t-1}$與$[\widehat L_t^{(L)},\widehat U_t^{(L)}]$，
+高頻結果為$\widehat r_{t|t-1}$與
+$[\widehat L_t^{(H)},\widehat U_t^{(H)}]$。最終原始結果為
+\begin{align}
+ \widehat z_{t|t-1}
+ &=\widehat\ell_{t|t-1}+\widehat r_{t|t-1},\\
+ C_t^{Original}
+ &=\left[\widehat L_t^{(L)}+\widehat L_t^{(H)},
+          \widehat U_t^{(L)}+\widehat U_t^{(H)}\right].
+\end{align}
+
+\section*{3.9 B1至B5的Local-scale校準}
+
+B1至B5的原始程式沒有可直接用於時間順序校準的樣本外殘差，
+因此在模型外建立共同wrapper，不修改其模型、損失函數或原始區間。
+具體流程如下：
+\begin{enumerate}
+ \item 將原training期依時間順序切為前80\% fitting prefix與後20\% calibration suffix；
+ \item 僅以前80\%資料執行原方法，再預測後20\%，取得原始點預測與區間；
+ \item 依第3.6.1節方式，利用calibration residual建立局部尺度$\widehat\sigma_i$；
+ \item 對原始區間計算signed conformity score
+ \begin{equation}
+  u_i=\frac{\max\{\widehat L_i-z_i,z_i-\widehat U_i\}}
+  {\widehat\sigma_i};
+ \end{equation}
+ \item 令
+ \begin{equation}
+  \gamma=\min\left\{1,
+  \frac{\lceil(n_{cal}+1)(1-\alpha)\rceil}{n_{cal}}
+  \right\},
+ \end{equation}
+ 並取$q=Q_{\gamma}(\{u_i\})$；
+ \item 以完整training資料重估原方法並產生testing原始區間，再校準為
+ \begin{equation}
+  C_t^{LS}=\left[
+  \widehat L_t-\widehat\sigma_tq,
+  \widehat U_t+\widehat\sigma_tq
+  \right].
+ \end{equation}
+\end{enumerate}
+當$q>0$時向外擴張，$q<0$時則可向內縮短。testing期間在發出當期
+區間後才更新score pool，且pool長度維持與calibration suffix相同。
+此wrapper與OOT-AEnbPI直接標準化OOT residual的方式不同，兩者不應混為
+同一個校準流程。
+
+\section*{3.10 評估指標}
+
+點預測使用均方根誤差（RMSE）：
+\begin{equation}
+ RMSE=\sqrt{\frac{1}{H}\sum_{t=1}^{H}
+ (z_t-\widehat z_{t|t-1})^2}.
+\end{equation}
+區間預測使用coverage、平均寬度、寬度中位數、下界失誤率、上界
+失誤率與interval score。Coverage為
+\begin{equation}
+ Coverage=\frac{1}{H}\sum_{t=1}^{H}
+ \mathbf 1(\widehat L_t\leq z_t\leq\widehat U_t).
+\end{equation}
+令$W_t=\widehat U_t-\widehat L_t$，平均寬度與中位數為
+\begin{align}
+ \overline W&=\frac{1}{H}\sum_{t=1}^{H}W_t,\\
+ \widetilde W&=\operatorname{median}\{W_1,\ldots,W_H\}.
+\end{align}
+上下界失誤率為
+\begin{align}
+ Lower\ miss&=\frac{1}{H}\sum_{t=1}^{H}
+ \mathbf 1(z_t<\widehat L_t),\\
+ Upper\ miss&=\frac{1}{H}\sum_{t=1}^{H}
+ \mathbf 1(z_t>\widehat U_t).
+\end{align}
+Interval score定義為
+\begin{equation}
+ IS_{\alpha}(l,u;z_t)=(u-l)
+ +\frac{2}{\alpha}(l-z_t)\mathbf 1(z_t<l)
+ +\frac{2}{\alpha}(z_t-u)\mathbf 1(z_t>u).
+\end{equation}
+RMSE、區間寬度與interval score愈小愈佳；coverage應接近95\%名目水準。

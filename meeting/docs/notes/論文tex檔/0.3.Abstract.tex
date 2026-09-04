@@ -1,0 +1,54 @@
+\begin{center}
+    \large
+    
+    \begin{singlespace}
+        \textbf{\englishTitle{}} \\[0.5cm]
+    \end{singlespace}
+    
+    \begin{singlespace}
+        Student : Cheng-Yeh Chiang\studentEnName{}  \hspace{1.0cm} 
+        % 兩個指導教授要寫 Advisors
+        \ifdefined\advisorCnNameB
+            Advisors: Dr. Chu-Lan Kao\, \advisorEnName \\
+            \hspace{6.6cm} Dr.\, \advisorEnNameB  \\
+        \else
+            Advisor: Dr.\, \advisorEnName \\
+        \fi
+    \end{singlespace}
+    
+    \vspace{0.5cm}
+    \begin{singlespace}
+        \NameofDepartmentInstituteEN\\
+        National Yang Ming Chiao Tung University\\[0.2cm]
+    \end{singlespace}
+    
+    \textbf{Abstract} \\[0.5cm]
+
+\end{center}
+
+\normalsize 
+  
+Time-series forecasting requires not only point forecasts but also prediction intervals that quantify uncertainty. Calibration residuals that are not generated in temporal order may fail to represent genuine out-of-sample forecast errors. Moreover, error scales may vary with the level, direction, and volatility state of a series, causing intervals based on a common residual distribution to be overly wide in some states and insufficient in others.
+
+This study proposes Out-of-Time Adaptive EnbPI (OOT-AEnbPI). OOT-AEnbPI applies a Kalman filter to decompose a series into low- and high-frequency components, forecasts them using ARIMA and an ANN ensemble, and combines the forecasts. For interval estimation, the training period is chronologically divided into an initial prefix and future blocks. Each block is predicted using only earlier observations, producing an out-of-time residual pool. A residual-window length is selected solely through prequential evaluation within training, and the selected recent residuals form a shortest asymmetric prediction interval that is sequentially updated during testing.
+
+Beyond the core procedure, OOT-AEnbPI-LS incorporates a local-scale adjustment that estimates the current error scale from historically similar states characterized by forecast level, direction of change, and short- and long-term volatility. OOT-AEnbPI-IFOMC is additionally examined as an alternative interval variant using the preceding residual state and a sequentially updated transition matrix. Both variants retain the central out-of-time residual construction of OOT-AEnbPI.
+
+The proposed OOT-AEnbPI method is compared with the methods developed by
+\cite{hung2026thesis} and \cite{lin2024thesis} using GARCH simulated
+series, 0050 prices, monthly sunspot data, and Wind data. Given the same
+OOT-AEnbPI point forecasts, OOT-AEnbPI-LS achieves the lowest interval
+score among the three interval variants across all four datasets. It can
+either provide additional width when necessary or reduce overly conservative
+intervals. OOT-AEnbPI also demonstrates practically useful performance for the 0050
+and sunspot datasets. OOT-AEnbPI-IFOMC slightly improves selected measures of
+the original interval for the GARCH and wind datasets, but does not
+consistently outperform OOT-AEnbPI-LS. Overall, OOT-AEnbPI accounts for temporal
+ordering, recent forecast errors, and sequential updating, while its local-scale
+extension further incorporates differences in local states.
+
+
+\vspace{1cm}
+
+% 5-7 Keywords (English) 
+\textbf{Keywords: Time series, Prediction interval, Out-of-time residual, EnbPI, Local scale, Heteroskedasticity.}

@@ -1,0 +1,206 @@
+\chapter*{四、研究結果}
+
+\section*{4.1 GARCH模擬資料}
+
+\subsection*{4.1.1 資料與實驗設定}
+
+第一組實驗使用GARCH模擬資料。令低頻成分為$L_t$、高頻成分為$H_t$，最後觀察到的序列為$z_t$。
+
+低頻成分採AR(1)條件平均，並將其創新項設定為GARCH(1,1)：
+\begin{align}
+ L_t &=0.6L_{t-1}+u_t,\\
+ u_t &=\sqrt{h_t}\,\xi_t,\qquad \xi_t\sim N(0,1),\\
+ h_t &=\omega+\alpha_Gu_{t-1}^{2}+\beta_Gh_{t-1},
+\end{align}
+其中
+\begin{equation}
+ \omega=0.50,\qquad \alpha_G=0.15,\qquad \beta_G=0.80.
+\end{equation}
+
+高頻成分使用非線性門控方程。令
+\begin{equation}
+ g(H_{t-1})=\frac{1}{1+\exp(-10H_{t-1})},
+\end{equation}
+則
+\begin{equation}
+ H_t=0.8H_{t-1}-0.8H_{t-1}g(H_{t-1})+\varepsilon_t,
+ \qquad \varepsilon_t\sim N(0,1).
+\end{equation}
+當$H_{t-1}$處於不同正負狀態時，門控函數會改變前一期高頻值對下一期的影響，使$H_t$呈現非線性動態。初始值為$H_0\sim N(0,0.5^2)$，且高頻創新標準差固定為1。
+
+最後，兩個潛在成分相加並加入觀察誤差：
+\begin{equation}
+ z_t=L_t+H_t+\eta_t,
+ \qquad \eta_t\sim N(0,0.15^2).
+\end{equation}
+各期的$\xi_t$、$\varepsilon_t$與$\eta_t$彼此獨立。此資料生成過程可同時檢驗模型對線性低頻變化、非線性高頻訊號及條件異質變異的預測能力。每一條模擬路徑共產生850筆觀察值，前650筆作為training，後200筆作為testing。
+
+實驗採用seeds 2020至2039，共20次配對Monte Carlo。對每一個seed均重新產生一條模擬路徑，並在同一條路徑上依序執行B1至B5與OOT-AEnbPI；Original與Local-scale版本也使用完全相同的資料和模型seed，以避免資料差異干擾比較。各項數值以20次實驗的平均值與標準差呈現，預測圖則以seed 2026作為代表。Table \ref{tab:m1m9}為實驗結果。
+
+\subsection*{4.1.2 實驗結果}
+
+\begin{table}[H]
+\centering
+\caption{GARCH二十次蒙地卡羅結果（平均值 $\pm$ 標準差）}
+\label{tab:m1m9}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+方法 & 版本 & RMSE & Coverage(\%) & Mean width & Median width & Lower miss(\%) & Upper miss(\%) & Interval score\\
+\midrule
+OOT-AEnbPI & Original & $3.327\pm0.586$ & $92.200\pm3.439$ & $12.352\pm1.417$ & $12.184\pm1.399$ & $3.6\pm1.8$ & $4.2\pm2.1$ & $17.585\pm4.115$\\
+OOT-AEnbPI-LS & Local-scale & $3.327\pm0.585$ & $92.300\pm1.881$ & $12.433\pm1.832$ & $12.034\pm1.795$ & $3.8\pm1.3$ & $3.9\pm1.3$ & $16.824\pm3.222$\\
+OOT-AEnbPI-IFOMC & Rolling IFOMC & $3.327\pm0.586$ & $93.300\pm4.011$ & $12.753\pm1.476$ & $12.746\pm1.414$ & $3.1\pm2.2$ & $3.5\pm2.3$ & $17.421\pm4.097$\\
+B1 & Original & $3.366\pm0.617$ & $90.350\pm2.611$ & $11.769\pm2.120$ & $11.250\pm1.992$ & $4.8\pm1.5$ & $4.8\pm2.0$ & $17.625\pm4.023$\\
+B1 & Local-scale & $3.366\pm0.617$ & $96.300\pm1.069$ & $14.931\pm2.870$ & $14.366\pm2.660$ & $2.0\pm1.0$ & $1.7\pm0.7$ & $17.064\pm3.519$\\
+B2 & Original & $3.500\pm0.659$ & $89.350\pm2.616$ & $12.091\pm1.827$ & $11.337\pm1.674$ & $5.6\pm1.3$ & $5.0\pm1.8$ & $18.987\pm4.476$\\
+B2 & Local-scale & $3.500\pm0.659$ & $95.625\pm1.459$ & $15.809\pm2.776$ & $15.028\pm2.437$ & $2.1\pm0.9$ & $2.3\pm1.1$ & $17.923\pm3.637$\\
+B3 & Original & $3.366\pm0.602$ & $91.675\pm2.336$ & $12.327\pm2.016$ & $11.753\pm1.820$ & $3.6\pm1.6$ & $4.7\pm1.7$ & $17.313\pm3.971$\\
+B3 & Local-scale & $3.366\pm0.602$ & $96.100\pm1.501$ & $15.110\pm2.856$ & $14.325\pm2.538$ & $1.6\pm1.1$ & $2.3\pm1.0$ & $17.266\pm3.554$\\
+B4 & Original & $3.564\pm0.710$ & $66.225\pm17.251$ & $7.987\pm4.126$ & $7.336\pm3.797$ & $15.4\pm9.0$ & $18.3\pm10.2$ & $35.410\pm14.293$\\
+B4 & Local-scale & $3.564\pm0.710$ & $95.775\pm1.957$ & $16.329\pm3.735$ & $15.651\pm3.359$ & $2.0\pm1.2$ & $2.2\pm1.4$ & $18.728\pm3.925$\\
+B5 & Original & $\mathbf{3.193\pm0.578}$ & $64.850\pm3.554$ & $5.783\pm0.621$ & $5.602\pm0.566$ & $17.6\pm2.1$ & $17.6\pm2.1$ & $30.793\pm8.163$\\
+B5 & Local-scale & $\mathbf{3.193\pm0.578}$ & $95.675\pm1.206$ & $13.640\pm2.400$ & $12.988\pm2.133$ & $2.2\pm0.7$ & $2.2\pm0.9$ & $\mathbf{15.968\pm3.099}$\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+就點預測而言，B5的RMSE為$3.193\pm0.578$，是六種方法中最低者；B1、B3與OOT-AEnbPI的平均RMSE則介於3.327至3.366之間，彼此相近。B1至B5的Local-scale只校準原始區間，因此其點預測與RMSE在校準前後完全相同。OOT-AEnbPI-LS雖包含標準化殘差的bias correction，但20次平均RMSE在四捨五入至小數第三位後仍為3.327，表示此修正對本模擬設定的整體點預測誤差影響有限。
+
+原始區間的結果顯示，較窄的區間不一定具有較好的區間預測表現。B5 Original的平均寬度最小，僅為5.783，但coverage也只有$64.850\%$，interval score達30.793。B4 Original的coverage為$66.225\%$，且跨seed標準差達17.251，顯示其區間表現對不同模擬路徑較為敏感。相較之下，B1、B2、B3與OOT-AEnbPI的coverage介於$89.350\%$至$92.200\%$，雖較接近95\%，仍呈現不同程度的涵蓋不足。
+
+Local-scale校準後，B1至B5的coverage均明顯接近95\%。其中B4由$66.225\%$提高至$95.775\%$，B5由$64.850\%$提高至$95.675\%$，但兩者亦需要增加區間寬度以修正原始涵蓋不足。B5 Local-scale的interval score由30.793降至15.968，為所有方法中最低，顯示其在本模擬設定下取得最佳的coverage與寬度綜合表現。OOT-AEnbPI-LS的interval score為16.824，低於OOT-AEnbPI的17.585，為所有方法中第二低；其平均coverage只由$92.200\%$變為$92.300\%$，仍未達名目水準。不過，其coverage跨seed標準差由3.439降至1.881；此結果僅表示在本次20條模擬路徑中，Local-scale版本呈現較小的coverage跨seed變動，不代表一般情況下必然具有較高穩定性。
+
+OOT-AEnbPI-IFOMC在不改變基礎點預測的情況下，將平均coverage由OOT-AEnbPI的$92.200\%$提高至$93.300\%$，平均寬度則由12.352增至12.753，interval score小幅降為17.421。這表示前一期殘差狀態含有部分下一期誤差資訊；但其coverage的跨seed標準差為4.011，高於OOT-AEnbPI與OOT-AEnbPI-LS，而interval score也高於OOT-AEnbPI-LS的16.824。因此，IFOMC平均上稍微提高涵蓋率，但在不同模擬路徑間的表現較不穩定。
+
+上下界失誤率亦顯示B1至B5校準後的未覆蓋方向較為平衡。以B5為例，Original的下界與上界失誤率均為$17.6\%$，Local-scale後均降為$2.2\%$；OOT-AEnbPI-LS的兩側失誤率則為$3.8\%$與$3.9\%$，與其coverage仍低於95\%的結果一致。此外，各方法的median width大多低於mean width，表示部分較寬區間會拉高平均值，因此同時呈現兩種寬度指標能更完整反映區間寬度分布。
+
+\section*{4.2 元大台灣50 ETF（0050）收盤價}
+
+\subsection*{4.2.1 資料與實驗設定}
+
+第二組實驗使用元大台灣50 ETF（0050）的日資料，變數為Yahoo Finance代號0050.TW之adjusted close。此價格序列沒有太陽黑子資料所呈現的明顯固定週期，主要用來觀察六種方法面對實際金融價格變化時的點預測與區間預測表現。
+
+資料依日期嚴格切分：2020年至2024年為training，共1215筆；2025年1月1日至2026年7月31日為testing，共382筆。模型與Local-scale計算使用$\log(z_t)$轉換後的資料，完成預測後再以$\exp(x)$轉回原價格尺度，所有評估指標與圖形皆在原尺度計算。此實驗為單次實證比較，不進行Monte Carlo重複抽樣。表\ref{tab:0050}為實驗結果。
+
+\subsection*{4.2.2 實驗結果}
+
+\begin{table}[H]
+\centering
+\caption{0050原始區間、Local-scale與rolling IFOMC比較}
+\label{tab:0050}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+方法 & 版本 & RMSE & Coverage(\%) & Mean width & Median width & Lower miss(\%) & Upper miss(\%) & Interval score\\
+\midrule
+OOT-AEnbPI & Original & 1.337 & 91.099 & 3.711 & 3.298 & 4.7 & 4.2 & 7.360\\
+OOT-AEnbPI-LS & Local-scale & \textbf{1.331} & 94.503 & \textbf{4.370} & \textbf{3.367} & 3.4 & 2.1 & \textbf{6.307}\\
+OOT-AEnbPI-IFOMC & Rolling IFOMC & 1.337 & 90.838 & 3.679 & 3.209 & 3.927 & 5.236 & 7.218\\
+B1 & Original & 1.409 & 90.576 & 4.351 & 2.952 & 5.2 & 4.2 & 7.080\\
+B1 & Local-scale & 1.409 & 95.026 & 5.397 & 3.865 & 2.9 & 2.1 & 6.755\\
+B2 & Original & 1.879 & 92.147 & 6.090 & 4.512 & 6.0 & 1.8 & 8.140\\
+B2 & Local-scale & 1.879 & 95.288 & 6.703 & 4.932 & 3.7 & 1.0 & 8.093\\
+B3 & Original & 1.413 & 82.461 & 6.881 & 5.851 & 9.4 & 8.1 & 14.531\\
+B3 & Local-scale & 1.413 & 94.241 & 8.896 & 7.753 & 2.6 & 3.1 & 11.085\\
+B4 & Original & 1.822 & 68.848 & 5.130 & 3.153 & 17.8 & 13.4 & 19.714\\
+B4 & Local-scale & 1.822 & 83.770 & 7.466 & 5.648 & 8.9 & 7.3 & 12.101\\
+B5 & Original & 2.155 & 75.393 & 4.183 & 3.110 & 5.5 & 19.1 & 16.004\\
+B5 & Local-scale & 2.155 & 93.979 & 6.567 & 4.361 & 2.6 & 3.4 & 8.794\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+在0050資料中，OOT-AEnbPI的RMSE為1.337，低於其他五種方法；經Local-scale及bias correction後，OOT-AEnbPI-LS的RMSE進一步微幅降為1.331。B1與B3的RMSE分別為1.409與1.413，次於OOT-AEnbPI；B5的RMSE為2.155，在本測試期間的點預測誤差相對較大。B1至B5在Local-scale前後的RMSE不變，符合其只調整區間、不改變點預測的設計。
+
+從原始區間來看，六種方法的coverage皆低於95\%。B1、B2與OOT-AEnbPI介於$90.576\%$至$92.147\%$，而B3、B4及B5分別為$82.461\%$、$68.848\%$與$75.393\%$。OOT-AEnbPI的平均寬度最小，為3.711，但coverage只有$91.099\%$；B5 Original的平均寬度4.183亦偏窄，且interval score達16.004。因此，僅比較區間寬度不足以判斷區間品質。
+
+Local-scale使六種方法的coverage均提高，且interval score均下降。B1與B2分別達到$95.026\%$及$95.288\%$ coverage；B3與B5亦提高至$94.241\%$及$93.979\%$。B4雖由$68.848\%$改善至$83.770\%$，interval score也由19.714降至12.101，但coverage仍明顯不足，顯示Local-scale在此測試期間未能完全修正B4的涵蓋不足。
+
+OOT-AEnbPI-LS的coverage為$94.503\%$，接近名目水準，同時具有最低RMSE 1.331與最低interval score 6.307。其平均寬度為4.370，小於其他Local-scale方法；相較於interval score次低的B1 Local-scale之6.755，OOT-AEnbPI-LS約再低$6.6\%$。因此，在本研究所選0050測試期間中，OOT-AEnbPI-LS並非依靠大幅增加區間寬度取得coverage，而是在較窄區間下兼顧點預測與區間校準。
+
+OOT-AEnbPI-IFOMC的平均寬度3.679略低於OOT-AEnbPI的3.711，interval score也由7.360小幅降至7.218；但coverage由$91.099\%$略降至$90.838\%$，且上界失誤率為$5.236\%$，高於下界失誤率$3.927\%$。因此，以前一期殘差狀態建立條件區間雖可稍微縮短區間，但未改善本測試期間的涵蓋不足，整體仍以OOT-AEnbPI-LS的取捨較佳。
+
+失誤方向方面，B5 Original的上界失誤率為$19.1\%$，明顯高於下界失誤率$5.5\%$，表示真值高於區間上界的情況較多；Local-scale後兩者分別降為$3.4\%$與$2.6\%$，單側失衡明顯減少。OOT-AEnbPI-LS的下界與上界失誤率分別為$3.4\%$與$2.1\%$，未覆蓋情形亦未嚴重集中於單一方向。各方法的mean width均高於median width，例如B1 Original分別為4.351與2.952，顯示少數較寬區間會拉高平均寬度。
+
+\section*{4.3 太陽黑子資料}
+
+\subsection*{4.3.1 資料與實驗設定}
+
+第三組實驗使用1900年1月至2023年1月的monthly total sunspot number，共1477筆。相較於0050，太陽黑子數具有明顯週期性，且不同週期的高峰振幅並不固定；序列在低谷時可接近0，高峰時則可能快速上升，因此可用來檢驗殘差尺度隨預測水準與週期狀態改變時，各方法的區間反應。
+
+資料依時間順序以前80\%作為training、後20\%作為testing，不採隨機切分。所有預測與評估均維持資料原尺度。雖然太陽黑子數具有非負支撐，本節不將預測區間負下界截斷為0，以避免支撐限制掩蓋各方法原本的區間行為，並單獨觀察Local-scale造成的變化。此實驗同樣為單次實證比較。表\ref{tab:sunspot}為實驗結果。
+
+\subsection*{4.3.2 實驗結果}
+
+\begin{table}[H]
+\centering
+\caption{太陽黑子原始區間、Local-scale與rolling IFOMC比較}
+\label{tab:sunspot}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+方法 & 版本 & RMSE & Coverage(\%) & Mean width & Median width & Lower miss(\%) & Upper miss(\%) & Interval score\\
+\midrule
+OOT-AEnbPI & Original & \textbf{19.581} & 97.297 & 97.859 & 99.481 & 1.7 & 1.0 & 107.378\\
+OOT-AEnbPI-LS & Local-scale & 19.674 & 95.946 & 75.383 & 66.875 & 2.7 & 1.4 & \textbf{86.179}\\
+OOT-AEnbPI-IFOMC & Rolling IFOMC & \textbf{19.581} & 97.973 & 97.522 & 98.511 & 0.676 & 1.351 & 112.370\\
+B1 & Original & 19.887 & 90.203 & 63.794 & 60.566 & 5.4 & 4.4 & 107.028\\
+B1 & Local-scale & 19.887 & 95.608 & 82.248 & 77.841 & 1.7 & 2.7 & 99.175\\
+B2 & Original & 19.938 & 92.230 & 64.908 & 58.242 & 3.0 & 4.7 & 103.185\\
+B2 & Local-scale & 19.938 & 96.622 & 84.674 & 75.375 & 1.4 & 2.0 & 100.674\\
+B3 & Original & 19.886 & 92.568 & 68.512 & 58.151 & 3.4 & 4.1 & 94.361\\
+B3 & Local-scale & 19.886 & 95.608 & 82.303 & 70.384 & 1.7 & 2.7 & 92.167\\
+B4 & Original & 20.364 & 63.514 & 33.093 & 28.070 & 19.9 & 16.6 & 258.780\\
+B4 & Local-scale & 20.364 & 92.905 & 74.448 & 63.328 & 4.4 & 2.7 & 120.638\\
+B5 & Original & 19.596 & 69.595 & 33.614 & 32.134 & 15.2 & 15.2 & 177.780\\
+B5 & Local-scale & 19.596 & 95.946 & 79.428 & 67.371 & 1.4 & 2.7 & 94.615\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+太陽黑子資料的六種點預測RMSE相當接近，介於19.581至20.364之間。OOT-AEnbPI的RMSE 19.581最低，B5的19.596次之；OOT-AEnbPI-LS因bias correction使RMSE變為19.674，但仍與其他方法接近。因此，本實驗的主要差異並非點預測，而是各方法如何反映隨太陽活動狀態改變的預測不確定性。
+
+B1至B5多數原始區間偏窄，尤其B4與B5的平均寬度分別只有33.093與33.614，coverage也只有$63.51\%$與$69.59\%$，因而得到258.780與177.780的高interval score。Local-scale將B4與B5的coverage分別提高至$92.91\%$與$95.95\%$，interval score則大幅降至120.638與94.615。B1、B2與B3校準後也都達到或略高於95\% coverage，其中B3 Local-scale的interval score為92.167，是B1至B5中最低者。
+
+OOT-AEnbPI呈現與其他方法不同的調整方向。其coverage為$97.297\%$，平均寬度97.859，顯示原始區間在本測試期間偏保守；此現象可能與residual pool同時包含不同太陽活動狀態下的誤差有關。經Local-scale依預測水準、變化方向與短長期波動重新估計尺度後，OOT-AEnbPI-LS的平均寬度降至75.383，縮短約$23\%$；coverage仍維持在$95.946\%$，interval score則由107.378降至86.179，為所有方法最低。雖然B4 Local-scale的寬度74.448略窄，其coverage僅$92.905\%$且interval score較高；因此，OOT-AEnbPI-LS在本研究所選太陽黑子測試期間中呈現較佳的coverage與寬度取捨。
+
+OOT-AEnbPI-IFOMC在太陽黑子上的coverage進一步上升至$97.973\%$，但平均寬度97.522幾乎保留OOT-AEnbPI原始區間的寬度，interval score反而上升至112.370。這表示額外coverage並未帶來較佳的寬度與未涵蓋懲罰取捨。相較之下，Local-scale使用預測水準與短長期波動描述當期狀態，比只使用前一期殘差狀態更能區分太陽活動高峰與低谷所需的誤差尺度。
+
+太陽黑子的失誤率也支持上述結果。B4與B5 Original的上下界失誤率皆偏高，其中B4分別為$19.9\%$與$16.6\%$；Local-scale後降為$4.4\%$與$2.7\%$。OOT-AEnbPI-LS的下界與上界失誤率為$2.7\%$與$1.4\%$，合計與$95.95\%$ coverage相符。OOT-AEnbPI的median width亦由原始區間的99.481降至Local-scale版本的66.875，顯示寬度下降不是少數極端時間點造成，而是一般測試期間的區間均有縮短。
+
+\section*{4.4 風速Data1}
+
+\subsection*{4.4.1 資料與實驗設定}
+
+第四組實驗使用\cite{dingmeng2020}釋出之公開程式所附Data1風速資料，變數為10分鐘平均風速。公開CSV在建立四階落後特徵後共1436筆；本研究固定最後100筆為testing，其餘1336筆為測試前可用資料。OOT-AEnbPI的future-block OOT residual、residual-window選擇、Local-scale與IFOMC狀態邊界均只在測試前資料中建立。本實驗比較相同基礎點預測下的OOT-AEnbPI、OOT-AEnbPI-LS與OOT-AEnbPI-IFOMC區間。
+
+\subsection*{4.4.2 實驗結果}
+
+\begin{table}[H]
+\centering
+\caption{風速資料之OOT-AEnbPI三種區間預測器比較}
+\label{tab:wind}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{llrrrrrrr}
+\toprule
+方法 & 版本 & RMSE & Coverage(\%) & Mean width & Median width & Lower miss(\%) & Upper miss(\%) & Interval score\\
+\midrule
+OOT-AEnbPI & Original & 0.912 & 82.0 & 2.480 & 2.467 & 9.0 & 9.0 & 6.823\\
+OOT-AEnbPI-LS & Local-scale & 0.911 & 87.0 & 3.131 & 3.099 & 5.0 & 8.0 & \textbf{5.517}\\
+OOT-AEnbPI-IFOMC & Rolling IFOMC & 0.912 & 83.0 & 2.412 & 2.323 & 7.0 & 10.0 & 6.126\\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+OOT-AEnbPI的coverage為$82.0\%$，顯示原始residual-window區間對此測試期間明顯過窄。OOT-AEnbPI-LS將平均寬度由2.480增至3.131，coverage提高至$87.0\%$，interval score由6.823降至5.517，但仍未達95\%名目水準。OOT-AEnbPI-IFOMC在平均寬度略縮至2.412的情況下，將coverage小幅提高至$83.0\%$，interval score降至6.126，表示殘差狀態轉移含有部分可用資訊。但其上界失誤率達$10.0\%$，顯示較大正殘差仍未被充分涵蓋。
+
+\section*{4.5 跨資料綜合比較}
+
+四種資料的結果顯示，點預測最佳方法會隨資料特性改變。GARCH模擬資料以B5取得最低RMSE；0050由OOT-AEnbPI-LS最低；太陽黑子則由OOT-AEnbPI取得最低RMSE，且與B5相近；風速的三種OOT-AEnbPI區間版本共用相同基礎點預測，其中OOT-AEnbPI與OOT-AEnbPI-IFOMC的RMSE均為0.912。因此，區間表現不能單由RMSE推論。例如，B5在GARCH資料上雖有最佳RMSE，其Original區間卻因過窄而只有$64.850\%$ coverage。
+
+Local-scale對B1至B5的主要效果，是保留既有點預測並重新校準原始區間。在前三種資料中，原始coverage嚴重不足的B4與B5均獲得明顯改善；然而，改善幅度仍取決於原始區間與calibration資料能否代表測試期，例如0050的B4校準後coverage仍只有$83.77\%$，風速的OOT-AEnbPI-LS也僅將coverage由$82.0\%$提高至$87.0\%$。這表示Local-scale可以修正區間尺度，但無法保證完全消除原模型或分布改變造成的區間失準。
+
+以interval score綜合評估coverage、寬度及未覆蓋懲罰時，GARCH模擬資料由B5 Local-scale取得最低值15.968，OOT-AEnbPI-LS以16.824居次；0050、太陽黑子與風速的OOT-AEnbPI區間比較也都由OOT-AEnbPI-LS取得最低interval score，分別為6.307、86.179與5.517。OOT-AEnbPI-IFOMC在GARCH中將OOT-AEnbPI的coverage平均提高1.1個百分點，在風速中也使coverage提高1個百分點且降低interval score；但它在0050未改善coverage，在太陽黑子更保留了原本過寬的區間。
+
+綜合而言，OOT-AEnbPI的三種區間預測器提供不同的條件資訊：原始OOT-AEnbPI著重最近一段時間的殘差分布，OOT-AEnbPI-LS依預測水準、方向與短長期波動調整誤差尺度，OOT-AEnbPI-IFOMC則依前一期殘差狀態建立下一期的條件分布。本次結果顯示殘差轉移狀態含有部分資訊，但僅使用一階狀態尚不足以完整描述異質變異，四種資料的OOT-AEnbPI區間比較均以OOT-AEnbPI-LS取得較低interval score。因此，IFOMC在本研究中應解讀為輕量且可逐期更新的對照區間預測器，而不是已在所有資料上優於Local-scale的替代方法。

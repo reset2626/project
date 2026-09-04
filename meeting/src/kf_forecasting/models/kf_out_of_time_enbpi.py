@@ -23,6 +23,7 @@ from time import perf_counter
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import RobustScaler
 
 from .kf_enbpi import (
     Array,
@@ -680,3 +681,192 @@ def plot_window_selection(
     )
     fig.tight_layout()
     return fig, axes
+
+
+@dataclass
+class LocallyScaledResult:
+    """Local-scale recalibration of an already fitted OOT-EnbPI forecast."""
+
+    predictions: pd.DataFrame
+    summary: pd.DataFrame
+    window_selection: pd.DataFrame
+    selected_window: int | None
+
+
+def causal_state_features(y: Array, times: Array, points: Array) -> Array:
+    """Causal level, forecast-change and trailing-volatility features."""
+    observed = np.asarray(y, dtype=float)
+    rows: list[list[float]] = []
+    for t, point in zip(np.asarray(times, dtype=int), np.asarray(points, dtype=float)):
+        history = observed[:t]
+        d12 = np.diff(history[-13:])
+        d36 = np.diff(history[-37:])
+        rows.append(
+            [
+                float(point),
+                float(point - history[-1]),
+                float(np.std(d12, ddof=1)) if len(d12) > 1 else 0.0,
+                float(np.std(d36, ddof=1)) if len(d36) > 1 else 0.0,
+            ]
+        )
+    return np.asarray(rows, dtype=float)
+
+
+def _knn_residual_scale(
+    train_x: Array,
+    abs_residuals: Array,
+    query_x: Array,
+    *,
+    neighbours: int,
+    leave_self_out: bool = False,
+) -> Array:
+    """Estimate a robust local absolute-residual scale with causal state neighbours."""
+    if neighbours < 1:
+        raise ValueError("neighbours must be positive")
+    scaler = RobustScaler().fit(train_x)
+    x = scaler.transform(train_x)
+    query = scaler.transform(query_x)
+    distances = ((query[:, None, :] - x[None, :, :]) ** 2).sum(axis=2)
+    if leave_self_out and len(query) == len(x):
+        np.fill_diagonal(distances, np.inf)
+    k = min(neighbours, len(train_x) - int(leave_self_out))
+    if k < 1:
+        raise ValueError("Not enough residuals to estimate a local scale")
+    indices = np.argpartition(distances, kth=k - 1, axis=1)[:, :k]
+    absolute = np.asarray(abs_residuals, dtype=float)
+    scales = np.median(absolute[indices], axis=1)
+    floor = max(float(np.quantile(absolute, 0.10)), 1e-6)
+    return np.maximum(scales, floor)
+
+
+def _local_scale_metrics(
+    truth: Array,
+    point: Array,
+    lower: Array,
+    upper: Array,
+    alpha: float,
+) -> dict[str, float]:
+    lower_miss = truth < lower
+    upper_miss = truth > upper
+    width = upper - lower
+    score = width + 2.0 / alpha * (
+        (lower - truth) * lower_miss + (truth - upper) * upper_miss
+    )
+    return {
+        "coverage": float(np.mean((truth >= lower) & (truth <= upper))),
+        "coverage_percent": float(100.0 * np.mean((truth >= lower) & (truth <= upper))),
+        "mean_width": float(np.mean(width)),
+        "median_width": float(np.median(width)),
+        "lower_miss_rate": float(np.mean(lower_miss)),
+        "upper_miss_rate": float(np.mean(upper_miss)),
+        "interval_score": float(np.mean(score)),
+        "rmse": float(np.sqrt(np.mean((truth - point) ** 2))),
+        "mae": float(np.mean(np.abs(truth - point))),
+        "negative_lower_rate": float(np.mean(lower < 0)),
+    }
+
+
+def locally_scaled_from_fitted(
+    fitted: OutOfTimeEnbPIResult,
+    dates: pd.Index,
+    *,
+    neighbours: int = 60,
+    support_lower: float | None = None,
+) -> LocallyScaledResult:
+    """Apply sequential local-scale EnbPI to a fitted OOT-EnbPI model.
+
+    The base ARIMA/ANN hybrid is not refitted.  Cross-fit residuals are divided
+    by causal k-nearest-neighbour scales, the residual window is reselected on
+    standardized training residuals, and every test residual is revealed only
+    after its corresponding interval has been issued.
+    """
+    forecast = fitted.forecast
+    if len(dates) != len(forecast.truth):
+        raise ValueError("dates must have one entry per test observation")
+    observed = forecast.observed
+    crossfit = fitted.crossfit_predictions
+    train_times = crossfit["time"].to_numpy(dtype=int)
+    train_points = crossfit["final_point"].to_numpy(dtype=float)
+    train_residuals = crossfit["final_residual"].to_numpy(dtype=float)
+    train_x = causal_state_features(observed, train_times, train_points)
+    calibration_scales = _knn_residual_scale(
+        train_x,
+        np.abs(train_residuals),
+        train_x,
+        neighbours=neighbours,
+        leave_self_out=True,
+    )
+    standardized = train_residuals / calibration_scales
+    local_config = replace(
+        fitted.forecast.config,
+    )
+    selected, selection = select_residual_window(
+        standardized,
+        OutOfTimeEnbPIConfig(
+            base=local_config,
+            residual_window_candidates=(24, 60, 120, 180, 300, None),
+        ),
+    )
+    pool = np.array(
+        standardized if selected is None else standardized[-selected:], copy=True
+    )
+    max_pool_size = len(pool)
+
+    test_times = forecast.test_times
+    raw_points = forecast.point - forecast.bias_correction
+    test_x = causal_state_features(observed, test_times, raw_points)
+    truth = forecast.truth
+    point, lower, upper, scales = (np.empty_like(truth) for _ in range(4))
+    dynamic_x = np.array(train_x, copy=True)
+    dynamic_abs = np.abs(train_residuals).copy()
+    for j, (actual, raw_point, x_t) in enumerate(zip(truth, raw_points, test_x)):
+        sigma = _knn_residual_scale(
+            dynamic_x,
+            dynamic_abs,
+            x_t[None, :],
+            neighbours=neighbours,
+        )[0]
+        standardized_bias = (
+            float(np.mean(pool)) if forecast.config.oob_bias_correction else 0.0
+        )
+        lo, hi, _ = shortest_residual_offsets(
+            pool - standardized_bias,
+            forecast.config.alpha,
+            forecast.config.beta_grid_size,
+        )
+        point[j] = raw_point + sigma * standardized_bias
+        lower[j] = point[j] + sigma * lo
+        upper[j] = point[j] + sigma * hi
+        scales[j] = sigma
+
+        residual = actual - raw_point
+        pool = _update_pool(pool, residual / sigma, max_pool_size)
+        dynamic_x = np.vstack([dynamic_x, x_t])
+        dynamic_abs = np.r_[dynamic_abs, abs(residual)]
+
+    if support_lower is not None:
+        lower = np.maximum(lower, float(support_lower))
+    predictions = pd.DataFrame(
+        {
+            "date": dates,
+            "method": "M6 OOT Adaptive EnbPI + Local-scale",
+            "truth": truth,
+            "point": point,
+            "lower": lower,
+            "upper": upper,
+            "local_scale": scales,
+        }
+    )
+    summary = pd.DataFrame(
+        [
+            {
+                "method": "M6 OOT Adaptive EnbPI + Local-scale",
+                "selected_window": "all" if selected is None else selected,
+                "neighbours": neighbours,
+                **_local_scale_metrics(
+                    truth, point, lower, upper, forecast.config.alpha
+                ),
+            }
+        ]
+    )
+    return LocallyScaledResult(predictions, summary, selection, selected)
